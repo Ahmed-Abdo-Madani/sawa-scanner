@@ -76,5 +76,12 @@
   "pointCameraAtLabel": "وجه الكاميرا نحو ملصق البيانات الغذائية",
   "analyzingLabel": "جاري تحليل الملصق بالذكاء الاصطناعي...",
   "labelScanComingSoon": "وضع مسح الملصقات جاهز!",
-  "contributeProduct": "ساهم بإضافة المنتج"
+  "contributeProduct": "ساهم بإضافة المنتج",
+  "priceComparison": "مقارنة الأسعار",
+  "viewHistory": "عرض السجل",
+  "addToCart": "أضف إلى السلة",
+  "historicalPriceTrend": "اتجاه السعر التاريخي",
+  "outOfStock": "غير متوفر",
+  "sawaPlusGated": "حصري لـ سوا بلس",
+  "unlockSawaPlus": "اشترك في سوا بلس لعرض سجل الأسعار والاتجاهات بالتفصيل."
 }

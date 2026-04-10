@@ -119,14 +119,22 @@ class IngredientModel extends Ingredient {
 class PriceInfoModel extends PriceInfo {
   const PriceInfoModel({
     required super.merchant,
+    required super.merchantAr,
+    super.logoUrl,
+    super.sourceUrl,
     required super.priceSarInclVat,
+    required super.inStock,
     required super.scrapedAt,
   });
 
   factory PriceInfoModel.fromJson(Map<String, dynamic> json) {
     return PriceInfoModel(
       merchant: json['merchant'] ?? 'Unknown',
+      merchantAr: json['merchant_ar'] ?? '',
+      logoUrl: json['logo_url'],
+      sourceUrl: json['source_url'],
       priceSarInclVat: (json['price_sar_incl_vat'] as num?)?.toDouble() ?? 0.0,
+      inStock: json['in_stock'] ?? true,
       scrapedAt: DateTime.tryParse(json['scraped_at'] ?? '') ?? DateTime.now(),
     );
   }

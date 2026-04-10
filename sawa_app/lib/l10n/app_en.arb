@@ -76,5 +76,12 @@
   "pointCameraAtLabel": "Point camera at nutrition label",
   "analyzingLabel": "Analyzing label with AI...",
   "labelScanComingSoon": "Label scanning mode is ready!",
-  "contributeProduct": "Contribute Product"
+  "contributeProduct": "Contribute Product",
+  "priceComparison": "Price Comparison",
+  "viewHistory": "View History",
+  "addToCart": "Add to Cart",
+  "historicalPriceTrend": "Historical Price Trend",
+  "outOfStock": "Out of Stock",
+  "sawaPlusGated": "Exclusive for Sawa Plus",
+  "unlockSawaPlus": "Unlock Sawa Plus to view detailed price history and trends."
 }

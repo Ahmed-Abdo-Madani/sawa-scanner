@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:sawa_app/l10n/app_localizations.dart';
 
 import 'core/theme/app_theme.dart';
 import 'presentation/providers/locale_provider.dart';
@@ -20,16 +20,8 @@ class SawaApp extends ConsumerWidget {
       onGenerateTitle: (context) => AppLocalizations.of(context)!.appTitle,
       theme: AppTheme.darkTheme(currentLocale),
       locale: currentLocale,
-      supportedLocales: const [
-        Locale('ar'),
-        Locale('en'),
-      ],
-      localizationsDelegates: const [
-        AppLocalizations.delegate,
-        GlobalMaterialLocalizations.delegate,
-        GlobalWidgetsLocalizations.delegate,
-        GlobalCupertinoLocalizations.delegate,
-      ],
+      supportedLocales: AppLocalizations.supportedLocales,
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
       home: const HomeScreen(),
     );
   }

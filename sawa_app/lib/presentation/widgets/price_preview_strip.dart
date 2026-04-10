@@ -1,15 +1,20 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:sawa_app/l10n/app_localizations.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_typography.dart';
+import '../screens/product_detail/price_comparison_screen.dart';
 import 'glass_surface.dart';
 
 class PricePreviewStrip extends StatelessWidget {
+  final String gtin;
+  final String productName;
   final String merchantName;
   final double price;
 
   const PricePreviewStrip({
     super.key,
+    required this.gtin,
+    required this.productName,
     required this.merchantName,
     required this.price,
   });
@@ -68,7 +73,17 @@ class PricePreviewStrip extends StatelessWidget {
               ),
             ),
             ElevatedButton(
-              onPressed: () {}, // Placeholder for Phase 3
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => PriceComparisonScreen(
+                      gtin: gtin,
+                      productName: productName,
+                    ),
+                  ),
+                );
+              },
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primary,
                 foregroundColor: AppColors.background,

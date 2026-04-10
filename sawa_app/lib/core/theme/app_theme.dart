@@ -14,7 +14,7 @@ class AppTheme {
         onSurface: AppColors.onSurface,
       ),
       textTheme: AppTypography.textTheme(locale),
-      cardTheme: CardTheme(
+      cardTheme: CardThemeData(
         color: AppColors.surface,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(20),

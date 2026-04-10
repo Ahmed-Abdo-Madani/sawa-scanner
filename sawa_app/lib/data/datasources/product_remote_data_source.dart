@@ -56,4 +56,42 @@ class ProductRemoteDataSource {
       throw ServerException(e.toString());
     }
   }
+
+  Future<List<PriceInfoModel>> fetchLatestPrices(String gtin) async {
+    try {
+      final response = await client.get(
+        Uri.parse('$baseUrl/products/$gtin/prices'),
+        headers: {'Content-Type': 'application/json'},
+      );
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = json.decode(response.body);
+        return data.map((e) => PriceInfoModel.fromJson(e)).toList();
+      } else {
+        throw ServerException('Failed to fetch prices: ${response.statusCode}');
+      }
+    } catch (e) {
+      if (e is ServerException) rethrow;
+      throw ServerException(e.toString());
+    }
+  }
+
+  Future<List<PriceInfoModel>> fetchPriceHistory(String gtin) async {
+    try {
+      final response = await client.get(
+        Uri.parse('$baseUrl/products/$gtin/prices/history'),
+        headers: {'Content-Type': 'application/json'},
+      );
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = json.decode(response.body);
+        return data.map((e) => PriceInfoModel.fromJson(e)).toList();
+      } else {
+        throw ServerException('Failed to fetch price history: ${response.statusCode}');
+      }
+    } catch (e) {
+      if (e is ServerException) rethrow;
+      throw ServerException(e.toString());
+    }
+  }
 }

@@ -7,6 +7,7 @@ import { OcrService } from './ocr.service';
 import { LlmStructuringService } from './llm-structuring.service';
 import { LabelValidationService } from './label-validation.service';
 import { SfdaMatcherService } from './sfda-matcher.service';
+import { LabelCoreService } from './label-core.service';
 import { Product } from '../entities/product.entity';
 import { NutritionFact } from '../entities/nutrition-fact.entity';
 import { Ingredient } from '../entities/ingredient.entity';
@@ -31,6 +32,14 @@ import { SfdaProhibitedIngredient } from '../entities/sfda-prohibited-ingredient
     LlmStructuringService,
     LabelValidationService,
     SfdaMatcherService,
+    LabelCoreService,
+  ],
+  exports: [
+    OcrService,
+    LlmStructuringService,
+    LabelValidationService,
+    SfdaMatcherService,
+    LabelCoreService,
   ],
 })
 export class ScanModule {}

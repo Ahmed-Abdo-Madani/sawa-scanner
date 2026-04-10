@@ -1,4 +1,4 @@
-import { Entity, PrimaryGeneratedColumn, Column } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, Index } from 'typeorm';
 
 @Entity()
 export class Merchant {
@@ -8,7 +8,8 @@ export class Merchant {
   @Column({ nullable: true })
   name_ar: string;
 
-  @Column({ nullable: true })
+  @Index({ unique: true })
+  @Column({ nullable: true, unique: true })
   name_en: string;
 
   @Column({ nullable: true })

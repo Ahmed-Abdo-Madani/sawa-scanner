@@ -10,6 +10,7 @@ import { ScanLabelDto } from './dto/scan-label.dto';
 import { Product } from '../entities/product.entity';
 import { NutritionFact } from '../entities/nutrition-fact.entity';
 import { Ingredient } from '../entities/ingredient.entity';
+import { LabelCoreService } from './label-core.service';
 
 @Injectable()
 export class ScanService {
@@ -19,6 +20,7 @@ export class ScanService {
     private readonly llmService: LlmStructuringService,
     private readonly validationService: LabelValidationService,
     private readonly sfdaMatcher: SfdaMatcherService,
+    private readonly labelCoreService: LabelCoreService,
     @InjectRepository(Product)
     private readonly productRepo: Repository<Product>,
     @InjectRepository(NutritionFact)
@@ -28,22 +30,8 @@ export class ScanService {
   ) {}
 
   async processLabelScan(dto: ScanLabelDto): Promise<any> {
-    // 1. OCR Extraction
-    const rawText = await this.ocrService.extractText(dto.image);
-    
-    // 2. LLM Structuring
-    const structuredData = await this.llmService.structureLabel(rawText);
-    
-    // 3. Heuristic Validation
-    this.validationService.validate(structuredData);
-    
-    // 4. Null Guards for critical fields
-    if (!structuredData.nutrition) {
-       throw new BadRequestException('Nutrition facts are required for label scans');
-    }
-    if (!structuredData.ingredients) {
-       throw new BadRequestException('Ingredient list is required for label scans');
-    }
+    // 1-4. OCR Pipeline (Centralized)
+    const structuredData = await this.labelCoreService.processImage(dto.image);
 
     // 5. SFDA Safety Matching
     const matchedIngredients = await this.sfdaMatcher.matchIngredients(structuredData.ingredients);

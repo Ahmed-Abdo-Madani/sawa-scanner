@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:sawa_app/l10n/app_localizations.dart';
 import '../../providers/product_provider.dart';
 import '../../widgets/glass_surface.dart';
 import '../../widgets/nutri_score_badge.dart';
@@ -76,6 +76,8 @@ class ProductDetailScreen extends ConsumerWidget {
                 const SizedBox(height: 32),
                 if (product.prices.isNotEmpty)
                    PricePreviewStrip(
+                     gtin: product.gtin,
+                     productName: locale.languageCode == 'ar' ? product.nameAr : product.nameEn,
                      merchantName: product.prices.first.merchant,
                      price: product.prices.first.priceSarInclVat,
                    ),

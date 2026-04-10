@@ -31,17 +31,23 @@ export class Product {
   @Column({ nullable: true })
   sfda_registration_status: string;
 
-  @Column({ nullable: true })
-  halal_certified: boolean;
+  @Column({ type: 'boolean', nullable: true })
+  halal_certified: boolean | null;
 
-  @Column({ nullable: true })
-  nova_group: number;
+  @Column({ type: 'integer', nullable: true })
+  nova_group: number | null;
 
   @Column({ type: 'char', length: 1, nullable: true })
-  nutri_score_grade: string;
+  nutri_score_grade: string | null;
+
+  @Column({ type: 'integer', nullable: true })
+  sfda_npm_score: number | null;
+  
+  @Column({ type: 'double precision', nullable: true })
+  net_weight_value: number;
 
   @Column({ nullable: true })
-  sfda_npm_score: number;
+  net_unit: string;
 
   @CreateDateColumn()
   created_at: Date;
