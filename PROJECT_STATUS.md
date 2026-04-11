@@ -37,8 +37,8 @@ Sawa Scanner is a bilingual (AR/EN) product scanning system designed for the Sau
 ### Phase 4: Environment Setup & Smoke Test (Completed ✅)
 - [x] **SDK Provisioning**: Flutter SDK installed and path initialized.
 - [x] **Full-Stack Orchestration**: 
-  - PostgreSQL 17 integration with successful migration execution.
-  - Redis 5.x local service integrated for BullMQ task processing.
+  - **Neon Cloud PostgreSQL** integration with successful migration execution and SSL support.
+  - **Redis Cloud** integration for BullMQ task processing with TLS and password authentication.
 - [x] **Credential Hardening**: 
   - Firebase Admin SDK successfully initialized with valid private keys.
   - Google Cloud Vision API enabled and path-verified.
@@ -49,6 +49,81 @@ Sawa Scanner is a bilingual (AR/EN) product scanning system designed for the Sau
   - Updated `AppLocalizations` imports and removed hardcoded delegates/locales in `app.dart`.
   - Migrated `CardTheme` to `CardThemeData` in `AppTheme` for Flutter SDK compatibility.
   - Verified codebase with `flutter analyze` and `flutter gen-l10n`.
+
+### Phase 5: Material 3 Theme Migration (Completed ✅)
+- [x] **Theme Overhaul**: Integrated **Material 3 Light Theme** with an explicit `ColorScheme` mapped to `AppColors` for cross-component consistency.
+- [x] **Color Tokens**: Updated `AppColors` to light palette (#FAFAFA background, #00C853 primary).
+- [x] **Component Refactoring**: 
+  - Refactored `GlassSurface` to use standard Material `Card` with zero margin and anti-alias clipping to preserve layout semantics.
+  - Fixed accessibility for `NutriScoreBadge`, `NovaGroupBadge`, and `HalalBadge` by ensuring white text on colored backgrounds.
+  - Updated `ScannerScreen` and `ProductDetailScreen` for readability in light mode.
+- [x] **Bilingual Integrity**: Ensured `ThemeShowcaseScreen` and other modified views use `AppLocalizations` for all UI text, maintaining full AR/EN support.
+
+### Phase 6: OpenFoodFacts Integration (Completed ✅)
+- [x] **SDK Integration**: Added `openfoodfacts: ^3.30.2` dependency.
+- [x] **Automated Fallback**: Implemented fallback logic in `ProductRepositoryImpl` to query OFF if the Sawa API returns a 404 (ProductNotFoundException).
+- [x] **Data Mapping**: Created `OpenFoodFactsDataSource` to map OFF product data (Nutriscore, Eco-score, Allergens, Ingredients) to the Sawa `ProductModel`.
+- [x] **Domain Extension**: Extended `Product` entity and repository interface with new fields and search capabilities.
+- [x] **Search Support**: Integrated OFF global search functionality via `searchProducts`.
+- [x] **Camera Overlay Optimization**: Adjusted `ModePill` and `Flash Button` for high contrast on camera previews.
+
+### Phase 7: Knowledge Panel Redesign (Completed ✅)
+- [x] **Layout Overhaul**: Rebuilt `ProductDetailScreen` with a collapsible **Knowledge Panel Cards** system for prioritized info density.
+- [x] **Badge System 2.0**: 
+    - Redesigned `NutriScoreBadge` and `NovaGroupBadge` as horizontal segment indicators (A–E and 1–4).
+    - Integrated `EcoScoreBadge` (environmental impact) with official segment coloring.
+- [x] **New Components**: Created `KnowledgePanelCard` as a reusable M3 widget with expandable content.
+- [x] **Hero Section Real Estate**: Moved certification badges (SFDA, Halal) to the hero header to improve content scannability.
+- [x] **Bilingual UX Refinement (Completed ✅)**: 
+    - Resolved raw OFF tags by normalizing labels (e.g., "en:milk" -> "Milk").
+    - Replaced hardcoded panel summaries with localized templates and pluralization.
+    - Added comprehensive empty state for Allergens panel based on data availability.
+    
+### Phase 8: Search, History & Navigation (Completed ✅)
+- [x] **Navigation Shell**: Migrated to a persistent 4-tab `IndexedStack` navigation using M3 `NavigationBar`.
+- [x] **Scan History**:
+    - Implemented with **Hive** (`scanHistoryBox`).
+    - Persistent de-duplicated list with automatic recording on success.
+    - Features: Dismiss-to-delete, Clear-all, and relative date formatting (Today/Yesterday).
+- [x] **Product Search**:
+    - Integrated logic in `SearchScreen` with **500ms debounce**.
+    - Fully reactive results via `searchResultsProvider` using OFF API fallback.
+- [x] **New Providers**:
+    - `scanHistoryProvider`: Manage local persistence.
+    - `searchQueryProvider` & `searchResultsProvider`: Handle search state.
+- [x] **Bilingual Support (Finalized ✅)**: 
+    - Regenerated the localization API (`AppLocalizations`) using the Flutter SDK.
+    - Added 25+ localization keys across `History`, `Profile`, `Search`, and `Navigation`.
+    - Resolved variable scope issues in the Profile screen and verified all relevant screens compile and consume localized getters.
+- [x] **Scan Accuracy (Refined ✅)**: 
+    - Moved history recording logic from the detail screen to `ScannerScreen`.
+    - Searches and history re-opens no longer misclassified as new scans.
+101: 
+### Phase 9: Onboarding & User Preferences (Finalized ✅)
+- [x] **New Hive Box**: `userPreferencesBox` for settings persistence.
+- [x] **4-Page Onboarding**:
+    - Language selection with live UI swap.
+    - Dietary preference selection (Vegan, Halal Only, etc.).
+    - Allergen filter selection (Peanuts, Dairy, etc.).
+    - Summary confirmation page.
+- [x] **First-Launch Gate**: App startup logic in `app.dart` to conditionally show onboarding.
+- [x] **Profile Editing**: Added interactive preference and allergen sections to the Profile tab.
+- [x] **Bilingual Sync**: Fully localized keys (AR/EN) and synchronized locale transitions with `userPreferencesProvider`.
+- [x] **Persistence Durability (Finalized ✅)**: 
+    - Implemented a robust, loop-based **Persistence Barrier** in `UserPreferencesNotifier` to guarantee atomic settings commits even under rapid-fire updates.
+    - Switched from legacy observers to the modern `AppLifecycleListener` in `SawaApp` to ensure a best-effort "drain" of the persistence queue whenever the app is backgrounded or paused.
+    - Updated `_persist()` to capture synchronous state snapshots before the async chain, preventing data drift.
+    - Added explicit `_box.flush()` and error logging to ensure hardware commit and visibility into write failures.
+
+### Phase 10: Code Hardening & Constants Extraction (Completed ✅)
+- [x] **Single Source of Truth**:
+    - Extracted all raw string literals for Hive box names and preference field keys into `UserPreferencesKeys`.
+    - Consolidated 12+ dietary and allergen IDs into a canonical `PreferenceOptions` list with localized label resolvers.
+- [x] **UI Decoupling**:
+    - Refactored `OnboardingScreen` and `ProfileScreen` to dynamically render preference chips from the canonical list, eliminating duplicated logic and reducing drift risk.
+    - Centralized startup read logic in `main.dart` to share the same key definitions used by the notifier.
+- [x] **Logic Safety**:
+    - Verified all call sites route through the serialized notifier queue to prevent race conditions during rapid app suspension.
 
 ---
 
@@ -75,7 +150,13 @@ Sawa Scanner is a bilingual (AR/EN) product scanning system designed for the Sau
 | **Scanner Dashboard** | [`lib/presentation/screens/scanner/scanner_screen.dart`](file:///c:/Users/Design_Bench_12/Documents/sawa-scanner/sawa_app/lib/presentation/screens/scanner/scanner_screen.dart) | Barcode/Label scanner UI. |
 | **Detail Engine** | [`lib/presentation/screens/product_detail/product_detail_screen.dart`](file:///c:/Users/Design_Bench_12/Documents/sawa-scanner/sawa_app/lib/presentation/screens/product_detail/product_detail_screen.dart) | Product analysis view. |
 | **State Management** | [`lib/presentation/providers/scanner_provider.dart`](file:///c:/Users/Design_Bench_12/Documents/sawa-scanner/sawa_app/lib/presentation/providers/scanner_provider.dart) | Riverpod providers for scanning. |
-| **Design Tokens** | [`lib/core/theme/`](file:///c:/Users/Design_Bench_12/Documents/sawa-scanner/sawa_app/lib/core/theme/) | AppTheme, colors, and typography. |
+| **Design Tokens** | [`lib/core/theme/`](file:///c:/Users/Design_Bench_12/Documents/sawa-scanner/sawa_app/lib/core/theme/) | M3 Light Theme, colors, and typography. |
+| **Score Utils** | [`lib/core/utils/grade_colors.dart`](file:///c:/Users/Design_Bench_12/Documents/sawa-scanner/sawa_app/lib/core/utils/grade_colors.dart) | Segment coloring logic for Nutri/Nova/Eco scores. |
+| **Panel System** | [`lib/presentation/widgets/knowledge_panel_card.dart`](file:///c:/Users/Design_Bench_12/Documents/sawa-scanner/sawa_app/lib/presentation/widgets/knowledge_panel_card.dart) | Reusable collapsible card component. |
+| **Navigation Shell** | [`lib/presentation/screens/navigation_shell.dart`](file:///c:/Users/Design_Bench_12/Documents/sawa-scanner/sawa_app/lib/presentation/screens/navigation_shell.dart) | Tab management shell. |
+| **History Logic** | [`lib/presentation/providers/scan_history_provider.dart`](file:///c:/Users/Design_Bench_12/Documents/sawa-scanner/sawa_app/lib/presentation/providers/scan_history_provider.dart) | Hive-backed scan history. |
+| **User Prefs** | [`lib/presentation/providers/user_preferences_provider.dart`](file:///c:/Users/Design_Bench_12/Documents/sawa-scanner/sawa_app/lib/presentation/providers/user_preferences_provider.dart) | Dietary/Allergen settings. |
+| **Onboarding UI** | [`lib/presentation/screens/onboarding/onboarding_screen.dart`](file:///c:/Users/Design_Bench_12/Documents/sawa-scanner/sawa_app/lib/presentation/screens/onboarding/onboarding_screen.dart) | 4-page onboarding flow. |
 
 ---
 
@@ -83,8 +164,8 @@ Sawa Scanner is a bilingual (AR/EN) product scanning system designed for the Sau
 The following are now **fully configured** in the local environment:
 - [x] `GOOGLE_APPLICATION_CREDENTIALS`: Linked to `config/service-account.json`.
 - [x] `GEMINI_API_KEY`: Verified and active.
-- [x] `DATABASE_URL` / Credentials: User authenticated, migrations synced.
-- [x] `REDIS_URL` / Local Service: Active for BullMQ queueing.
+- [x] **Neon Cloud Database**: Connected via SSL (`DATABASE_SSL=true`), migrations synced.
+- [x] **Redis Cloud**: Active for BullMQ queueing with TLS and password authentication.
 
 ---
 
@@ -94,6 +175,9 @@ The following are now **fully configured** in the local environment:
 - **Validation**: Heuristic validator now enforces a strict 100g limit on macro sums.
 - **Scanner Reliability**: Barcode detection disabled in Label mode.
 - **Precision**: SFDA queries are now case-insensitive.
+- **Theme Migration**: Completed transition from glassmorphism to Material 3 Light Theme across all 17 UI files. Surface effects now use standard elevations and clean cards for better performance and readability.
+- **Preference Durability**: Resolved a critical issue where Flutter's `void` callbacks prevented async persistence from being effective during app suspension. Now uses the modern `AppLifecycleListener` and a queue-tail barrier to guarantee best-effort disk flushes on backgrounding.
+- **Structural Integrity**: Extracted magic strings and preference IDs into a centralized constants layer (`UserPreferencesKeys` & `PreferenceOptions`), ensuring that UI, storage, and startup logic never fall out of sync.
 
 ---
 
@@ -101,6 +185,6 @@ The following are now **fully configured** in the local environment:
 1. **SFDA Expansion**: Populate `sfda_prohibited_ingredients` with full restricted additive lists.
 2. **Offline Support**: Cache scanned products locally via SQLite/Drift.
 3. **Analytics**: Implement event tracking for scan success/failure rates.
-4. **Fine-Tuning**: Adjust Gemini prompt if label parsing for local KSA brands is inconsistent.
+4. **Preference Filtering**: Update search and scan logic to actually highlight matched/prohibited items based on user preferences.
 5. **Real-time Price Sync**: periodic updates for existing product prices.
 6. **Provider Expansion**: Implement `CarrefourScraper` and `PandaScraper` templates.

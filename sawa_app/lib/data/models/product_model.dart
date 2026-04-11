@@ -19,6 +19,11 @@ class ProductModel extends Product {
     required super.ingredients,
     required super.prices,
     required super.images,
+    super.ecoScore,
+    super.allergens = const [],
+    super.allergensDataAvailable = false,
+    super.categories = const [],
+    super.ingredientsText,
   });
 
   factory ProductModel.fromJson(Map<String, dynamic> json) {
@@ -47,6 +52,11 @@ class ProductModel extends Product {
               ?.map((e) => ProductImageModel.fromJson(e as Map<String, dynamic>))
               .toList() ??
           [],
+      ecoScore: json['eco_score']?.toString(),
+      allergens: (json['allergens'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? const [],
+      allergensDataAvailable: json['allergens_data_available'] as bool? ?? false,
+      categories: (json['categories'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? const [],
+      ingredientsText: json['ingredients_text']?.toString(),
     );
   }
 }

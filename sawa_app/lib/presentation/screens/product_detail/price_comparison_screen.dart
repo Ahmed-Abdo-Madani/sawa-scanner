@@ -1,4 +1,3 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sawa_app/l10n/app_localizations.dart';
@@ -7,7 +6,6 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:intl/intl.dart' as intl;
 
 import '../../providers/price_comparison_provider.dart';
-import '../../widgets/glass_surface.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../domain/entities/price_info.dart';
@@ -80,8 +78,10 @@ class PriceComparisonScreen extends ConsumerWidget {
   Widget _buildPriceCard(BuildContext context, PriceInfo price, AppLocalizations l10n, Locale locale) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
-      child: GlassSurface(
-        borderRadius: BorderRadius.circular(16),
+      child: Card(
+        elevation: 0,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        color: AppColors.surface,
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Row(
@@ -91,7 +91,7 @@ class PriceComparisonScreen extends ConsumerWidget {
                 width: 48,
                 height: 48,
                 decoration: BoxDecoration(
-                  color: AppColors.surfaceGlass,
+                  color: AppColors.onSurface.withOpacity(0.08),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: price.logoUrl != null 
@@ -175,12 +175,11 @@ class PriceComparisonScreen extends ConsumerWidget {
             // Sawa Plus Gate Overlay
             if (!isPlus)
               Positioned.fill(
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(16),
-                  child: BackdropFilter(
-                    filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
-                    child: Container(
-                      color: AppColors.background.withOpacity(0.4),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: AppColors.background.withOpacity(0.85),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
@@ -212,11 +211,10 @@ class PriceComparisonScreen extends ConsumerWidget {
                         ],
                       ),
                     ),
-                  ),
                 ),
               ),
-          ],
-        );
+            ],
+          );
       },
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (err, _) => const SizedBox.shrink(),

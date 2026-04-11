@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 import '../../data/datasources/product_remote_data_source.dart';
+import '../../data/datasources/openfoodfacts_data_source.dart';
 import '../../data/repositories/product_repository_impl.dart';
 import '../../domain/entities/product.dart';
 import '../../domain/repositories/product_repository.dart';
@@ -12,9 +13,15 @@ final productRemoteDataSourceProvider = Provider((ref) {
   return ProductRemoteDataSource(client: client);
 });
 
+final openFoodFactsDataSourceProvider = Provider((ref) => OpenFoodFactsDataSource());
+
 final productRepositoryProvider = Provider<ProductRepository>((ref) {
   final remoteDataSource = ref.watch(productRemoteDataSourceProvider);
-  return ProductRepositoryImpl(remoteDataSource: remoteDataSource);
+  final openFoodFactsDataSource = ref.watch(openFoodFactsDataSourceProvider);
+  return ProductRepositoryImpl(
+    remoteDataSource: remoteDataSource,
+    openFoodFactsDataSource: openFoodFactsDataSource,
+  );
 });
 
 final productByGtinProvider = FutureProvider.family<Product, String>((ref, gtin) async {

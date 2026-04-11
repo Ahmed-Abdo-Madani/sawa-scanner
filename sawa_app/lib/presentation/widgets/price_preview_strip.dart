@@ -86,7 +86,7 @@ class PricePreviewStrip extends StatelessWidget {
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primary,
-                foregroundColor: AppColors.background,
+                foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
@@ -96,7 +96,7 @@ class PricePreviewStrip extends StatelessWidget {
                 l10n.comparePrices,
                 style: AppTypography.body(locale).copyWith(
                   fontWeight: FontWeight.bold,
-                  color: AppColors.background,
+                  color: Colors.white,
                 ),
               ),
             ),

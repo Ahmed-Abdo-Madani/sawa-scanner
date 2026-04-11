@@ -54,8 +54,11 @@ async function bootstrap() {
   bullBoardAdapter.setBasePath('/admin/queues');
 
   const redisOptions = {
-    host: configService.get('REDIS_HOST') || 'localhost',
-    port: parseInt(configService.get('REDIS_PORT') || '6379', 10),
+    host: configService.get<string>('REDIS_HOST'),
+    port: configService.get<number>('REDIS_PORT'),
+    username: configService.get<string>('REDIS_USERNAME'),
+    password: configService.get<string>('REDIS_PASSWORD'),
+    tls: configService.get<string>('REDIS_TLS') === 'true' ? {} : undefined,
   };
 
   const ingestionQ = new Queue('ingestion-queue', { connection: redisOptions });

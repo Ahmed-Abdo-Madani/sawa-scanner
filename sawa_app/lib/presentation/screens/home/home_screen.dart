@@ -48,12 +48,12 @@ class HomeScreen extends StatelessWidget {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Icon(Icons.qr_code_scanner, size: 32, color: AppColors.background),
+                      const Icon(Icons.qr_code_scanner, size: 32, color: Colors.white),
                       const SizedBox(width: 16),
                       Text(
                         l10n.scanNow,
                         style: AppTypography.headline(locale).copyWith(
-                          color: AppColors.background,
+                          color: Colors.white,
                           fontWeight: FontWeight.bold,
                         ),
                       ),

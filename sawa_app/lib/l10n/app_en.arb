@@ -83,5 +83,100 @@
   "historicalPriceTrend": "Historical Price Trend",
   "outOfStock": "Out of Stock",
   "sawaPlusGated": "Exclusive for Sawa Plus",
-  "unlockSawaPlus": "Unlock Sawa Plus to view detailed price history and trends."
+  "unlockSawaPlus": "Unlock Sawa Plus to view detailed price history and trends.",
+  "ecoScore": "Eco-Score",
+  "ecoScoreDescription": "Environmental impact",
+  "allergensTitle": "Allergens",
+  "noAllergens": "No allergens detected",
+  "sfdaSafety": "SFDA Safety",
+  "nutriScoreTitle": "Nutri-Score",
+  "novaGroupTitle": "NOVA Group",
+  "nutritionFactsTitle": "Nutrition Facts",
+  "ingredientsTitle": "Ingredients",
+  "processingLevel1": "Unprocessed or minimally processed",
+  "processingLevel2": "Processed culinary ingredients",
+  "processingLevel3": "Processed foods",
+  "processingLevel4": "Ultra-processed products",
+  "environmentalImpact": "Environmental Impact",
+  "gradeSummary": "Grade {grade}",
+  "@gradeSummary": {
+    "placeholders": {
+      "grade": { "type": "String" }
+    }
+  },
+  "novaGroupSummary": "Group {group}",
+  "@novaGroupSummary": {
+    "placeholders": {
+      "group": { "type": "int" }
+    }
+  },
+  "per100g": "per 100g",
+  "ingredientsCount": "{count, plural, =1{1 ingredient} other{{count} ingredients}}",
+  "@ingredientsCount": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "flaggedItemsCount": "{count, plural, =1{1 flagged item} other{{count} flagged items}}",
+  "@flaggedItemsCount": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "scanTab": "Scan",
+  "searchTab": "Search",
+  "historyTab": "History",
+  "profileTab": "Profile",
+  "searchProducts": "Search Products",
+  "searchHint": "Search by product name...",
+  "noResults": "No results found",
+  "scanHistory": "Scan History",
+  "clearHistory": "Clear History",
+  "scannedOn": "Scanned on {date}",
+  "@scannedOn": {
+    "placeholders": {
+      "date": { "type": "String" }
+    }
+  },
+  "noHistory": "No scan history yet",
+  "clearHistoryConfirm": "Are you sure you want to clear all your scan history?",
+  "cancel": "Cancel",
+  "clear": "Clear",
+  "today": "Today",
+  "yesterday": "Yesterday",
+  "language": "Language",
+  "english": "English",
+  "arabic": "Arabic",
+  "notifications": "Notifications",
+  "privacyAndSecurity": "Privacy & Security",
+  "sawaPlus": "Sawa Plus",
+  "manageSubscription": "Manage Subscription",
+  "freePlan": "Free",
+  "userName": "User Name",
+  "welcomeTitle": "Welcome to Sawa",
+  "welcomeSubtitle": "Scan products to check nutrition, safety, and find the best prices",
+  "dietaryPreferences": "Dietary Preferences",
+  "allergenFilters": "Allergen Alerts",
+  "getStarted": "Get Started",
+  "skipForNow": "Skip for now",
+  "next": "Next",
+  "back": "Back",
+  "vegan": "Vegan",
+  "vegetarian": "Vegetarian",
+  "halalOnly": "Halal Only",
+  "glutenFree": "Gluten Free",
+  "peanuts": "Peanuts",
+  "dairy": "Dairy",
+  "soy": "Soy",
+  "eggs": "Eggs",
+  "wheat": "Wheat",
+  "fish": "Fish",
+  "shellfish": "Shellfish",
+  "treeNuts": "Tree Nuts",
+  "editPreferences": "Edit Preferences",
+  "yourPreferences": "Your Preferences",
+  "yourAllergens": "Your Allergens",
+  "confirmationTitle": "You're All Set!",
+  "confirmationSubtitle": "Here's a summary of your preferences",
+  "selectLanguage": "Select Language"
 }

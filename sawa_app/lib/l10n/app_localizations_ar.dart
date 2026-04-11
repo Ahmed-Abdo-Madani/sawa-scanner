@@ -217,4 +217,240 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String get unlockSawaPlus =>
       'اشترك في سوا بلس لعرض سجل الأسعار والاتجاهات بالتفصيل.';
+
+  @override
+  String get ecoScore => 'النتيجة البيئية';
+
+  @override
+  String get ecoScoreDescription => 'الأثر البيئي';
+
+  @override
+  String get allergensTitle => 'مسببات الحساسية';
+
+  @override
+  String get noAllergens => 'لم يتم اكتشاف مسببات حساسية';
+
+  @override
+  String get sfdaSafety => 'سلامة SFDA';
+
+  @override
+  String get nutriScoreTitle => 'التقييم الغذائي';
+
+  @override
+  String get novaGroupTitle => 'مجموعة NOVA';
+
+  @override
+  String get nutritionFactsTitle => 'القيم الغذائية';
+
+  @override
+  String get ingredientsTitle => 'المكونات';
+
+  @override
+  String get processingLevel1 => 'غير معالج أو معالج بالحد الأدنى';
+
+  @override
+  String get processingLevel2 => 'مكونات طهي معالجة';
+
+  @override
+  String get processingLevel3 => 'أغذية معالجة';
+
+  @override
+  String get processingLevel4 => 'منتجات فائقة المعالجة';
+
+  @override
+  String get environmentalImpact => 'التأثير البيئي';
+
+  @override
+  String gradeSummary(String grade) {
+    return 'الدرجة $grade';
+  }
+
+  @override
+  String novaGroupSummary(int group) {
+    return 'المجموعة $group';
+  }
+
+  @override
+  String get per100g => 'لكل ١٠٠ غ';
+
+  @override
+  String ingredientsCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count مكونات',
+      two: 'مكونان',
+      one: 'مكون واحد',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String flaggedItemsCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count مواد منبهة',
+      two: 'مادتان منبهتان',
+      one: 'مادة منبهة واحدة',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get scanTab => 'مسح';
+
+  @override
+  String get searchTab => 'بحث';
+
+  @override
+  String get historyTab => 'السجل';
+
+  @override
+  String get profileTab => 'الحساب';
+
+  @override
+  String get searchProducts => 'البحث عن منتجات';
+
+  @override
+  String get searchHint => 'ابحث باسم المنتج...';
+
+  @override
+  String get noResults => 'لم يتم العثور على نتائج';
+
+  @override
+  String get scanHistory => 'سجل المسح';
+
+  @override
+  String get clearHistory => 'مسح السجل';
+
+  @override
+  String scannedOn(String date) {
+    return 'تم المسح في $date';
+  }
+
+  @override
+  String get noHistory => 'لا يوجد سجل مسح بعد';
+
+  @override
+  String get clearHistoryConfirm =>
+      'هل أنت متأكد من رغبتك في مسح سجل المسح بالكامل؟';
+
+  @override
+  String get cancel => 'إلغاء';
+
+  @override
+  String get clear => 'مسح';
+
+  @override
+  String get today => 'اليوم';
+
+  @override
+  String get yesterday => 'أمس';
+
+  @override
+  String get language => 'اللغة';
+
+  @override
+  String get english => 'الإنجليزية';
+
+  @override
+  String get arabic => 'العربية';
+
+  @override
+  String get notifications => 'الإشعارات';
+
+  @override
+  String get privacyAndSecurity => 'الخصوصية والأمان';
+
+  @override
+  String get sawaPlus => 'سوا بلس';
+
+  @override
+  String get manageSubscription => 'إدارة الاشتراك';
+
+  @override
+  String get freePlan => 'مجاني';
+
+  @override
+  String get userName => 'اسم المستخدم';
+
+  @override
+  String get welcomeTitle => 'مرحباً بك في ساوا';
+
+  @override
+  String get welcomeSubtitle =>
+      'امسح المنتجات للتحقق من التغذية والسلامة وأفضل الأسعار';
+
+  @override
+  String get dietaryPreferences => 'التفضيلات الغذائية';
+
+  @override
+  String get allergenFilters => 'تنبيهات الحساسية';
+
+  @override
+  String get getStarted => 'ابدأ الآن';
+
+  @override
+  String get skipForNow => 'تخطي الآن';
+
+  @override
+  String get next => 'التالي';
+
+  @override
+  String get back => 'رجوع';
+
+  @override
+  String get vegan => 'نباتي';
+
+  @override
+  String get vegetarian => 'نباتي (لاكتو)';
+
+  @override
+  String get halalOnly => 'حلال فقط';
+
+  @override
+  String get glutenFree => 'خالٍ من الغلوتين';
+
+  @override
+  String get peanuts => 'فول سوداني';
+
+  @override
+  String get dairy => 'منتجات الألبان';
+
+  @override
+  String get soy => 'صويا';
+
+  @override
+  String get eggs => 'بيض';
+
+  @override
+  String get wheat => 'قمح';
+
+  @override
+  String get fish => 'سمك';
+
+  @override
+  String get shellfish => 'محار';
+
+  @override
+  String get treeNuts => 'مكسرات شجرية';
+
+  @override
+  String get editPreferences => 'تعديل التفضيلات';
+
+  @override
+  String get yourPreferences => 'تفضيلاتك';
+
+  @override
+  String get yourAllergens => 'مسببات الحساسية';
+
+  @override
+  String get confirmationTitle => 'أنت جاهز!';
+
+  @override
+  String get confirmationSubtitle => 'إليك ملخص تفضيلاتك';
+
+  @override
+  String get selectLanguage => 'اختر اللغة';
 }

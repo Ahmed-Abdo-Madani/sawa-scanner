@@ -1,6 +1,4 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
-import '../../core/theme/app_colors.dart';
 
 class GlassSurface extends StatelessWidget {
   final Widget child;
@@ -16,16 +14,13 @@ class GlassSurface extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: borderRadius,
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 20.0, sigmaY: 20.0),
-        child: Container(
-          color: AppColors.surfaceGlass,
-          padding: padding,
-          child: child,
-        ),
-      ),
+    return Card(
+      elevation: 0,
+      margin: EdgeInsets.zero,
+      clipBehavior: Clip.antiAlias,
+      color: Theme.of(context).colorScheme.surface,
+      shape: RoundedRectangleBorder(borderRadius: borderRadius),
+      child: padding != null ? Padding(padding: padding!, child: child) : child,
     );
   }
 }

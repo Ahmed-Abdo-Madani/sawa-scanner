@@ -24,7 +24,7 @@ class HalalBadge extends StatelessWidget {
       child: Text(
         l10n.halalCertified,
         style: AppTypography.headline(locale).copyWith(
-          color: AppColors.background,
+          color: Colors.white,
           fontWeight: FontWeight.w900,
           fontSize: 16,
         ),

@@ -3,19 +3,26 @@ import 'app_colors.dart';
 import 'app_typography.dart';
 
 class AppTheme {
-  static ThemeData darkTheme(Locale locale) {
+  static ThemeData lightTheme(Locale locale) {
     return ThemeData(
-      scaffoldBackgroundColor: AppColors.background,
-      colorScheme: ColorScheme.dark(
+      useMaterial3: true,
+      colorScheme: ColorScheme.light(
         primary: AppColors.primary,
+        onPrimary: Colors.white,
         secondary: AppColors.secondary,
-        error: AppColors.error,
+        onSecondary: Colors.white,
         surface: AppColors.surface,
         onSurface: AppColors.onSurface,
+        background: AppColors.background,
+        onBackground: AppColors.onBackground,
+        error: AppColors.error,
+        onError: Colors.white,
       ),
+      scaffoldBackgroundColor: AppColors.background,
       textTheme: AppTypography.textTheme(locale),
       cardTheme: CardThemeData(
         color: AppColors.surface,
+        elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(20),
         ),
@@ -31,7 +38,8 @@ class AppTheme {
         ),
       ),
       appBarTheme: const AppBarTheme(
-        backgroundColor: Colors.transparent,
+        backgroundColor: AppColors.surface,
+        foregroundColor: AppColors.onBackground,
         elevation: 0,
       ),
     );

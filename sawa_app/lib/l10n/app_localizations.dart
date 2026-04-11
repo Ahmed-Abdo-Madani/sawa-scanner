@@ -63,7 +63,7 @@ import 'app_localizations_en.dart';
 /// property.
 abstract class AppLocalizations {
   AppLocalizations(String locale)
-      : localeName = intl.Intl.canonicalizedLocale(locale.toString());
+    : localeName = intl.Intl.canonicalizedLocale(locale.toString());
 
   final String localeName;
 
@@ -86,16 +86,16 @@ abstract class AppLocalizations {
   /// of delegates is preferred or required.
   static const List<LocalizationsDelegate<dynamic>> localizationsDelegates =
       <LocalizationsDelegate<dynamic>>[
-    delegate,
-    GlobalMaterialLocalizations.delegate,
-    GlobalCupertinoLocalizations.delegate,
-    GlobalWidgetsLocalizations.delegate,
-  ];
+        delegate,
+        GlobalMaterialLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+      ];
 
   /// A list of this localizations delegate's supported locales.
   static const List<Locale> supportedLocales = <Locale>[
     Locale('ar'),
-    Locale('en')
+    Locale('en'),
   ];
 
   /// No description provided for @appTitle.
@@ -505,6 +505,426 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Unlock Sawa Plus to view detailed price history and trends.'**
   String get unlockSawaPlus;
+
+  /// No description provided for @ecoScore.
+  ///
+  /// In en, this message translates to:
+  /// **'Eco-Score'**
+  String get ecoScore;
+
+  /// No description provided for @ecoScoreDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Environmental impact'**
+  String get ecoScoreDescription;
+
+  /// No description provided for @allergensTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Allergens'**
+  String get allergensTitle;
+
+  /// No description provided for @noAllergens.
+  ///
+  /// In en, this message translates to:
+  /// **'No allergens detected'**
+  String get noAllergens;
+
+  /// No description provided for @sfdaSafety.
+  ///
+  /// In en, this message translates to:
+  /// **'SFDA Safety'**
+  String get sfdaSafety;
+
+  /// No description provided for @nutriScoreTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Nutri-Score'**
+  String get nutriScoreTitle;
+
+  /// No description provided for @novaGroupTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'NOVA Group'**
+  String get novaGroupTitle;
+
+  /// No description provided for @nutritionFactsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Nutrition Facts'**
+  String get nutritionFactsTitle;
+
+  /// No description provided for @ingredientsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Ingredients'**
+  String get ingredientsTitle;
+
+  /// No description provided for @processingLevel1.
+  ///
+  /// In en, this message translates to:
+  /// **'Unprocessed or minimally processed'**
+  String get processingLevel1;
+
+  /// No description provided for @processingLevel2.
+  ///
+  /// In en, this message translates to:
+  /// **'Processed culinary ingredients'**
+  String get processingLevel2;
+
+  /// No description provided for @processingLevel3.
+  ///
+  /// In en, this message translates to:
+  /// **'Processed foods'**
+  String get processingLevel3;
+
+  /// No description provided for @processingLevel4.
+  ///
+  /// In en, this message translates to:
+  /// **'Ultra-processed products'**
+  String get processingLevel4;
+
+  /// No description provided for @environmentalImpact.
+  ///
+  /// In en, this message translates to:
+  /// **'Environmental Impact'**
+  String get environmentalImpact;
+
+  /// No description provided for @gradeSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'Grade {grade}'**
+  String gradeSummary(String grade);
+
+  /// No description provided for @novaGroupSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'Group {group}'**
+  String novaGroupSummary(int group);
+
+  /// No description provided for @per100g.
+  ///
+  /// In en, this message translates to:
+  /// **'per 100g'**
+  String get per100g;
+
+  /// No description provided for @ingredientsCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 ingredient} other{{count} ingredients}}'**
+  String ingredientsCount(int count);
+
+  /// No description provided for @flaggedItemsCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 flagged item} other{{count} flagged items}}'**
+  String flaggedItemsCount(int count);
+
+  /// No description provided for @scanTab.
+  ///
+  /// In en, this message translates to:
+  /// **'Scan'**
+  String get scanTab;
+
+  /// No description provided for @searchTab.
+  ///
+  /// In en, this message translates to:
+  /// **'Search'**
+  String get searchTab;
+
+  /// No description provided for @historyTab.
+  ///
+  /// In en, this message translates to:
+  /// **'History'**
+  String get historyTab;
+
+  /// No description provided for @profileTab.
+  ///
+  /// In en, this message translates to:
+  /// **'Profile'**
+  String get profileTab;
+
+  /// No description provided for @searchProducts.
+  ///
+  /// In en, this message translates to:
+  /// **'Search Products'**
+  String get searchProducts;
+
+  /// No description provided for @searchHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Search by product name...'**
+  String get searchHint;
+
+  /// No description provided for @noResults.
+  ///
+  /// In en, this message translates to:
+  /// **'No results found'**
+  String get noResults;
+
+  /// No description provided for @scanHistory.
+  ///
+  /// In en, this message translates to:
+  /// **'Scan History'**
+  String get scanHistory;
+
+  /// No description provided for @clearHistory.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear History'**
+  String get clearHistory;
+
+  /// No description provided for @scannedOn.
+  ///
+  /// In en, this message translates to:
+  /// **'Scanned on {date}'**
+  String scannedOn(String date);
+
+  /// No description provided for @noHistory.
+  ///
+  /// In en, this message translates to:
+  /// **'No scan history yet'**
+  String get noHistory;
+
+  /// No description provided for @clearHistoryConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Are you sure you want to clear all your scan history?'**
+  String get clearHistoryConfirm;
+
+  /// No description provided for @cancel.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get cancel;
+
+  /// No description provided for @clear.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear'**
+  String get clear;
+
+  /// No description provided for @today.
+  ///
+  /// In en, this message translates to:
+  /// **'Today'**
+  String get today;
+
+  /// No description provided for @yesterday.
+  ///
+  /// In en, this message translates to:
+  /// **'Yesterday'**
+  String get yesterday;
+
+  /// No description provided for @language.
+  ///
+  /// In en, this message translates to:
+  /// **'Language'**
+  String get language;
+
+  /// No description provided for @english.
+  ///
+  /// In en, this message translates to:
+  /// **'English'**
+  String get english;
+
+  /// No description provided for @arabic.
+  ///
+  /// In en, this message translates to:
+  /// **'Arabic'**
+  String get arabic;
+
+  /// No description provided for @notifications.
+  ///
+  /// In en, this message translates to:
+  /// **'Notifications'**
+  String get notifications;
+
+  /// No description provided for @privacyAndSecurity.
+  ///
+  /// In en, this message translates to:
+  /// **'Privacy & Security'**
+  String get privacyAndSecurity;
+
+  /// No description provided for @sawaPlus.
+  ///
+  /// In en, this message translates to:
+  /// **'Sawa Plus'**
+  String get sawaPlus;
+
+  /// No description provided for @manageSubscription.
+  ///
+  /// In en, this message translates to:
+  /// **'Manage Subscription'**
+  String get manageSubscription;
+
+  /// No description provided for @freePlan.
+  ///
+  /// In en, this message translates to:
+  /// **'Free'**
+  String get freePlan;
+
+  /// No description provided for @userName.
+  ///
+  /// In en, this message translates to:
+  /// **'User Name'**
+  String get userName;
+
+  /// No description provided for @welcomeTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Welcome to Sawa'**
+  String get welcomeTitle;
+
+  /// No description provided for @welcomeSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Scan products to check nutrition, safety, and find the best prices'**
+  String get welcomeSubtitle;
+
+  /// No description provided for @dietaryPreferences.
+  ///
+  /// In en, this message translates to:
+  /// **'Dietary Preferences'**
+  String get dietaryPreferences;
+
+  /// No description provided for @allergenFilters.
+  ///
+  /// In en, this message translates to:
+  /// **'Allergen Alerts'**
+  String get allergenFilters;
+
+  /// No description provided for @getStarted.
+  ///
+  /// In en, this message translates to:
+  /// **'Get Started'**
+  String get getStarted;
+
+  /// No description provided for @skipForNow.
+  ///
+  /// In en, this message translates to:
+  /// **'Skip for now'**
+  String get skipForNow;
+
+  /// No description provided for @next.
+  ///
+  /// In en, this message translates to:
+  /// **'Next'**
+  String get next;
+
+  /// No description provided for @back.
+  ///
+  /// In en, this message translates to:
+  /// **'Back'**
+  String get back;
+
+  /// No description provided for @vegan.
+  ///
+  /// In en, this message translates to:
+  /// **'Vegan'**
+  String get vegan;
+
+  /// No description provided for @vegetarian.
+  ///
+  /// In en, this message translates to:
+  /// **'Vegetarian'**
+  String get vegetarian;
+
+  /// No description provided for @halalOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'Halal Only'**
+  String get halalOnly;
+
+  /// No description provided for @glutenFree.
+  ///
+  /// In en, this message translates to:
+  /// **'Gluten Free'**
+  String get glutenFree;
+
+  /// No description provided for @peanuts.
+  ///
+  /// In en, this message translates to:
+  /// **'Peanuts'**
+  String get peanuts;
+
+  /// No description provided for @dairy.
+  ///
+  /// In en, this message translates to:
+  /// **'Dairy'**
+  String get dairy;
+
+  /// No description provided for @soy.
+  ///
+  /// In en, this message translates to:
+  /// **'Soy'**
+  String get soy;
+
+  /// No description provided for @eggs.
+  ///
+  /// In en, this message translates to:
+  /// **'Eggs'**
+  String get eggs;
+
+  /// No description provided for @wheat.
+  ///
+  /// In en, this message translates to:
+  /// **'Wheat'**
+  String get wheat;
+
+  /// No description provided for @fish.
+  ///
+  /// In en, this message translates to:
+  /// **'Fish'**
+  String get fish;
+
+  /// No description provided for @shellfish.
+  ///
+  /// In en, this message translates to:
+  /// **'Shellfish'**
+  String get shellfish;
+
+  /// No description provided for @treeNuts.
+  ///
+  /// In en, this message translates to:
+  /// **'Tree Nuts'**
+  String get treeNuts;
+
+  /// No description provided for @editPreferences.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit Preferences'**
+  String get editPreferences;
+
+  /// No description provided for @yourPreferences.
+  ///
+  /// In en, this message translates to:
+  /// **'Your Preferences'**
+  String get yourPreferences;
+
+  /// No description provided for @yourAllergens.
+  ///
+  /// In en, this message translates to:
+  /// **'Your Allergens'**
+  String get yourAllergens;
+
+  /// No description provided for @confirmationTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'You\'re All Set!'**
+  String get confirmationTitle;
+
+  /// No description provided for @confirmationSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Here\'s a summary of your preferences'**
+  String get confirmationSubtitle;
+
+  /// No description provided for @selectLanguage.
+  ///
+  /// In en, this message translates to:
+  /// **'Select Language'**
+  String get selectLanguage;
 }
 
 class _AppLocalizationsDelegate
@@ -534,8 +954,9 @@ AppLocalizations lookupAppLocalizations(Locale locale) {
   }
 
   throw FlutterError(
-      'AppLocalizations.delegate failed to load unsupported locale "$locale". This is likely '
-      'an issue with the localizations generation tool. Please file an issue '
-      'on GitHub with a reproducible sample app and the gen-l10n configuration '
-      'that was used.');
+    'AppLocalizations.delegate failed to load unsupported locale "$locale". This is likely '
+    'an issue with the localizations generation tool. Please file an issue '
+    'on GitHub with a reproducible sample app and the gen-l10n configuration '
+    'that was used.',
+  );
 }

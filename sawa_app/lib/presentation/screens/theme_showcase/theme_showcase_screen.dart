@@ -4,7 +4,6 @@ import 'package:sawa_app/l10n/app_localizations.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../providers/locale_provider.dart';
-import '../../widgets/glass_surface.dart';
 
 class ThemeShowcaseScreen extends ConsumerWidget {
   const ThemeShowcaseScreen({super.key});
@@ -39,7 +38,6 @@ class ThemeShowcaseScreen extends ConsumerWidget {
               children: [
                 _ColorSwatch(color: AppColors.background, name: l10n.colorBackground),
                 _ColorSwatch(color: AppColors.surface, name: l10n.colorSurface),
-                _ColorSwatch(color: AppColors.surfaceGlass, name: l10n.colorSurfaceGlass),
                 _ColorSwatch(color: AppColors.primary, name: l10n.colorPrimary),
                 _ColorSwatch(color: AppColors.secondary, name: l10n.colorSecondary),
                 _ColorSwatch(color: AppColors.error, name: l10n.colorError),
@@ -71,27 +69,22 @@ class ThemeShowcaseScreen extends ConsumerWidget {
             _TypographyRow(label: l10n.labelCaption, style: AppTypography.caption(const Locale('ar')), text: l10n.fontMeta('IBM Plex Sans Arabic', 'w400', '12'), isRtl: true),
 
             const SizedBox(height: 32),
-            Text(l10n.glassmorphismPreview),
+            Text(l10n.colorSurface),
             const SizedBox(height: 16),
-            Container(
-              height: 200,
-              width: double.infinity,
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [AppColors.primary, AppColors.secondary],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-              ),
-              alignment: Alignment.center,
-              child: GlassSurface(
+            Card(
+              elevation: 0,
+              margin: EdgeInsets.zero,
+              clipBehavior: Clip.antiAlias,
+              color: AppColors.surface,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              child: Padding(
                 padding: const EdgeInsets.all(24.0),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(l10n.glassSurface, style: AppTypography.headline(locale).copyWith(color: AppColors.onBackground)),
+                    Text(l10n.appTitle, style: AppTypography.headline(locale).copyWith(color: AppColors.onBackground)),
                     const SizedBox(height: 8),
-                    Text(l10n.blurredBackdropTest, style: AppTypography.body(locale).copyWith(color: AppColors.onSurface)),
+                    Text(l10n.colorSurface, style: AppTypography.body(locale).copyWith(color: AppColors.onSurface)),
                   ],
                 ),
               ),
@@ -117,7 +110,7 @@ class ThemeShowcaseScreen extends ConsumerWidget {
         label: Text(l10n.scanNow),
         icon: const Icon(Icons.qr_code_scanner),
         backgroundColor: AppColors.primary,
-        foregroundColor: AppColors.background,
+        foregroundColor: Colors.white,
       ),
     );
   }
@@ -139,7 +132,7 @@ class _ColorSwatch extends StatelessWidget {
           decoration: BoxDecoration(
             color: color,
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.white24),
+            border: Border.all(color: Colors.black12),
           ),
         ),
         const SizedBox(height: 8),

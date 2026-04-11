@@ -32,6 +32,7 @@ import { validate } from './config/env.validation';
         database: config.get<string>('DATABASE_NAME'),
         autoLoadEntities: true,
         synchronize: false,
+        ssl: config.get<string>('DATABASE_SSL') === 'true' ? { rejectUnauthorized: false } : false,
       }),
     }),
     BullModule.forRootAsync({
@@ -40,6 +41,10 @@ import { validate } from './config/env.validation';
         connection: {
           host: config.get<string>('REDIS_HOST'),
           port: config.get<number>('REDIS_PORT'),
+          username: config.get<string>('REDIS_USERNAME'),
+          password: config.get<string>('REDIS_PASSWORD'),
+          tls: config.get<string>('REDIS_TLS') === 'true' ? {} : undefined,
+          maxRetriesPerRequest: null,
         },
       }),
     }),

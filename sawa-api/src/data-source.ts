@@ -19,6 +19,7 @@ export const AppDataSource = new DataSource({
   database: process.env.DATABASE_NAME || 'sawa',
   synchronize: false,
   logging: true,
+  ssl: process.env.DATABASE_SSL === 'true' ? { rejectUnauthorized: false } : false,
   entities: [
     Product,
     NutritionFact,

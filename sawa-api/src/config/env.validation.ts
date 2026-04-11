@@ -41,11 +41,23 @@ class EnvironmentVariables {
   DATABASE_PASSWORD: string;
 
   @IsString()
+  DATABASE_SSL: string;
+
+  @IsString()
   @IsNotEmpty()
   REDIS_HOST: string;
 
   @IsNumber()
   REDIS_PORT: number;
+
+  @IsString()
+  REDIS_USERNAME: string;
+
+  @IsString()
+  REDIS_PASSWORD: string;
+
+  @IsString()
+  REDIS_TLS: string;
 
   @IsString()
   @IsNotEmpty()

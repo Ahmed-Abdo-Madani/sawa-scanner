@@ -83,5 +83,100 @@
   "historicalPriceTrend": "اتجاه السعر التاريخي",
   "outOfStock": "غير متوفر",
   "sawaPlusGated": "حصري لـ سوا بلس",
-  "unlockSawaPlus": "اشترك في سوا بلس لعرض سجل الأسعار والاتجاهات بالتفصيل."
+  "unlockSawaPlus": "اشترك في سوا بلس لعرض سجل الأسعار والاتجاهات بالتفصيل.",
+  "ecoScore": "النتيجة البيئية",
+  "ecoScoreDescription": "الأثر البيئي",
+  "allergensTitle": "مسببات الحساسية",
+  "noAllergens": "لم يتم اكتشاف مسببات حساسية",
+  "sfdaSafety": "سلامة SFDA",
+  "nutriScoreTitle": "التقييم الغذائي",
+  "novaGroupTitle": "مجموعة NOVA",
+  "nutritionFactsTitle": "القيم الغذائية",
+  "ingredientsTitle": "المكونات",
+  "processingLevel1": "غير معالج أو معالج بالحد الأدنى",
+  "processingLevel2": "مكونات طهي معالجة",
+  "processingLevel3": "أغذية معالجة",
+  "processingLevel4": "منتجات فائقة المعالجة",
+  "environmentalImpact": "التأثير البيئي",
+  "gradeSummary": "الدرجة {grade}",
+  "@gradeSummary": {
+    "placeholders": {
+      "grade": { "type": "String" }
+    }
+  },
+  "novaGroupSummary": "المجموعة {group}",
+  "@novaGroupSummary": {
+    "placeholders": {
+      "group": { "type": "int" }
+    }
+  },
+  "per100g": "لكل ١٠٠ غ",
+  "ingredientsCount": "{count, plural, =1{مكون واحد} =2{مكونان} other{{count} مكونات}}",
+  "@ingredientsCount": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "flaggedItemsCount": "{count, plural, =1{مادة منبهة واحدة} =2{مادتان منبهتان} other{{count} مواد منبهة}}",
+  "@flaggedItemsCount": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "scanTab": "مسح",
+  "searchTab": "بحث",
+  "historyTab": "السجل",
+  "profileTab": "الحساب",
+  "searchProducts": "البحث عن منتجات",
+  "searchHint": "ابحث باسم المنتج...",
+  "noResults": "لم يتم العثور على نتائج",
+  "scanHistory": "سجل المسح",
+  "clearHistory": "مسح السجل",
+  "scannedOn": "تم المسح في {date}",
+  "@scannedOn": {
+    "placeholders": {
+      "date": { "type": "String" }
+    }
+  },
+  "noHistory": "لا يوجد سجل مسح بعد",
+  "clearHistoryConfirm": "هل أنت متأكد من رغبتك في مسح سجل المسح بالكامل؟",
+  "cancel": "إلغاء",
+  "clear": "مسح",
+  "today": "اليوم",
+  "yesterday": "أمس",
+  "language": "اللغة",
+  "english": "الإنجليزية",
+  "arabic": "العربية",
+  "notifications": "الإشعارات",
+  "privacyAndSecurity": "الخصوصية والأمان",
+  "sawaPlus": "سوا بلس",
+  "manageSubscription": "إدارة الاشتراك",
+  "freePlan": "مجاني",
+  "userName": "اسم المستخدم",
+  "welcomeTitle": "مرحباً بك في ساوا",
+  "welcomeSubtitle": "امسح المنتجات للتحقق من التغذية والسلامة وأفضل الأسعار",
+  "dietaryPreferences": "التفضيلات الغذائية",
+  "allergenFilters": "تنبيهات الحساسية",
+  "getStarted": "ابدأ الآن",
+  "skipForNow": "تخطي الآن",
+  "next": "التالي",
+  "back": "رجوع",
+  "vegan": "نباتي",
+  "vegetarian": "نباتي (لاكتو)",
+  "halalOnly": "حلال فقط",
+  "glutenFree": "خالٍ من الغلوتين",
+  "peanuts": "فول سوداني",
+  "dairy": "منتجات الألبان",
+  "soy": "صويا",
+  "eggs": "بيض",
+  "wheat": "قمح",
+  "fish": "سمك",
+  "shellfish": "محار",
+  "treeNuts": "مكسرات شجرية",
+  "editPreferences": "تعديل التفضيلات",
+  "yourPreferences": "تفضيلاتك",
+  "yourAllergens": "مسببات الحساسية",
+  "confirmationTitle": "أنت جاهز!",
+  "confirmationSubtitle": "إليك ملخص تفضيلاتك",
+  "selectLanguage": "اختر اللغة"
 }

@@ -17,6 +17,11 @@ class Product {
   final List<Ingredient> ingredients;
   final List<PriceInfo> prices;
   final List<ProductImage> images;
+  final String? ecoScore;
+  final List<String> allergens;
+  final bool allergensDataAvailable;
+  final List<String> categories;
+  final String? ingredientsText;
 
   const Product({
     required this.id,
@@ -32,5 +37,10 @@ class Product {
     required this.ingredients,
     required this.prices,
     required this.images,
+    this.ecoScore,
+    this.allergens = const [],
+    this.allergensDataAvailable = false,
+    this.categories = const [],
+    this.ingredientsText,
   });
 }

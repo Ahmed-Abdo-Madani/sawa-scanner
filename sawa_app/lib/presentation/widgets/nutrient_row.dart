@@ -51,7 +51,7 @@ class NutrientRow extends StatelessWidget {
                 Container(
                   height: 6,
                   width: double.infinity,
-                  color: AppColors.surfaceGlass,
+                  color: AppColors.onSurface.withOpacity(0.12),
                 ),
                 FractionallySizedBox(
                   widthFactor: percentage.clamp(0.0, 1.0),

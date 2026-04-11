@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sawa_app/l10n/app_localizations.dart';
 import '../../providers/product_provider.dart';
-import '../../widgets/glass_surface.dart';
+import '../../providers/scan_history_provider.dart';
 import '../../widgets/nutri_score_badge.dart';
 import '../../widgets/nova_group_badge.dart';
+import '../../widgets/eco_score_badge.dart';
+import '../../widgets/knowledge_panel_card.dart';
 import '../../widgets/halal_badge.dart';
 import '../../widgets/ingredient_chip.dart';
 import '../../widgets/nutrient_row.dart';
@@ -13,6 +15,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../domain/entities/product.dart';
 import '../../../core/exceptions.dart';
+import '../../../domain/entities/ingredient.dart';
 
 class ProductDetailScreen extends ConsumerWidget {
   final String gtin;
@@ -48,53 +51,149 @@ class ProductDetailScreen extends ConsumerWidget {
   }
 
   Widget _buildContent(BuildContext context, Product product, AppLocalizations l10n, Locale locale) {
-     return CustomScrollView(
+    return CustomScrollView(
       slivers: [
         SliverAppBar(
           expandedHeight: 320,
           backgroundColor: AppColors.background,
           pinned: true,
+          elevation: 0,
+          scrolledUnderElevation: 0,
           leading: IconButton(
-            icon: const Icon(Icons.arrow_back, color: Colors.white),
+            icon: const Icon(Icons.arrow_back, color: AppColors.onBackground),
             onPressed: () => Navigator.pop(context),
           ),
           flexibleSpace: FlexibleSpaceBar(
             background: _buildHero(context, product, l10n, locale),
           ),
         ),
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 24, 20, 40),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildGradeRow(product),
-                const SizedBox(height: 32),
-                _buildNutritionSection(product, l10n, locale),
-                const SizedBox(height: 32),
-                _buildIngredientsSection(product, l10n, locale),
-                const SizedBox(height: 32),
-                if (product.prices.isNotEmpty)
-                   PricePreviewStrip(
-                     gtin: product.gtin,
-                     productName: locale.languageCode == 'ar' ? product.nameAr : product.nameEn,
-                     merchantName: product.prices.first.merchant,
-                     price: product.prices.first.priceSarInclVat,
-                   ),
-                const SizedBox(height: 48),
-                _buildDisclaimer(l10n, locale),
-                const SizedBox(height: 40),
-              ],
-            ),
-          ),
+        SliverList(
+          delegate: SliverChildListDelegate([
+            const SizedBox(height: 16),
+            
+            // 1. Nutri-Score Panel
+            if (product.nutriScoreGrade != null)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                child: KnowledgePanelCard(
+                  leadingIcon: Icons.restaurant_menu,
+                  iconColor: Colors.green.shade600,
+                  title: l10n.nutriScoreTitle,
+                  summary: l10n.gradeSummary(product.nutriScoreGrade!.toUpperCase()),
+                  initiallyExpanded: true,
+                  content: NutriScoreBadge(grade: product.nutriScoreGrade!),
+                ),
+              ),
+
+            // 2. NOVA Group Panel
+            if (product.novaGroup != null)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                child: KnowledgePanelCard(
+                  leadingIcon: Icons.science,
+                  iconColor: Colors.orange.shade700,
+                  title: l10n.novaGroupTitle,
+                  summary: l10n.novaGroupSummary(product.novaGroup!),
+                  content: NovaGroupBadge(group: product.novaGroup!),
+                ),
+              ),
+
+            // 3. Eco-Score Panel
+            if (product.ecoScore != null)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                child: KnowledgePanelCard(
+                  leadingIcon: Icons.eco,
+                  iconColor: Colors.teal.shade700,
+                  title: l10n.ecoScore,
+                  summary: l10n.gradeSummary(product.ecoScore!.toUpperCase()),
+                  content: EcoScoreBadge(grade: product.ecoScore!),
+                ),
+              ),
+
+            // 4. Nutrition Facts Panel
+            if (product.nutritionFact != null)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                child: KnowledgePanelCard(
+                  leadingIcon: Icons.restaurant,
+                  iconColor: Colors.orange.shade600,
+                  title: l10n.nutritionFactsTitle,
+                  summary: l10n.per100g,
+                  content: _buildNutritionContent(product, l10n, locale),
+                ),
+              ),
+
+            // 5. Ingredients Panel
+            if (product.ingredients.isNotEmpty || product.ingredientsText != null)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                child: KnowledgePanelCard(
+                  leadingIcon: Icons.science_outlined,
+                  iconColor: Colors.teal.shade600,
+                  title: l10n.ingredientsTitle,
+                  summary: l10n.ingredientsCount(product.ingredients.length),
+                  content: _buildIngredientsContent(product, l10n, locale),
+                ),
+              ),
+
+            // 6. Allergens Panel
+            if (product.allergensDataAvailable)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                child: KnowledgePanelCard(
+                  leadingIcon: Icons.warning_amber,
+                  iconColor: Colors.red.shade700,
+                  title: l10n.allergensTitle,
+                  summary: product.allergens.isNotEmpty 
+                      ? product.allergens.join(', ') 
+                      : l10n.noAllergens,
+                  content: _buildAllergensContent(product, l10n, locale),
+                ),
+              ),
+
+            // 7. SFDA Safety Panel (Conditional)
+            if (product.ingredients.any((i) => i.sfdaStatus != IngredientSfdaStatus.safe))
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                child: KnowledgePanelCard(
+                  leadingIcon: Icons.shield,
+                  iconColor: Colors.red.shade800,
+                  title: l10n.sfdaSafety,
+                  summary: l10n.flaggedItemsCount(
+                    product.ingredients.where((i) => i.sfdaStatus != IngredientSfdaStatus.safe).length
+                  ),
+                  content: _buildSfdaSafetyContent(product, l10n, locale),
+                ),
+              ),
+
+            // 8. Price Comparison
+            if (product.prices.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                child: PricePreviewStrip(
+                  gtin: product.gtin,
+                  productName: locale.languageCode == 'ar' ? product.nameAr : product.nameEn,
+                  merchantName: product.prices.first.merchant,
+                  price: product.prices.first.priceSarInclVat,
+                ),
+              ),
+
+            const SizedBox(height: 24),
+            _buildDisclaimer(l10n, locale),
+            const SizedBox(height: 48),
+          ]),
         ),
       ],
     );
   }
 
   Widget _buildHero(BuildContext context, Product product, AppLocalizations l10n, Locale locale) {
-    return GlassSurface(
-      borderRadius: const BorderRadius.vertical(bottom: Radius.circular(32)),
+    return Container(
+      decoration: const BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.vertical(bottom: Radius.circular(32)),
+      ),
       child: Stack(
         children: [
           Center(
@@ -124,9 +223,20 @@ class ProductDetailScreen extends ConsumerWidget {
                     fontSize: 26,
                   ),
                 ),
-                if (product.sfdaRegistrationStatus == 'registered' || product.sfdaRegistrationStatus == 'active') ...[
+                if (product.sfdaRegistrationStatus == 'registered' || 
+                    product.sfdaRegistrationStatus == 'active' || 
+                    product.halalCertified == true) ...[
                   const SizedBox(height: 12),
-                  _buildSfdaBadge(l10n, locale),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      if (product.sfdaRegistrationStatus == 'registered' || product.sfdaRegistrationStatus == 'active')
+                        _buildSfdaBadge(l10n, locale),
+                      if (product.halalCertified == true)
+                        const HalalBadge(isCertified: true),
+                    ],
+                  ),
                 ],
               ],
             ),
@@ -161,31 +271,13 @@ class ProductDetailScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildGradeRow(Product product) {
-    return Row(
-      children: [
-        if (product.nutriScoreGrade != null) ...[
-          NutriScoreBadge(grade: product.nutriScoreGrade!),
-          const SizedBox(width: 12),
-        ],
-        if (product.novaGroup != null)
-          NovaGroupBadge(group: product.novaGroup!),
-        const Spacer(),
-        if (product.halalCertified != null)
-          HalalBadge(isCertified: product.halalCertified!),
-      ],
-    );
-  }
 
-  Widget _buildNutritionSection(Product product, AppLocalizations l10n, Locale locale) {
+  Widget _buildNutritionContent(Product product, AppLocalizations l10n, Locale locale) {
     final nutrition = product.nutritionFact;
     if (nutrition == null) return const SizedBox.shrink();
 
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(l10n.nutritionFacts, style: AppTypography.headline(locale)),
-        const SizedBox(height: 20),
         NutrientRow(
           label: l10n.calories,
           value: '${nutrition.energyKcal?.toInt() ?? 0} kcal',
@@ -238,22 +330,71 @@ class ProductDetailScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildIngredientsSection(Product product, AppLocalizations l10n, Locale locale) {
-    if (product.ingredients.isEmpty) return const SizedBox.shrink();
-
+  Widget _buildIngredientsContent(Product product, AppLocalizations l10n, Locale locale) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(l10n.ingredientsAndAdditives, style: AppTypography.headline(locale)),
-        const SizedBox(height: 20),
-        Wrap(
-          spacing: 10,
-          runSpacing: 14,
-          children: product.ingredients
-              .map((ing) => IngredientChip(ingredient: ing))
-              .toList(),
-        ),
+        if (product.ingredients.isNotEmpty)
+          Wrap(
+            spacing: 8,
+            runSpacing: 10,
+            children: product.ingredients
+                .map((ing) => IngredientChip(ingredient: ing))
+                .toList(),
+          ),
+        if (product.ingredientsText != null) ...[
+          if (product.ingredients.isNotEmpty) const SizedBox(height: 16),
+          Text(
+            product.ingredientsText!,
+            style: AppTypography.caption(locale).copyWith(
+              color: AppColors.onSurface,
+              height: 1.5,
+            ),
+          ),
+        ],
       ],
+    );
+  }
+
+  Widget _buildAllergensContent(Product product, AppLocalizations l10n, Locale locale) {
+    if (product.allergens.isEmpty) {
+      return Text(l10n.noAllergens, style: AppTypography.body(locale));
+    }
+
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: product.allergens.map((allergen) {
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          decoration: BoxDecoration(
+            color: const Color(0xFFFFEBEE),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: const Color(0xFFFFCDD2)),
+          ),
+          child: Text(
+            allergen,
+            style: AppTypography.caption(locale).copyWith(
+              color: const Color(0xFFC62828),
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  Widget _buildSfdaSafetyContent(Product product, AppLocalizations l10n, Locale locale) {
+    final flagged = product.ingredients.where((i) => i.sfdaStatus != IngredientSfdaStatus.safe).toList();
+    
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: flagged.map((ing) {
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 8.0),
+          child: IngredientChip(ingredient: ing),
+        );
+      }).toList(),
     );
   }
 

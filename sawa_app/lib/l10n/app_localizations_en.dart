@@ -217,4 +217,238 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get unlockSawaPlus =>
       'Unlock Sawa Plus to view detailed price history and trends.';
+
+  @override
+  String get ecoScore => 'Eco-Score';
+
+  @override
+  String get ecoScoreDescription => 'Environmental impact';
+
+  @override
+  String get allergensTitle => 'Allergens';
+
+  @override
+  String get noAllergens => 'No allergens detected';
+
+  @override
+  String get sfdaSafety => 'SFDA Safety';
+
+  @override
+  String get nutriScoreTitle => 'Nutri-Score';
+
+  @override
+  String get novaGroupTitle => 'NOVA Group';
+
+  @override
+  String get nutritionFactsTitle => 'Nutrition Facts';
+
+  @override
+  String get ingredientsTitle => 'Ingredients';
+
+  @override
+  String get processingLevel1 => 'Unprocessed or minimally processed';
+
+  @override
+  String get processingLevel2 => 'Processed culinary ingredients';
+
+  @override
+  String get processingLevel3 => 'Processed foods';
+
+  @override
+  String get processingLevel4 => 'Ultra-processed products';
+
+  @override
+  String get environmentalImpact => 'Environmental Impact';
+
+  @override
+  String gradeSummary(String grade) {
+    return 'Grade $grade';
+  }
+
+  @override
+  String novaGroupSummary(int group) {
+    return 'Group $group';
+  }
+
+  @override
+  String get per100g => 'per 100g';
+
+  @override
+  String ingredientsCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count ingredients',
+      one: '1 ingredient',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String flaggedItemsCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count flagged items',
+      one: '1 flagged item',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get scanTab => 'Scan';
+
+  @override
+  String get searchTab => 'Search';
+
+  @override
+  String get historyTab => 'History';
+
+  @override
+  String get profileTab => 'Profile';
+
+  @override
+  String get searchProducts => 'Search Products';
+
+  @override
+  String get searchHint => 'Search by product name...';
+
+  @override
+  String get noResults => 'No results found';
+
+  @override
+  String get scanHistory => 'Scan History';
+
+  @override
+  String get clearHistory => 'Clear History';
+
+  @override
+  String scannedOn(String date) {
+    return 'Scanned on $date';
+  }
+
+  @override
+  String get noHistory => 'No scan history yet';
+
+  @override
+  String get clearHistoryConfirm =>
+      'Are you sure you want to clear all your scan history?';
+
+  @override
+  String get cancel => 'Cancel';
+
+  @override
+  String get clear => 'Clear';
+
+  @override
+  String get today => 'Today';
+
+  @override
+  String get yesterday => 'Yesterday';
+
+  @override
+  String get language => 'Language';
+
+  @override
+  String get english => 'English';
+
+  @override
+  String get arabic => 'Arabic';
+
+  @override
+  String get notifications => 'Notifications';
+
+  @override
+  String get privacyAndSecurity => 'Privacy & Security';
+
+  @override
+  String get sawaPlus => 'Sawa Plus';
+
+  @override
+  String get manageSubscription => 'Manage Subscription';
+
+  @override
+  String get freePlan => 'Free';
+
+  @override
+  String get userName => 'User Name';
+
+  @override
+  String get welcomeTitle => 'Welcome to Sawa';
+
+  @override
+  String get welcomeSubtitle =>
+      'Scan products to check nutrition, safety, and find the best prices';
+
+  @override
+  String get dietaryPreferences => 'Dietary Preferences';
+
+  @override
+  String get allergenFilters => 'Allergen Alerts';
+
+  @override
+  String get getStarted => 'Get Started';
+
+  @override
+  String get skipForNow => 'Skip for now';
+
+  @override
+  String get next => 'Next';
+
+  @override
+  String get back => 'Back';
+
+  @override
+  String get vegan => 'Vegan';
+
+  @override
+  String get vegetarian => 'Vegetarian';
+
+  @override
+  String get halalOnly => 'Halal Only';
+
+  @override
+  String get glutenFree => 'Gluten Free';
+
+  @override
+  String get peanuts => 'Peanuts';
+
+  @override
+  String get dairy => 'Dairy';
+
+  @override
+  String get soy => 'Soy';
+
+  @override
+  String get eggs => 'Eggs';
+
+  @override
+  String get wheat => 'Wheat';
+
+  @override
+  String get fish => 'Fish';
+
+  @override
+  String get shellfish => 'Shellfish';
+
+  @override
+  String get treeNuts => 'Tree Nuts';
+
+  @override
+  String get editPreferences => 'Edit Preferences';
+
+  @override
+  String get yourPreferences => 'Your Preferences';
+
+  @override
+  String get yourAllergens => 'Your Allergens';
+
+  @override
+  String get confirmationTitle => 'You\'re All Set!';
+
+  @override
+  String get confirmationSubtitle => 'Here\'s a summary of your preferences';
+
+  @override
+  String get selectLanguage => 'Select Language';
 }

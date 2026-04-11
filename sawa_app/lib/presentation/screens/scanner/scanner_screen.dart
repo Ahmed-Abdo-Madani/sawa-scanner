@@ -4,6 +4,8 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:sawa_app/l10n/app_localizations.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../providers/scanner_provider.dart';
+import '../../providers/product_provider.dart';
+import '../../providers/scan_history_provider.dart';
 import '../../widgets/mode_pill.dart';
 import '../../widgets/scan_frame_overlay.dart';
 import '../../widgets/glass_surface.dart';
@@ -13,7 +15,8 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
 
 class ScannerScreen extends ConsumerStatefulWidget {
-  const ScannerScreen({super.key});
+  final bool showBackButton;
+  const ScannerScreen({super.key, this.showBackButton = true});
 
   @override
   ConsumerState<ScannerScreen> createState() => _ScannerScreenState();
@@ -58,19 +61,72 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> with SingleTicker
     }
   }
 
-   void _navigateToDetail(String gtin) {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (context) => ProductDetailScreen(gtin: gtin),
-      ),
-    ).then((_) {
-      if (mounted) {
-        setState(() => _isProcessing = false);
-      }
-    });
+   Future<void> _navigateToDetail(String gtin) async {
+    setState(() => _isProcessing = true);
+    
+    try {
+      // Fetch product details for the history entry
+      final product = await ref.read(productRepositoryProvider).getProductByGtin(gtin);
+      final locale = Localizations.localeOf(context);
+
+      // Record to history
+      ref.read(scanHistoryProvider.notifier).addEntry(
+            ScanHistoryEntry(
+              barcode: product.gtin,
+              productName: locale.languageCode == 'ar' ? product.nameAr : product.nameEn,
+              brand: product.brand,
+              nutriScore: product.nutriScoreGrade,
+              imageUrl: product.images.firstOrNull?.url,
+              scannedAt: DateTime.now(),
+            ),
+          );
+
+      if (!mounted) return;
+
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (context) => ProductDetailScreen(
+            gtin: gtin,
+            initialProduct: product,
+          ),
+        ),
+      ).then((_) {
+        if (mounted) {
+          setState(() => _isProcessing = false);
+        }
+      });
+    } catch (e) {
+      // Fallback navigation if pre-fetch fails (detail screen will show error)
+      if (!mounted) return;
+      
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (context) => ProductDetailScreen(gtin: gtin),
+        ),
+      ).then((_) {
+        if (mounted) {
+          setState(() => _isProcessing = false);
+        }
+      });
+    }
   }
 
   void _navigateToDetailWithProduct(Product product) {
+    setState(() => _isProcessing = true);
+    final locale = Localizations.localeOf(context);
+
+    // Record to history (Label Scan Success)
+    ref.read(scanHistoryProvider.notifier).addEntry(
+          ScanHistoryEntry(
+            barcode: product.gtin,
+            productName: locale.languageCode == 'ar' ? product.nameAr : product.nameEn,
+            brand: product.brand,
+            nutriScore: product.nutriScoreGrade,
+            imageUrl: product.images.firstOrNull?.url,
+            scannedAt: DateTime.now(),
+          ),
+        );
+
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (context) => ProductDetailScreen(
@@ -149,10 +205,13 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> with SingleTicker
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        IconButton(
-                          icon: const Icon(Icons.close, color: Colors.white),
-                          onPressed: () => Navigator.pop(context),
-                        ),
+                        if (widget.showBackButton)
+                          IconButton(
+                            icon: const Icon(Icons.close, color: Colors.white),
+                            onPressed: () => Navigator.pop(context),
+                          ),
+                        if (!widget.showBackButton)
+                          const SizedBox(width: 48), // Spacer to balance when back button is hidden
                         Row(
                           children: [
                             ModePill(
@@ -297,7 +356,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> with SingleTicker
                             const SizedBox(height: 16),
                             Text(
                               l10n.analyzingLabel,
-                              style: AppTypography.body(locale).copyWith(color: Colors.white),
+                              style: AppTypography.body(locale).copyWith(color: AppColors.onBackground),
                             ),
                           ],
                         ),
@@ -347,14 +406,15 @@ class _FlashButton extends StatelessWidget {
         final torchEnabled = state.torchState == TorchState.on;
         return GestureDetector(
           onTap: () => controller.toggleTorch(),
-          child: GlassSurface(
-            borderRadius: BorderRadius.circular(30),
-            child: Container(
-              padding: const EdgeInsets.all(16),
-              child: Icon(
-                torchEnabled ? Icons.flash_on : Icons.flash_off,
-                color: Colors.white,
-              ),
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.black.withOpacity(0.4),
+              borderRadius: BorderRadius.circular(30),
+            ),
+            padding: const EdgeInsets.all(16),
+            child: Icon(
+              torchEnabled ? Icons.flash_on : Icons.flash_off,
+              color: Colors.white,
             ),
           ),
         );
@@ -391,12 +451,12 @@ class _ManualEntrySheetState extends State<_ManualEntrySheet> {
               TextField(
                 controller: _controller,
                 keyboardType: TextInputType.number,
-                style: AppTypography.body(locale).copyWith(color: Colors.white),
+                style: AppTypography.body(locale).copyWith(color: AppColors.onBackground),
                 decoration: InputDecoration(
                   hintText: l10n.enterBarcodeNumber,
                   hintStyle: AppTypography.body(locale).copyWith(color: AppColors.onSurface),
                   filled: true,
-                  fillColor: AppColors.surfaceGlass,
+                  fillColor: AppColors.onSurface.withOpacity(0.08),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                     borderSide: BorderSide.none,
@@ -424,7 +484,7 @@ class _ManualEntrySheetState extends State<_ManualEntrySheet> {
                     l10n.searchButton,
                     style: AppTypography.body(locale).copyWith(
                       fontWeight: FontWeight.bold,
-                      color: AppColors.background,
+                      color: Colors.white,
                     ),
                   ),
                 ),

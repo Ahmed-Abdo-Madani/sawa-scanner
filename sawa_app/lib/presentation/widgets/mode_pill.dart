@@ -24,12 +24,12 @@ class ModePill extends StatelessWidget {
         decoration: BoxDecoration(
           color: isActive ? AppColors.primary : Colors.transparent,
           borderRadius: BorderRadius.circular(20),
-          border: isActive ? null : Border.all(color: AppColors.onSurface.withOpacity(0.3)),
+          border: isActive ? null : Border.all(color: Colors.white.withOpacity(0.3)),
         ),
         child: Text(
           label,
           style: AppTypography.body(locale).copyWith(
-            color: isActive ? AppColors.background : AppColors.onBackground,
+            color: Colors.white,
             fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
           ),
         ),
