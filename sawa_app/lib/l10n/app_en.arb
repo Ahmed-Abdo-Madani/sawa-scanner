@@ -204,5 +204,6 @@
   "fallbackConfiguration": "App configuration error",
   "fallbackConfigurationDescription": "The application is misconfigured (User-Agent missing). Please contact support.",
   "apiConfiguration": "Sawa API Not Configured",
-  "apiConfigurationDescription": "The backend URL is missing. Developers must build with --dart-define=API_BASE_URL=..."
+  "apiConfigurationDescription": "The backend URL is missing. Developers must build with --dart-define=API_BASE_URL=...",
+  "scanOrSearchPrompt": "Scan a barcode or search for a product"
 }

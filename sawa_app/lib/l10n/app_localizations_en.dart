@@ -541,4 +541,7 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get apiConfigurationDescription =>
       'The backend URL is missing. Developers must build with --dart-define=API_BASE_URL=...';
+
+  @override
+  String get scanOrSearchPrompt => 'Scan a barcode or search for a product';
 }

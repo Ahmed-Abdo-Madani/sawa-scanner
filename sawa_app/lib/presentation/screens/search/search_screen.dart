@@ -23,6 +23,8 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   @override
   void initState() {
     super.initState();
+    // Initialize with existing query if any
+    _searchController.text = ref.read(searchQueryProvider);
     _searchController.addListener(_onSearchChanged);
   }
 
@@ -48,6 +50,14 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     final l10n = AppLocalizations.of(context)!;
     final locale = Localizations.localeOf(context);
     final resultsAsync = ref.watch(searchResultsProvider);
+
+    // Listen for external updates to the search query (e.g. from the Scanner screen)
+    // and sync the controller text accordingly.
+    ref.listen<String>(searchQueryProvider, (previous, next) {
+      if (next != _searchController.text) {
+        _searchController.text = next;
+      }
+    });
 
     return Scaffold(
       backgroundColor: AppColors.background,

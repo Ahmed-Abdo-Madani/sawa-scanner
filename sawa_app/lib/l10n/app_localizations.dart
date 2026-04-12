@@ -1093,6 +1093,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'The backend URL is missing. Developers must build with --dart-define=API_BASE_URL=...'**
   String get apiConfigurationDescription;
+
+  /// No description provided for @scanOrSearchPrompt.
+  ///
+  /// In en, this message translates to:
+  /// **'Scan a barcode or search for a product'**
+  String get scanOrSearchPrompt;
 }
 
 class _AppLocalizationsDelegate

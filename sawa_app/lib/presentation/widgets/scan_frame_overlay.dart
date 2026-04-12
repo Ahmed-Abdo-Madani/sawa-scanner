@@ -8,42 +8,54 @@ class ScanFrameOverlay extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      children: [
-        CustomPaint(
-          size: Size.infinite,
-          painter: _CornerBracketPainter(),
-        ),
-        Positioned(
-          top: MediaQuery.of(context).size.height * 0.25 + (MediaQuery.of(context).size.width * 0.6 * scanLineOffset),
-          left: MediaQuery.of(context).size.width * 0.2,
-          right: MediaQuery.of(context).size.width * 0.2,
-          child: Container(
-            height: 2,
-            decoration: BoxDecoration(
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.primary.withOpacity(0.5),
-                  blurRadius: 10,
-                  spreadRadius: 2,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final height = constraints.maxHeight;
+        final width = constraints.maxWidth;
+        // Size frame to fit min dimension (70% coverage)
+        final frameSize = (width < height ? width : height) * 0.7;
+
+        return Stack(
+          children: [
+            CustomPaint(
+              size: Size.infinite,
+              painter: _CornerBracketPainter(frameSize: frameSize),
+            ),
+            Positioned(
+              top: (height - frameSize) / 2 + (frameSize * scanLineOffset),
+              left: (width - frameSize) / 2,
+              right: (width - frameSize) / 2,
+              child: Container(
+                height: 2,
+                decoration: BoxDecoration(
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.primary.withOpacity(0.5),
+                      blurRadius: 10,
+                      spreadRadius: 2,
+                    ),
+                  ],
+                  gradient: LinearGradient(
+                    colors: [
+                      AppColors.primary.withOpacity(0),
+                      AppColors.primary,
+                      AppColors.primary.withOpacity(0),
+                    ],
+                  ),
                 ),
-              ],
-              gradient: LinearGradient(
-                colors: [
-                  AppColors.primary.withOpacity(0),
-                  AppColors.primary,
-                  AppColors.primary.withOpacity(0),
-                ],
               ),
             ),
-          ),
-        ),
-      ],
+          ],
+        );
+      },
     );
   }
 }
 
 class _CornerBracketPainter extends CustomPainter {
+  final double frameSize;
+  _CornerBracketPainter({required this.frameSize});
+
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
@@ -54,11 +66,11 @@ class _CornerBracketPainter extends CustomPainter {
 
     final width = size.width;
     final height = size.height;
-    final holeWidth = width * 0.6;
-    final holeHeight = width * 0.6; 
+    final holeWidth = frameSize;
+    final holeHeight = frameSize; 
     
     final left = (width - holeWidth) / 2;
-    final top = height * 0.25;
+    final top = (height - holeHeight) / 2;
     final right = left + holeWidth;
     final bottom = top + holeHeight;
     final bracketLength = 30.0;

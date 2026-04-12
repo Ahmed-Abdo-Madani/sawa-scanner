@@ -187,6 +187,29 @@ Sawa Scanner is a bilingual (AR/EN) product scanning system designed for the Sau
     - [x] Added `isMini` support to `NutriScoreBadge` for mobile UI density.
 - [x] **Hardware Deployment**: Successfully launched and verified the application on physical Android device **A142**.
 
+### Phase 16: Scanner UI Refactoring & Viewport Optimization (2026-04-12)
+- [x] **Split Layout (35/65)**: Migrated the scanner from a full-screen `Stack` to a `Column` split, reserving 65% of the bottom viewport for future carousel/manual entry content.
+- [x] **Dimension-Aware Overlays**: Refactored `ScanFrameOverlay` to use `min(width, height) * 0.7` for frame sizing, ensuring guides fit perfectly on tablets, split-screens, and short phones.
+- [x] **Seamless Corner Integration**: Fixed visual artifacts at rounded camera corners by syncing `Scaffold` background with the lower zone's grey/white container.
+- [x] **Manual Mode Hardening**: Resolved keyboard-driven overflows in manual mode by integrating `SingleChildScrollView` and optimizing padding logic within the constrained bottom panel.
+
+### Phase 17: Interactive Scanner Carousel & Search (Completed ✅)
+- [x] **MRU Carousel**: Replaced direct detail navigation with a dynamic, Most-Recently-Used (MRU) carousel.
+- [x] **Animated Focus**: Implemented automatic carousel animations to newly scanned product cards.
+- [x] **Integrated Search**: Added a persistent `SearchWelcomeCard` at carousel index 0 with direct tab switching to `SearchScreen`.
+- [x] **Premium Cards**: Implemented high-fidelity `ScannedProductCard` widgets with NutriScore integration.
+- [x] **Bilingual Parity**: Added full localization (AR/EN) for the "Scan or search" prompt.
+
+### Phase 18: Navigation & History Logic Hardening (Completed ✅)
+- [x] **Centralized Navigation**: Implemented `navigationProvider` to manage bottom tab state, enabling programmatic tab switching from the Scanner.
+- [x] **History Consistency**: Refactored `ScannerScreen` and `ProductDetailScreen` interaction to ensure scan history is recorded exactly once. 
+    - [x] Fixed "double-write" on manual entries.
+    - [x] Prevented timestamp overwrites when re-opening items from the MRU carousel.
+- [x] **Search UI Refactor**: Removed the persistent Search tab to simplify navigation. 
+    - [x] Search is now a sub-page pushed from the Scanner screen.
+    - [x] Synchronized `SearchScreen` text field with current provider state.
+- [x] **Localization Sync**: Regenerated and verified full localization API for all new UI keys.
+
 
 ---
 
@@ -219,6 +242,7 @@ Sawa Scanner is a bilingual (AR/EN) product scanning system designed for the Sau
 | **Navigation Shell** | [`lib/presentation/screens/navigation_shell.dart`](file:///c:/Users/Design_Bench_12/Documents/sawa-scanner/sawa_app/lib/presentation/screens/navigation_shell.dart) | Tab management shell. |
 | **History Logic** | [`lib/presentation/providers/scan_history_provider.dart`](file:///c:/Users/Design_Bench_12/Documents/sawa-scanner/sawa_app/lib/presentation/providers/scan_history_provider.dart) | Hive-backed scan history. |
 | **User Prefs** | [`lib/presentation/providers/user_preferences_provider.dart`](file:///c:/Users/Design_Bench_12/Documents/sawa-scanner/sawa_app/lib/presentation/providers/user_preferences_provider.dart) | Dietary/Allergen settings. |
+| **Navigation State** | [`lib/presentation/providers/navigation_provider.dart`](file:///c:/Users/Design_Bench_12/Documents/sawa-scanner/sawa_app/lib/presentation/providers/navigation_provider.dart) | Centralized tab index provider. |
 | **Onboarding UI** | [`lib/presentation/screens/onboarding/onboarding_screen.dart`](file:///c:/Users/Design_Bench_12/Documents/sawa-scanner/sawa_app/lib/presentation/screens/onboarding/onboarding_screen.dart) | 4-page onboarding flow. |
 | **OFF Sync Layer** | [`lib/data/datasources/openfoodfacts_data_source.dart`](file:///c:/Users/Design_Bench_12/Documents/sawa-scanner/sawa_app/lib/data/datasources/openfoodfacts_data_source.dart) | Global contribution and lookup client. |
 
@@ -248,7 +272,10 @@ The following are now **fully configured** in the local environment:
 - **Localization Integrity**: Manually synchronized the localization layer to ensure consistent bilingual support for new features without relying on external build tools.
 - **Retrieval Resilience**: Hardened the product lookup chain to handle network outages and transport errors, falling back gracefully to OFF and stale local caches.
 - **Global Contribution**: Established a dual-submission pipeline that synchronizes Sawa product corrections with the OpenFoodFacts global database.
-- **Mobile Stabilization**: Resolved critical TypeORM and Flutter SDK mismatches to enable production launch on physical hardware.
+- [x] **Viewport Optimization**: Normalized scanner guide sizing to be aspect-ratio aware, preventing UI overflow in the new restricted camera viewport.
+- [x] **Surface Integration**: Unified Scaffold and component backgrounds to eliminate color bleeding at clipped edges.
+- [x] **Navigation Resilience**: Programmatic switching to the Search tab from the Scanner now uses a centralized provider to maintain consistency across the app shell.
+- [x] **History Integrity**: Refined the navigation logic to avoid redundant history-write events during re-opens, ensuring that "last seen" timestamps remain accurate to actual scan events.
 
 
 ---

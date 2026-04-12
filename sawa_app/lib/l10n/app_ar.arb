@@ -204,5 +204,6 @@
   "fallbackConfiguration": "خطأ في تهيئة التطبيق",
   "fallbackConfigurationDescription": "حدث خطأ في إعدادات التطبيق (User-Agent مفقود). يرجى التواصل مع الدعم.",
   "apiConfiguration": "قاعدة بيانات ساوا غير مهيأة",
-  "apiConfigurationDescription": "رابط الخادم الأساسي مفقود. يجب البناء باستخدام --dart-define=API_BASE_URL=..."
+  "apiConfigurationDescription": "رابط الخادم الأساسي مفقود. يجب البناء باستخدام --dart-define=API_BASE_URL=...",
+  "scanOrSearchPrompt": "امسح باركود أو ابحث عن منتج"
 }

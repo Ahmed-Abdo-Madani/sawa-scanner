@@ -543,4 +543,7 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String get apiConfigurationDescription =>
       'رابط الخادم الأساسي مفقود. يجب البناء باستخدام --dart-define=API_BASE_URL=...';
+
+  @override
+  String get scanOrSearchPrompt => 'امسح باركود أو ابحث عن منتج';
 }
