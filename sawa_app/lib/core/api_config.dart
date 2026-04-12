@@ -1,3 +1,5 @@
+import 'exceptions.dart';
+
 class ApiConfig {
   /// Base URL for the Sawa API.
   /// 
@@ -5,6 +7,17 @@ class ApiConfig {
   /// flutter run --dart-define=API_BASE_URL=http://10.0.2.2:3000
   static const String baseUrl = String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: 'http://192.168.8.114:3000',
+    // No default value here; forces explicit configuration for development
   );
+
+  /// Validates that the API base URL is non-empty.
+  /// Throws [ApiConfigurationException] if validation fails.
+  static void validate() {
+    if (baseUrl.trim().isEmpty) {
+      throw ApiConfigurationException(
+        'Sawa API base URL is not configured. '
+        'Please build with --dart-define=API_BASE_URL=...'
+      );
+    }
+  }
 }

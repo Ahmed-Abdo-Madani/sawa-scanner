@@ -4,6 +4,7 @@ import 'package:sawa_app/l10n/app_localizations.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../providers/locale_provider.dart';
+import '../../widgets/surface_card.dart';
 
 class ThemeShowcaseScreen extends ConsumerWidget {
   const ThemeShowcaseScreen({super.key});
@@ -30,7 +31,7 @@ class ThemeShowcaseScreen extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(l10n.colorSwatches),
+            _buildSection(l10n.colorSwatches, locale),
             const SizedBox(height: 16),
             Wrap(
               spacing: 16,
@@ -47,7 +48,7 @@ class ThemeShowcaseScreen extends ConsumerWidget {
               ],
             ),
             const SizedBox(height: 32),
-            Text(l10n.typographyScaleEn),
+            _buildSection(l10n.typographyScaleEn, locale),
             const SizedBox(height: 16),
             _TypographyRow(label: l10n.labelDisplay, style: AppTypography.display(const Locale('en')), text: l10n.fontMeta('Plus Jakarta Sans', 'w800', '32')),
             const SizedBox(height: 8),
@@ -58,7 +59,7 @@ class ThemeShowcaseScreen extends ConsumerWidget {
             _TypographyRow(label: l10n.labelCaption, style: AppTypography.caption(const Locale('en')), text: l10n.fontMeta('Plus Jakarta Sans', 'w400', '12')),
             
             const SizedBox(height: 32),
-            Text(l10n.typographyScaleAr, textDirection: TextDirection.rtl),
+            _buildSection(l10n.typographyScaleAr, locale),
             const SizedBox(height: 16),
             _TypographyRow(label: l10n.labelDisplay, style: AppTypography.display(const Locale('ar')), text: l10n.fontMeta('IBM Plex Sans Arabic', 'w700', '32'), isRtl: true),
             const SizedBox(height: 8),
@@ -69,39 +70,14 @@ class ThemeShowcaseScreen extends ConsumerWidget {
             _TypographyRow(label: l10n.labelCaption, style: AppTypography.caption(const Locale('ar')), text: l10n.fontMeta('IBM Plex Sans Arabic', 'w400', '12'), isRtl: true),
 
             const SizedBox(height: 32),
-            Text(l10n.colorSurface),
+            _buildSection(l10n.surfacePreview, locale),
             const SizedBox(height: 16),
-            Card(
-              elevation: 0,
-              margin: EdgeInsets.zero,
-              clipBehavior: Clip.antiAlias,
-              color: AppColors.surface,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-              child: Padding(
-                padding: const EdgeInsets.all(24.0),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(l10n.appTitle, style: AppTypography.headline(locale).copyWith(color: AppColors.onBackground)),
-                    const SizedBox(height: 8),
-                    Text(l10n.colorSurface, style: AppTypography.body(locale).copyWith(color: AppColors.onSurface)),
-                  ],
-                ),
-              ),
-            ),
+            _buildSurfacePreview(context, locale),
+            const SizedBox(height: 24),
+            _buildSection(l10n.gradeBadgesPreview, locale),
+            const SizedBox(height: 16),
+            _buildGradeBadgesPreview(context, locale),
             const SizedBox(height: 32),
-            Text(l10n.gradeBadgesPreview),
-            const SizedBox(height: 16),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                _GradeBadge(label: 'A', color: AppColors.secondary),
-                _GradeBadge(label: 'B', color: Colors.lightGreen),
-                _GradeBadge(label: 'C', color: Colors.orange),
-                _GradeBadge(label: 'D', color: AppColors.warning),
-                _GradeBadge(label: 'E', color: AppColors.error),
-              ],
-            ),
           ],
         ),
       ),
@@ -112,6 +88,50 @@ class ThemeShowcaseScreen extends ConsumerWidget {
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
       ),
+    );
+  }
+
+  Widget _buildSection(String title, Locale locale) {
+    return Text(
+      title,
+      style: AppTypography.headline(locale).copyWith(fontWeight: FontWeight.bold),
+    );
+  }
+
+  Widget _buildSurfacePreview(BuildContext context, Locale locale) {
+    final l10n = AppLocalizations.of(context)!;
+    return Column(
+      children: [
+        _buildSampleRow(l10n.cardSurface, SurfaceCard(
+          padding: const EdgeInsets.all(16),
+          child: Text(l10n.surfaceTest),
+        )),
+      ],
+    );
+  }
+
+  Widget _buildGradeBadgesPreview(BuildContext context, Locale locale) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      children: const [
+        _GradeBadge(label: 'A', color: AppColors.secondary),
+        _GradeBadge(label: 'B', color: Colors.lightGreen),
+        _GradeBadge(label: 'C', color: Colors.orange),
+        _GradeBadge(label: 'D', color: AppColors.warning),
+        _GradeBadge(label: 'E', color: AppColors.error),
+      ],
+    );
+  }
+
+  Widget _buildSampleRow(String label, Widget child) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: const TextStyle(fontSize: 12, color: AppColors.onSurface)),
+        const SizedBox(height: 8),
+        child,
+        const SizedBox(height: 16),
+      ],
     );
   }
 }

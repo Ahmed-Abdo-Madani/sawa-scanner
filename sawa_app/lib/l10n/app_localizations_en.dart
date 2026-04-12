@@ -50,25 +50,22 @@ class AppLocalizationsEn extends AppLocalizations {
   String get typographyScaleAr => 'Typography Scale (AR)';
 
   @override
-  String get glassmorphismPreview => 'Glassmorphism Preview';
+  String get surfacePreview => 'Surface Preview';
 
   @override
   String get gradeBadgesPreview => 'Grade Badges Preview';
 
   @override
-  String get glassSurface => 'Glass Surface';
+  String get cardSurface => 'Card Surface';
 
   @override
-  String get blurredBackdropTest => 'Blurred backdrop test';
+  String get surfaceTest => 'Surface test';
 
   @override
   String get colorBackground => 'Background';
 
   @override
   String get colorSurface => 'Surface';
-
-  @override
-  String get colorSurfaceGlass => 'SurfaceGlass';
 
   @override
   String get colorPrimary => 'Primary';
@@ -451,4 +448,97 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get selectLanguage => 'Select Language';
+
+  @override
+  String get editProduct => 'Edit Product';
+
+  @override
+  String get addProduct => 'Add Product';
+
+  @override
+  String get basicInfo => 'Basic Info';
+
+  @override
+  String get nutritionFacts_tab => 'Nutrition';
+
+  @override
+  String get ingredients_tab => 'Ingredients';
+
+  @override
+  String get photos => 'Photos';
+
+  @override
+  String get submitProduct => 'Submit';
+
+  @override
+  String get productSubmitted => 'Product submitted successfully!';
+
+  @override
+  String get nameAr => 'Name (Arabic)';
+
+  @override
+  String get nameEn => 'Name (English)';
+
+  @override
+  String get brand => 'Brand';
+
+  @override
+  String get frontPhoto => 'Front Photo';
+
+  @override
+  String get ingredientsPhoto => 'Ingredients Photo';
+
+  @override
+  String get nutritionPhoto => 'Nutrition Photo';
+
+  @override
+  String get takePhoto => 'Take Photo';
+
+  @override
+  String get chooseFromGallery => 'Choose from Gallery';
+
+  @override
+  String get productNotFoundDescription =>
+      'We couldn\'t find this product in our database. You can help us by contributing it.';
+
+  @override
+  String get serverErrorDescription =>
+      'An error occurred while connecting to the server. Please try again.';
+
+  @override
+  String get gtinBarcode => 'GTIN / Barcode';
+
+  @override
+  String get enterIngredientsList => 'Enter ingredients list...';
+
+  @override
+  String get upgradeNow => 'Upgrade Now';
+
+  @override
+  String get backendUnavailable => 'Sawa service unavailable';
+
+  @override
+  String get backendUnavailableDescription =>
+      'Our primary servers are currently unreachable. We are working to restore access.';
+
+  @override
+  String get fallbackUnavailable => 'Global database error';
+
+  @override
+  String get fallbackUnavailableDescription =>
+      'We couldn\'t reach the global product database (OpenFoodFacts).';
+
+  @override
+  String get fallbackConfiguration => 'App configuration error';
+
+  @override
+  String get fallbackConfigurationDescription =>
+      'The application is misconfigured (User-Agent missing). Please contact support.';
+
+  @override
+  String get apiConfiguration => 'Sawa API Not Configured';
+
+  @override
+  String get apiConfigurationDescription =>
+      'The backend URL is missing. Developers must build with --dart-define=API_BASE_URL=...';
 }

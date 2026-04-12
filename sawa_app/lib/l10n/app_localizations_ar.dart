@@ -50,25 +50,22 @@ class AppLocalizationsAr extends AppLocalizations {
   String get typographyScaleAr => 'حجم الخط (عربي)';
 
   @override
-  String get glassmorphismPreview => 'معاينة النسق الزجاجي';
+  String get surfacePreview => 'معاينة السطح';
 
   @override
   String get gradeBadgesPreview => 'معاينة شارات التقييم';
 
   @override
-  String get glassSurface => 'سطح زجاجي';
+  String get cardSurface => 'سطح البطاقة';
 
   @override
-  String get blurredBackdropTest => 'اختبار الخلفية الضبابية';
+  String get surfaceTest => 'اختبار السطح';
 
   @override
   String get colorBackground => 'الخلفية';
 
   @override
   String get colorSurface => 'السطح';
-
-  @override
-  String get colorSurfaceGlass => 'السطح الزجاجي';
 
   @override
   String get colorPrimary => 'الأساسي';
@@ -453,4 +450,97 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get selectLanguage => 'اختر اللغة';
+
+  @override
+  String get editProduct => 'تعديل المنتج';
+
+  @override
+  String get addProduct => 'إضافة منتج';
+
+  @override
+  String get basicInfo => 'معلومات أساسية';
+
+  @override
+  String get nutritionFacts_tab => 'التغذية';
+
+  @override
+  String get ingredients_tab => 'المكونات';
+
+  @override
+  String get photos => 'الصور';
+
+  @override
+  String get submitProduct => 'إرسال';
+
+  @override
+  String get productSubmitted => '!تم إرسال المنتج بنجاح';
+
+  @override
+  String get nameAr => 'الاسم (عربي)';
+
+  @override
+  String get nameEn => 'الاسم (إنجليزي)';
+
+  @override
+  String get brand => 'العلامة التجارية';
+
+  @override
+  String get frontPhoto => 'صورة الواجهة';
+
+  @override
+  String get ingredientsPhoto => 'صورة المكونات';
+
+  @override
+  String get nutritionPhoto => 'صورة القيم الغذائية';
+
+  @override
+  String get takePhoto => 'التقاط صورة';
+
+  @override
+  String get chooseFromGallery => 'اختر من المعرض';
+
+  @override
+  String get productNotFoundDescription =>
+      'لم نتمكن من العثور على هذا المنتج في قاعدة بياناتنا. يمكنك مساعدتنا بإضافته.';
+
+  @override
+  String get serverErrorDescription =>
+      'حدث خطأ أثناء الاتصال بالخادم. يرجى المحاولة مرة أخرى.';
+
+  @override
+  String get gtinBarcode => 'GTIN / الباركود';
+
+  @override
+  String get enterIngredientsList => 'أدخل قائمة المكونات...';
+
+  @override
+  String get upgradeNow => 'ترقية الآن';
+
+  @override
+  String get backendUnavailable => 'خدمة ساوا غير متوفرة';
+
+  @override
+  String get backendUnavailableDescription =>
+      'خوادمنا الأساسية غير قادرة على الاتصال حالياً. نحن نعمل على استعادة الوصول.';
+
+  @override
+  String get fallbackUnavailable => 'خطأ في القاعدة العالمية';
+
+  @override
+  String get fallbackUnavailableDescription =>
+      'تعذر الوصول إلى قاعدة البيانات العالمية للمنتجات (OpenFoodFacts).';
+
+  @override
+  String get fallbackConfiguration => 'خطأ في تهيئة التطبيق';
+
+  @override
+  String get fallbackConfigurationDescription =>
+      'حدث خطأ في إعدادات التطبيق (User-Agent مفقود). يرجى التواصل مع الدعم.';
+
+  @override
+  String get apiConfiguration => 'قاعدة بيانات ساوا غير مهيأة';
+
+  @override
+  String get apiConfigurationDescription =>
+      'رابط الخادم الأساسي مفقود. يجب البناء باستخدام --dart-define=API_BASE_URL=...';
 }

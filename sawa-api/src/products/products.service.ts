@@ -2,12 +2,15 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Product } from '../entities/product.entity';
+import { ProductReport } from '../entities/product-report.entity';
 
 @Injectable()
 export class ProductsService {
   constructor(
     @InjectRepository(Product)
     private readonly productRepository: Repository<Product>,
+    @InjectRepository(ProductReport)
+    private readonly productReportRepository: Repository<ProductReport>,
   ) {}
 
   async findByGtin(gtin: string): Promise<Product> {
@@ -32,5 +35,19 @@ export class ProductsService {
     }
 
     return product;
+  }
+
+  async createReport(
+    gtin: string,
+    payload: Record<string, any>,
+    reporterUid?: string,
+  ): Promise<ProductReport> {
+    const report = this.productReportRepository.create({
+      gtin,
+      payload,
+      reporter_uid: reporterUid ?? null,
+      status: 'pending',
+    });
+    return this.productReportRepository.save(report);
   }
 }

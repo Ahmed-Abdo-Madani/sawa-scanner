@@ -6,10 +6,13 @@ import * as admin from 'firebase-admin';
 import { createBullBoard } from '@bull-board/api';
 import { ExpressAdapter as BullBoardExpressAdapter } from '@bull-board/express';
 import { BullMQAdapter } from '@bull-board/api/bullMQAdapter';
+import { getQueueToken } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { Request, Response, NextFunction } from 'express';
 
 async function expressFirebaseAuth(req: Request, res: Response, next: NextFunction) {
+
+
   const [type, token] = req.headers.authorization?.split(' ') ?? [];
   if (type !== 'Bearer' || !token) {
     return res.status(401).json({ statusCode: 401, message: 'Unauthorized' });
@@ -37,13 +40,16 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   const configService = app.get(ConfigService);
 
+  // Increase the JSON body-size limit from the 100 KB default.
+  app.use(require('express').json({ limit: '1mb' }));
+
   const nodeEnv = configService.get<string>('NODE_ENV');
   const region = configService.get<string>('CLOUD_REGION');
 
   console.log(`[Bootstrap] Environment: ${nodeEnv}`);
   console.log(`[Bootstrap] Target Cloud Region: ${region}`);
 
-  // Fast-fail if region is not validated (double check in case validator was bypassed)
+  // Fast-fail if region is not validated
   const allowedRegions = ['me-south-1', 'me-central2-a'];
   if (!region || !allowedRegions.includes(region)) {
     console.error(`FATAL: Invalid CLOUD_REGION "${region}". Must be one of ${allowedRegions.join(', ')} for KSA compliance.`);
@@ -53,17 +59,12 @@ async function bootstrap() {
   const bullBoardAdapter = new BullBoardExpressAdapter();
   bullBoardAdapter.setBasePath('/admin/queues');
 
-  const redisOptions = {
-    host: configService.get<string>('REDIS_HOST'),
-    port: configService.get<number>('REDIS_PORT'),
-    username: configService.get<string>('REDIS_USERNAME'),
-    password: configService.get<string>('REDIS_PASSWORD'),
-    tls: configService.get<string>('REDIS_TLS') === 'true' ? {} : undefined,
-  };
-
-  const ingestionQ = new Queue('ingestion-queue', { connection: redisOptions });
-  const priceScrapeQ = new Queue('price-scrape-queue', { connection: redisOptions });
-  const ocrQ = new Queue('ocr-queue', { connection: redisOptions });
+  // Reuse the existing Queue instances registered in NestJS modules.
+  // This avoids opening redundant Redis connections and ensures Bull Board shows
+  // the exact same identifiers used by the Producers and Workers.
+  const ingestionQ = app.get<Queue>(getQueueToken('ingestion-queue'));
+  const priceScrapeQ = app.get<Queue>(getQueueToken('price-scraping-queue'));
+  const ocrQ = app.get<Queue>(getQueueToken('ocr-queue'));
 
   createBullBoard({
     queues: [
@@ -78,5 +79,7 @@ async function bootstrap() {
 
   const port = configService.get('PORT') || 3000;
   await app.listen(port);
+  console.log(`[Bootstrap] Sawa Scanner Backend is running on port: ${port}`);
 }
+
 bootstrap();

@@ -165,7 +165,7 @@ class PriceComparisonScreen extends ConsumerWidget {
             AspectRatio(
               aspectRatio: 1.7,
               child: Padding(
-                padding: const EdgeInsets.only(right: 18, left: 12, top: 24, bottom: 12),
+                padding: const EdgeInsetsDirectional.only(end: 18, start: 12, top: 24, bottom: 12),
                 child: LineChart(
                   _buildChartData(history, isPlus),
                 ),
@@ -206,15 +206,15 @@ class PriceComparisonScreen extends ConsumerWidget {
                               backgroundColor: AppColors.primary,
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                             ),
-                            child: const Text('Upgrade Now', style: TextStyle(color: Colors.white)),
+                            child: Text(l10n.upgradeNow, style: const TextStyle(color: Colors.white)),
                           ),
                         ],
                       ),
                     ),
                 ),
-              ),
             ],
           );
+
       },
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (err, _) => const SizedBox.shrink(),
@@ -256,16 +256,6 @@ class PriceComparisonScreen extends ConsumerWidget {
       lineBarsData: lineBars,
       lineTouchData: LineTouchData(
         enabled: isPlus,
-        touchTooltipData: LineTouchTooltipData(
-          getTooltipItems: (touchedSpots) {
-            return touchedSpots.map((spot) {
-              return LineTooltipItem(
-                '${spot.y} SAR',
-                const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-              );
-            }).toList();
-          },
-        ),
       ),
     );
   }

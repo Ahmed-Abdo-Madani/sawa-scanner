@@ -3,6 +3,8 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { BullModule } from '@nestjs/bullmq';
 import { APP_GUARD } from '@nestjs/core';
+import { ServeStaticModule } from '@nestjs/serve-static';
+import { join } from 'path';
 
 import { AuthModule } from './auth/auth.module';
 import { FirebaseAuthGuard } from './auth/firebase-auth.guard';
@@ -13,9 +15,11 @@ import { ScanModule } from './scan/scan.module';
 import { UsersModule } from './users/users.module';
 import { IngestionModule } from './ingestion/ingestion.module';
 
+import { getRedisOptions } from './config/redis.config';
 import { validate } from './config/env.validation';
 
 @Module({
+
   imports: [
     ConfigModule.forRoot({ 
       isGlobal: true,
@@ -38,22 +42,20 @@ import { validate } from './config/env.validation';
     BullModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
-        connection: {
-          host: config.get<string>('REDIS_HOST'),
-          port: config.get<number>('REDIS_PORT'),
-          username: config.get<string>('REDIS_USERNAME'),
-          password: config.get<string>('REDIS_PASSWORD'),
-          tls: config.get<string>('REDIS_TLS') === 'true' ? {} : undefined,
-          maxRetriesPerRequest: null,
-        },
+        connection: getRedisOptions(config),
       }),
     }),
+
     AuthModule,
     ProductsModule,
     PricesModule,
     ScanModule,
     UsersModule,
     IngestionModule,
+    ServeStaticModule.forRoot({
+      rootPath: join(__dirname, '..', '..', 'uploads'),
+      serveRoot: '/uploads',
+    }),
   ],
   providers: [
     {

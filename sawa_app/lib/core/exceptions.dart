@@ -13,3 +13,39 @@ class ProductNotFoundException implements Exception {
   @override
   String toString() => 'ProductNotFoundException: $message';
 }
+
+/// Thrown when the Sawa primary backend is unreachable or returns a 5xx error.
+class BackendUnavailableException implements Exception {
+  final String message;
+  BackendUnavailableException([this.message = 'Sawa service is temporarily unavailable']);
+
+  @override
+  String toString() => 'BackendUnavailableException: $message';
+}
+
+/// Thrown when the OpenFoodFacts fallback API fails or returns an error.
+class FallbackUnavailableException implements Exception {
+  final String message;
+  FallbackUnavailableException([this.message = 'Global database access failed']);
+
+  @override
+  String toString() => 'FallbackUnavailableException: $message';
+}
+
+/// Thrown when the client-side configuration (e.g. User-Agent) is missing or invalid.
+class FallbackConfigurationException implements Exception {
+  final String message;
+  FallbackConfigurationException([this.message = 'App configuration error']);
+
+  @override
+  String toString() => 'FallbackConfigurationException: $message';
+}
+/// Thrown when the Sawa API base URL is missing or malformed.
+class ApiConfigurationException implements Exception {
+  final String message;
+  ApiConfigurationException([this.message = 'Sawa API configuration error']);
+
+  @override
+  String toString() => 'ApiConfigurationException: $message';
+}
+

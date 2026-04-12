@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 
-class GlassSurface extends StatelessWidget {
+class SurfaceCard extends StatelessWidget {
   final Widget child;
   final BorderRadiusGeometry borderRadius;
   final EdgeInsetsGeometry? padding;
 
-  const GlassSurface({
+  const SurfaceCard({
     Key? key,
     required this.child,
     this.borderRadius = const BorderRadius.all(Radius.circular(20)),

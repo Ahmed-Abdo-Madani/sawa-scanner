@@ -125,6 +125,69 @@ Sawa Scanner is a bilingual (AR/EN) product scanning system designed for the Sau
 - [x] **Logic Safety**:
     - Verified all call sites route through the serialized notifier queue to prevent race conditions during rapid app suspension.
 
+### Phase 11: Full-App Polish & Localization (Completed ✅)
+- [x] **Localization Cleanup**: Removed duplicate keys and renamed legacy glassmorphic keys to M3 terminology across `app_en.arb` and `app_ar.arb`.
+- [x] **Hardcoded String Extraction**: Localized all remaining hardcoded strings in `ProductDetailScreen`, `ProductEditScreen`, and `PriceComparisonScreen`.
+- [x] **M3 Theme Integrity**: Replaced hardcoded allergen chip colors with M3 `ColorScheme` tokens (`errorContainer` and `error`).
+- [x] **RTL/LTR Directional Fixes**:
+    - Updated `HistoryScreen` dismissible background to use `AlignmentDirectional.centerEnd`.
+    - Switched all hardcoded `EdgeInsets.only` to `EdgeInsetsDirectional.only` in charts.
+    - Implemented locale-aware flipping for chevron icons in Search and History cards.
+- [x] **Codebase Cleanup**:
+    - [x] Renamed and refactored `GlassSurface` to `SurfaceCard` (plain M3 Card).
+- [x] Updated all UI references to the new `SurfaceCard` component.
+- [x] Deleted dead code file `home_screen.dart` and legacy `glass_surface.dart`.
+
+### Phase 12: Production Readiness & Pipeline Hardening (Completed ✅)
+- [x] **Backend Storage Migration**:
+    - Transitioned product report photo storage from in-memory base64 to server-side `diskStorage`.
+    - Configured `ServeStaticModule` to serve `/uploads/reports` publicly, resolving the 1MB JSON payload limit.
+    - Updated `ProductsController` to return relative URL strings for submitted photos.
+- [x] **Automated Localization Sync (Restored ✅)**:
+    - Verified that `flutter gen-l10n` correctly generates the localization layer in the `lib/l10n` directory.
+    - Cleaned up `l10n.yaml` by removing deprecated parameters.
+    - Future UI string additions now only require updating the `.arb` files and running the generator.
+
+- [x] **Component Finalization**:
+    - Removed all remaining references to `GlassSurface` from `ScannerScreen`.
+    - Fully localized `ThemeShowcaseScreen` debug views.
+
+### Phase 13: Retrieval Resilience & Global Synchronization (Completed ✅)
+- [x] **Robust Fallback Chain**: Refactored `ProductRepositoryImpl` to implement a multi-tier fallback: `Fresh Cache -> Sawa API -> OFF API -> Stale Cache`.
+- [x] **Transport Failure Handling**: Corrected the repo layer to catch `ServerException` and `SocketException` during lookups, preventing early termination of the fallback chain.
+- [x] **OpenFoodFacts Contribution Sync**:
+    - Implemented `contributeProduct` in `OpenFoodFactsDataSource` mapping internal fields to the global OFF schema.
+    - Integrated dual-submission in `ProductRepositoryImpl`, ensuring user reports are synced to both Sawa and OFF databases.
+    - **Unlocked Metadata Sync**: Verified that metadata-only updates (without photos) are now synchronized correctly to OFF.
+    - Added high-quality photo synchronization to OFF's corresponding image slots.
+
+### Phase 14: System Stabilization & Mobile Launch (2026-04-12)
+- **Backend Stability**: Resolved Redis auth (`NOAUTH`) and TypeORM schema mismatches.
+- **Android Networking**: Enabled `usesCleartextTraffic` and added internet permissions to `AndroidManifest.xml`.
+- **Configuration**: Decoupled `ApiConfig` from hardcoded LAN IPs; enforced `--dart-define` targets.
+- **SDK Repairs**: Fixed `openfoodfacts` SDK 3.x syntax regressions (Page -> PageNumber).
+
+### Phase 15: Infrastructure Hardening & Resilience (2026-04-12)
+- **Redis & BullMQ Resilience**:
+    - Centralized Redis configuration in `src/config/redis.config.ts` (consistent TLS, auth, and retry logic).
+    - Refactored `main.ts` to reuse existing NestJS `Queue` instances via `app.get(getQueueToken())`.
+    - Corrected queue name mismatch (`price-scrape-queue` -> `price-scraping-queue`) in Bull Board.
+- **Granular Error Handling**:
+    - Implemented specialized exception layer (`BackendUnavailableException`, `FallbackUnavailableException`, `FallbackConfigurationException`).
+    - Fixed initialization bug in `main.dart` (mandatory OpenFoodFacts User-Agent).
+    - Refactored `ProductRepositoryImpl` to provide detailed diagnostic feedback instead of generic connection errors.
+    - Updated `ProductDetailScreen` with specific UI icons and localized descriptions for failure modes.
+- [x] **Backend Runtime Repair**:
+    - [x] Resolved TypeORM `DataTypeNotSupportedError` by explicitly typing `reporter_uid` as `varchar`.
+    - [x] Stabilized Redis authentication configuration to resolve `NOAUTH` errors during startup.
+    - [x] Scaled backend to serve static report images from `/uploads/reports`.
+- [x] **Flutter Compilation & SDK Hardening**:
+    - [x] Fixed syntax errors in `price_comparison_screen.dart` (redundant parentheses).
+    - [x] Updated `OpenFoodFactsDataSource` to match version 3.30.2 (PageNumber, non-null User, allergens names).
+    - [x] Added `isMini` support to `NutriScoreBadge` for mobile UI density.
+- [x] **Hardware Deployment**: Successfully launched and verified the application on physical Android device **A142**.
+
+
 ---
 
 ## 📂 Key Architecture & File References
@@ -157,6 +220,7 @@ Sawa Scanner is a bilingual (AR/EN) product scanning system designed for the Sau
 | **History Logic** | [`lib/presentation/providers/scan_history_provider.dart`](file:///c:/Users/Design_Bench_12/Documents/sawa-scanner/sawa_app/lib/presentation/providers/scan_history_provider.dart) | Hive-backed scan history. |
 | **User Prefs** | [`lib/presentation/providers/user_preferences_provider.dart`](file:///c:/Users/Design_Bench_12/Documents/sawa-scanner/sawa_app/lib/presentation/providers/user_preferences_provider.dart) | Dietary/Allergen settings. |
 | **Onboarding UI** | [`lib/presentation/screens/onboarding/onboarding_screen.dart`](file:///c:/Users/Design_Bench_12/Documents/sawa-scanner/sawa_app/lib/presentation/screens/onboarding/onboarding_screen.dart) | 4-page onboarding flow. |
+| **OFF Sync Layer** | [`lib/data/datasources/openfoodfacts_data_source.dart`](file:///c:/Users/Design_Bench_12/Documents/sawa-scanner/sawa_app/lib/data/datasources/openfoodfacts_data_source.dart) | Global contribution and lookup client. |
 
 ---
 
@@ -178,6 +242,14 @@ The following are now **fully configured** in the local environment:
 - **Theme Migration**: Completed transition from glassmorphism to Material 3 Light Theme across all 17 UI files. Surface effects now use standard elevations and clean cards for better performance and readability.
 - **Preference Durability**: Resolved a critical issue where Flutter's `void` callbacks prevented async persistence from being effective during app suspension. Now uses the modern `AppLifecycleListener` and a queue-tail barrier to guarantee best-effort disk flushes on backgrounding.
 - **Structural Integrity**: Extracted magic strings and preference IDs into a centralized constants layer (`UserPreferencesKeys` & `PreferenceOptions`), ensuring that UI, storage, and startup logic never fall out of sync.
+- **RTL & Localization Hardening**: Completed a comprehensive sweep of the application to ensure zero hardcoded strings and full RTL layout flipping. Standardized on `EdgeInsetsDirectional` and locale-aware icons for a premium bilingual experience.
+- **Component Standardization**: Finalized the Material 3 migration by renaming legacy structural components (e.g., `GlassSurface` -> `SurfaceCard`) and removing dead code, ensuring the codebase is clean and maintainable.
+- **Pipeline Hardening**: Migrated report photo uploads to disk storage, eliminating JSON payload bloat and enabling large image uploads in production.
+- **Localization Integrity**: Manually synchronized the localization layer to ensure consistent bilingual support for new features without relying on external build tools.
+- **Retrieval Resilience**: Hardened the product lookup chain to handle network outages and transport errors, falling back gracefully to OFF and stale local caches.
+- **Global Contribution**: Established a dual-submission pipeline that synchronizes Sawa product corrections with the OpenFoodFacts global database.
+- **Mobile Stabilization**: Resolved critical TypeORM and Flutter SDK mismatches to enable production launch on physical hardware.
+
 
 ---
 

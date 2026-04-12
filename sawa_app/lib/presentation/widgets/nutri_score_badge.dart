@@ -4,8 +4,10 @@ import '../../core/utils/grade_colors.dart';
 
 class NutriScoreBadge extends StatelessWidget {
   final String grade;
+  final bool isMini;
+  const NutriScoreBadge({super.key, required this.grade, this.isMini = false});
 
-  const NutriScoreBadge({super.key, required this.grade});
+
 
   @override
   Widget build(BuildContext context) {
@@ -26,10 +28,10 @@ class NutriScoreBadge extends StatelessWidget {
               child: Transform.scale(
                 scaleY: isActive ? 1.15 : 1.0,
                 child: Container(
-                  height: 28,
+                  height: isMini ? 20 : 28,
                   decoration: BoxDecoration(
                     color: color,
-                    borderRadius: BorderRadius.circular(6),
+                    borderRadius: BorderRadius.circular(isMini ? 4 : 6),
                   ),
                   alignment: Alignment.center,
                   child: Text(
@@ -37,10 +39,11 @@ class NutriScoreBadge extends StatelessWidget {
                     style: AppTypography.body(locale).copyWith(
                       color: Colors.white,
                       fontWeight: FontWeight.bold,
-                      fontSize: 14,
+                      fontSize: isMini ? 10 : 14,
                     ),
                   ),
                 ),
+
               ),
             ),
           ),

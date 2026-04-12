@@ -3,7 +3,7 @@ import 'package:sawa_app/l10n/app_localizations.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_typography.dart';
 import '../screens/product_detail/price_comparison_screen.dart';
-import 'glass_surface.dart';
+import 'surface_card.dart';
 
 class PricePreviewStrip extends StatelessWidget {
   final String gtin;
@@ -24,7 +24,7 @@ class PricePreviewStrip extends StatelessWidget {
     final locale = Localizations.localeOf(context);
     final l10n = AppLocalizations.of(context)!;
     
-    return GlassSurface(
+    return SurfaceCard(
       borderRadius: BorderRadius.circular(20),
       child: Padding(
         padding: const EdgeInsets.all(16.0),

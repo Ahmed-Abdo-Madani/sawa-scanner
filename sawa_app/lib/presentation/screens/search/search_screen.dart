@@ -219,7 +219,12 @@ class _ProductResultCard extends StatelessWidget {
                 ],
               ),
             ),
-            const Icon(Icons.chevron_right, color: AppColors.onSurface),
+            Icon(
+              locale.languageCode == 'ar'
+                  ? Icons.chevron_left
+                  : Icons.chevron_right,
+              color: AppColors.onSurface,
+            ),
           ],
         ),
       ),

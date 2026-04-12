@@ -59,6 +59,40 @@ class ProductModel extends Product {
       ingredientsText: json['ingredients_text']?.toString(),
     );
   }
+
+  /// Returns a plain [Product] whose every nested field is also a plain base
+  /// entity. Writing this to Hive instead of `this` ensures the registered
+  /// adapters (which cover only the base types) can handle serialisation.
+  Product toEntity() {
+    return Product(
+      id: id,
+      gtin: gtin,
+      nameAr: nameAr,
+      nameEn: nameEn,
+      brand: brand,
+      nutriScoreGrade: nutriScoreGrade,
+      novaGroup: novaGroup,
+      sfdaRegistrationStatus: sfdaRegistrationStatus,
+      halalCertified: halalCertified,
+      nutritionFact: nutritionFact is NutritionFactModel
+          ? (nutritionFact as NutritionFactModel).toEntity()
+          : nutritionFact,
+      ingredients: ingredients
+          .map((i) => i is IngredientModel ? i.toEntity() : i)
+          .toList(),
+      prices: prices
+          .map((p) => p is PriceInfoModel ? p.toEntity() : p)
+          .toList(),
+      images: images
+          .map((img) => img is ProductImageModel ? img.toEntity() : img)
+          .toList(),
+      ecoScore: ecoScore,
+      allergens: allergens,
+      allergensDataAvailable: allergensDataAvailable,
+      categories: categories,
+      ingredientsText: ingredientsText,
+    );
+  }
 }
 
 class NutritionFactModel extends NutritionFact {
@@ -93,6 +127,20 @@ class NutritionFactModel extends NutritionFact {
     if (value is num) return value.toDouble();
     return double.tryParse(value.toString());
   }
+
+  NutritionFact toEntity() {
+    return NutritionFact(
+      energyKcal: energyKcal,
+      fatG: fatG,
+      saturatedFatG: saturatedFatG,
+      carbsG: carbsG,
+      sugarsG: sugarsG,
+      fiberG: fiberG,
+      proteinG: proteinG,
+      sodiumMg: sodiumMg,
+      servingSizeG: servingSizeG,
+    );
+  }
 }
 
 class IngredientModel extends Ingredient {
@@ -124,6 +172,15 @@ class IngredientModel extends Ingredient {
         return IngredientSfdaStatus.safe;
     }
   }
+
+  Ingredient toEntity() {
+    return Ingredient(
+      nameAr: nameAr,
+      nameEn: nameEn,
+      eNumber: eNumber,
+      sfdaStatus: sfdaStatus,
+    );
+  }
 }
 
 class PriceInfoModel extends PriceInfo {
@@ -148,6 +205,18 @@ class PriceInfoModel extends PriceInfo {
       scrapedAt: DateTime.tryParse(json['scraped_at'] ?? '') ?? DateTime.now(),
     );
   }
+
+  PriceInfo toEntity() {
+    return PriceInfo(
+      merchant: merchant,
+      merchantAr: merchantAr,
+      logoUrl: logoUrl,
+      sourceUrl: sourceUrl,
+      priceSarInclVat: priceSarInclVat,
+      inStock: inStock,
+      scrapedAt: scrapedAt,
+    );
+  }
 }
 
 class ProductImageModel extends ProductImage {
@@ -160,6 +229,13 @@ class ProductImageModel extends ProductImage {
     return ProductImageModel(
       url: json['url'] ?? '',
       imageType: json['image_type'] ?? 'primary',
+    );
+  }
+
+  ProductImage toEntity() {
+    return ProductImage(
+      url: url,
+      imageType: imageType,
     );
   }
 }

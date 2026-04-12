@@ -176,11 +176,11 @@ abstract class AppLocalizations {
   /// **'Typography Scale (AR)'**
   String get typographyScaleAr;
 
-  /// No description provided for @glassmorphismPreview.
+  /// No description provided for @surfacePreview.
   ///
   /// In en, this message translates to:
-  /// **'Glassmorphism Preview'**
-  String get glassmorphismPreview;
+  /// **'Surface Preview'**
+  String get surfacePreview;
 
   /// No description provided for @gradeBadgesPreview.
   ///
@@ -188,17 +188,17 @@ abstract class AppLocalizations {
   /// **'Grade Badges Preview'**
   String get gradeBadgesPreview;
 
-  /// No description provided for @glassSurface.
+  /// No description provided for @cardSurface.
   ///
   /// In en, this message translates to:
-  /// **'Glass Surface'**
-  String get glassSurface;
+  /// **'Card Surface'**
+  String get cardSurface;
 
-  /// No description provided for @blurredBackdropTest.
+  /// No description provided for @surfaceTest.
   ///
   /// In en, this message translates to:
-  /// **'Blurred backdrop test'**
-  String get blurredBackdropTest;
+  /// **'Surface test'**
+  String get surfaceTest;
 
   /// No description provided for @colorBackground.
   ///
@@ -211,12 +211,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Surface'**
   String get colorSurface;
-
-  /// No description provided for @colorSurfaceGlass.
-  ///
-  /// In en, this message translates to:
-  /// **'SurfaceGlass'**
-  String get colorSurfaceGlass;
 
   /// No description provided for @colorPrimary.
   ///
@@ -925,6 +919,180 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Select Language'**
   String get selectLanguage;
+
+  /// No description provided for @editProduct.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit Product'**
+  String get editProduct;
+
+  /// No description provided for @addProduct.
+  ///
+  /// In en, this message translates to:
+  /// **'Add Product'**
+  String get addProduct;
+
+  /// No description provided for @basicInfo.
+  ///
+  /// In en, this message translates to:
+  /// **'Basic Info'**
+  String get basicInfo;
+
+  /// No description provided for @nutritionFacts_tab.
+  ///
+  /// In en, this message translates to:
+  /// **'Nutrition'**
+  String get nutritionFacts_tab;
+
+  /// No description provided for @ingredients_tab.
+  ///
+  /// In en, this message translates to:
+  /// **'Ingredients'**
+  String get ingredients_tab;
+
+  /// No description provided for @photos.
+  ///
+  /// In en, this message translates to:
+  /// **'Photos'**
+  String get photos;
+
+  /// No description provided for @submitProduct.
+  ///
+  /// In en, this message translates to:
+  /// **'Submit'**
+  String get submitProduct;
+
+  /// No description provided for @productSubmitted.
+  ///
+  /// In en, this message translates to:
+  /// **'Product submitted successfully!'**
+  String get productSubmitted;
+
+  /// No description provided for @nameAr.
+  ///
+  /// In en, this message translates to:
+  /// **'Name (Arabic)'**
+  String get nameAr;
+
+  /// No description provided for @nameEn.
+  ///
+  /// In en, this message translates to:
+  /// **'Name (English)'**
+  String get nameEn;
+
+  /// No description provided for @brand.
+  ///
+  /// In en, this message translates to:
+  /// **'Brand'**
+  String get brand;
+
+  /// No description provided for @frontPhoto.
+  ///
+  /// In en, this message translates to:
+  /// **'Front Photo'**
+  String get frontPhoto;
+
+  /// No description provided for @ingredientsPhoto.
+  ///
+  /// In en, this message translates to:
+  /// **'Ingredients Photo'**
+  String get ingredientsPhoto;
+
+  /// No description provided for @nutritionPhoto.
+  ///
+  /// In en, this message translates to:
+  /// **'Nutrition Photo'**
+  String get nutritionPhoto;
+
+  /// No description provided for @takePhoto.
+  ///
+  /// In en, this message translates to:
+  /// **'Take Photo'**
+  String get takePhoto;
+
+  /// No description provided for @chooseFromGallery.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose from Gallery'**
+  String get chooseFromGallery;
+
+  /// No description provided for @productNotFoundDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'We couldn\'t find this product in our database. You can help us by contributing it.'**
+  String get productNotFoundDescription;
+
+  /// No description provided for @serverErrorDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'An error occurred while connecting to the server. Please try again.'**
+  String get serverErrorDescription;
+
+  /// No description provided for @gtinBarcode.
+  ///
+  /// In en, this message translates to:
+  /// **'GTIN / Barcode'**
+  String get gtinBarcode;
+
+  /// No description provided for @enterIngredientsList.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter ingredients list...'**
+  String get enterIngredientsList;
+
+  /// No description provided for @upgradeNow.
+  ///
+  /// In en, this message translates to:
+  /// **'Upgrade Now'**
+  String get upgradeNow;
+
+  /// No description provided for @backendUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Sawa service unavailable'**
+  String get backendUnavailable;
+
+  /// No description provided for @backendUnavailableDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Our primary servers are currently unreachable. We are working to restore access.'**
+  String get backendUnavailableDescription;
+
+  /// No description provided for @fallbackUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Global database error'**
+  String get fallbackUnavailable;
+
+  /// No description provided for @fallbackUnavailableDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'We couldn\'t reach the global product database (OpenFoodFacts).'**
+  String get fallbackUnavailableDescription;
+
+  /// No description provided for @fallbackConfiguration.
+  ///
+  /// In en, this message translates to:
+  /// **'App configuration error'**
+  String get fallbackConfiguration;
+
+  /// No description provided for @fallbackConfigurationDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'The application is misconfigured (User-Agent missing). Please contact support.'**
+  String get fallbackConfigurationDescription;
+
+  /// No description provided for @apiConfiguration.
+  ///
+  /// In en, this message translates to:
+  /// **'Sawa API Not Configured'**
+  String get apiConfiguration;
+
+  /// No description provided for @apiConfigurationDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'The backend URL is missing. Developers must build with --dart-define=API_BASE_URL=...'**
+  String get apiConfigurationDescription;
 }
 
 class _AppLocalizationsDelegate

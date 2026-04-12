@@ -6,9 +6,10 @@ import { Product } from '../entities/product.entity';
 import { NutritionFact } from '../entities/nutrition-fact.entity';
 import { Ingredient } from '../entities/ingredient.entity';
 import { ProductPrice } from '../entities/product-price.entity';
+import { ProductReport } from '../entities/product-report.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Product, NutritionFact, Ingredient, ProductPrice])],
+  imports: [TypeOrmModule.forFeature([Product, NutritionFact, Ingredient, ProductPrice, ProductReport])],
   controllers: [ProductsController],
   providers: [ProductsService],
   exports: [ProductsService],

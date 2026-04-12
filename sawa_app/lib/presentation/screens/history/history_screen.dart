@@ -69,7 +69,7 @@ class HistoryScreen extends ConsumerWidget {
           key: Key(entry.barcode + entry.scannedAt.toString()),
           direction: DismissDirection.endToStart,
           background: Container(
-            alignment: Alignment.centerRight,
+            alignment: AlignmentDirectional.centerEnd,
             padding: const EdgeInsets.symmetric(horizontal: 20),
             decoration: BoxDecoration(
               color: AppColors.error.withOpacity(0.8),
@@ -198,7 +198,12 @@ class _HistoryCard extends StatelessWidget {
                 ],
               ),
             ),
-            const Icon(Icons.chevron_right, color: AppColors.onSurface),
+            Icon(
+              Localizations.localeOf(context).languageCode == 'ar'
+                  ? Icons.chevron_left
+                  : Icons.chevron_right,
+              color: AppColors.onSurface,
+            ),
           ],
         ),
       ),

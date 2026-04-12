@@ -8,7 +8,7 @@ import '../../providers/product_provider.dart';
 import '../../providers/scan_history_provider.dart';
 import '../../widgets/mode_pill.dart';
 import '../../widgets/scan_frame_overlay.dart';
-import '../../widgets/glass_surface.dart';
+import '../../widgets/surface_card.dart';
 import '../product_detail/product_detail_screen.dart';
 import '../../../domain/entities/product.dart';
 import '../../../core/theme/app_colors.dart';
@@ -115,11 +115,18 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> with SingleTicker
     setState(() => _isProcessing = true);
     final locale = Localizations.localeOf(context);
 
-    // Record to history (Label Scan Success)
+    // Cache the scan-label result so it is available offline from history.
+    ref
+        .read(productLocalDataSourceProvider)
+        .cacheProduct(product)
+        .ignore();
+
+    // Record to history (Label Scan Success).
     ref.read(scanHistoryProvider.notifier).addEntry(
           ScanHistoryEntry(
             barcode: product.gtin,
-            productName: locale.languageCode == 'ar' ? product.nameAr : product.nameEn,
+            productName:
+                locale.languageCode == 'ar' ? product.nameAr : product.nameEn,
             brand: product.brand,
             nutriScore: product.nutriScoreGrade,
             imageUrl: product.images.firstOrNull?.url,
@@ -127,19 +134,24 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> with SingleTicker
           ),
         );
 
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (context) => ProductDetailScreen(
-          gtin: product.gtin,
-          initialProduct: product,
-        ),
-      ),
-    ).then((_) {
-      if (mounted) {
-        setState(() => _isProcessing = false);
-        ref.read(labelScanProvider.notifier).reset();
-      }
-    });
+    Navigator.of(context)
+        .push(
+          MaterialPageRoute(
+            builder: (context) => ProductDetailScreen(
+              gtin: product.gtin,
+              initialProduct: product,
+              // Tell the detail screen that history was already recorded here
+              // so it does not add a duplicate entry on load.
+              historyAlreadyRecorded: true,
+            ),
+          ),
+        )
+        .then((_) {
+          if (mounted) {
+            setState(() => _isProcessing = false);
+            ref.read(labelScanProvider.notifier).reset();
+          }
+        });
   }
 
   Future<void> _captureLabel() async {
@@ -345,7 +357,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> with SingleTicker
                 loading: () => Container(
                   color: Colors.black54,
                   child: Center(
-                    child: GlassSurface(
+                    child: SurfaceCard(
                       borderRadius: BorderRadius.circular(20),
                       child: Padding(
                         padding: const EdgeInsets.all(32),
@@ -441,7 +453,7 @@ class _ManualEntrySheetState extends State<_ManualEntrySheet> {
     
     return Align(
       alignment: Alignment.bottomCenter,
-      child: GlassSurface(
+      child: SurfaceCard(
         borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
         child: Padding(
           padding: const EdgeInsets.fromLTRB(24, 32, 24, 48),
