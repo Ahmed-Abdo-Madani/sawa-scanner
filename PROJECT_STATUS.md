@@ -210,6 +210,37 @@ Sawa Scanner is a bilingual (AR/EN) product scanning system designed for the Sau
     - [x] Synchronized `SearchScreen` text field with current provider state.
 - [x] **Localization Sync**: Regenerated and verified full localization API for all new UI keys.
 
+### Phase 19: Scanner UI Polish & Touch Logic (Completed ✅)
+- [x] **Viewport Ratio Optimization**: Adjusted the scanner/carousel flex ratio from 35/65 to 42/58 to improve product card visibility and camera guide framing.
+- [x] **Touch Event Passthrough**: Wrapped the `ScanFrameOverlay` and barcode prompt text in an `IgnorePointer` to fix a bug where mode selection pills were unresponsive to taps in the barcode mode.
+- [x] **Structural Cleanliness**: Simplified the `ScannerMode.barcode` overlay spread by nesting it within a single `IgnorePointer` wrapper, ensuring z-order stability.
+
+### Phase 20: Scanner Overlay Redesign & Hardware Controls (Completed ✅)
+- [x] **Static Overlay**: Converted `ScanFrameOverlay` to a stateless component, removing the battery-heavy animation line.
+- [x] **Visual Polish**: Replaced square corner brackets with curved arcs and added a central barcode/scanner icon for better visual cueing.
+- [x] **Camera Controls**: Integrated a new camera switch button and moved the flash toggle inside the camera Stack, positioned as a balanced Row at the bottom of the viewfinder.
+- [x] **Code Cleanup**: Removed animation plumbing and `SingleTickerProviderStateMixin` from `ScannerScreen`.
+
+### Phase 21: Scanner Debouncing & Duplicate Prevention (Completed ✅)
+- [x] **GTIN Debounce**: Implemented `_lastScannedGtin` guard in `_onDetect` to prevent the same barcode from firing multiple async fetches consecutively while the camera is still focused.
+- [x] **Carousel Sanitization**: Added a duplicate-in-list check before inserting products into the MRU carousel; existing items are moved to index 0 rather than creating duplicates.
+- [x] **Fault Tolerance**: Ensured `_lastScannedGtin` resets on scan failure, allowing immediate retries for the same barcode.
+
+### Phase 22: Scanner UI Generalization & Viewport Polish (Completed ✅)
+- [x] **Rectangular Viewfinder**: Refactored `ScanFrameOverlay` to use a 90% width / 70% height rectangular frame, preventing vertical overflow while maintaining a large scanning area.
+- [x] **Visual Polish**: Switched viewfinder arcs to white (4.5 thickness), replaced center icon with `Icons.view_week`, and removed the dimmed background mask.
+- [x] **Navigation Simplification**: Removed `ModePill` selection to focus on barcode scanning; hardcoded barcode-first initialization.
+- [x] **Viewport Alignment**: Integrated `topPadding` awareness in the scan frame and repositioned controls (`bottom: 40`) and hint text (`bottom: 8`) to eliminate UI overlap.
+
+### Phase 23: Scanner Iconography & Control Refinement (Completed ✅)
+- [x] **Bare Iconography**: Removed the circular container and bridge border from the central scanner icon for a cleaner, modern look.
+- [x] **Icon Upgrade**: Switched to `Icons.barcode_reader` to better align with the user-provided reference.
+- [x] **Control Centering**: Moved hardware controls (Flash/Switch) further inward (padding increased to 48) to avoid viewfinder arc overlap.
+
+### Phase 24: Custom SVG Viewfinder Icon (Completed ✅)
+- [x] **SVG Integration**: Added `flutter_svg` support and registered the `assets/images/` directory in `pubspec.yaml`.
+- [x] **Design Fidelity**: Replaced the placeholder Material icon with the user-provided `barcode-icon.svg` for a custom, branded look.
+- [x] **High-Contrast Rendering**: Applied a white color filter to the SVG asset within `ScanFrameOverlay` to maintain high visibility.
 
 ---
 
@@ -276,6 +307,7 @@ The following are now **fully configured** in the local environment:
 - [x] **Surface Integration**: Unified Scaffold and component backgrounds to eliminate color bleeding at clipped edges.
 - [x] **Navigation Resilience**: Programmatic switching to the Search tab from the Scanner now uses a centralized provider to maintain consistency across the app shell.
 - [x] **History Integrity**: Refined the navigation logic to avoid redundant history-write events during re-opens, ensuring that "last seen" timestamps remain accurate to actual scan events.
+- [x] **Touch Passthrough**: Resolved a critical UI bug where the full-screen barcode overlay swallowed touch events, preventing mode switching via pills. Now properly uses `IgnorePointer` to allow hit-testing on underlying UI elements.
 
 
 ---

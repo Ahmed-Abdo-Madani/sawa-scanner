@@ -27,25 +27,22 @@ class ScannerScreen extends ConsumerStatefulWidget {
   ConsumerState<ScannerScreen> createState() => _ScannerScreenState();
 }
 
-class _ScannerScreenState extends ConsumerState<ScannerScreen> with SingleTickerProviderStateMixin {
-  late AnimationController _scanController;
+class _ScannerScreenState extends ConsumerState<ScannerScreen> {
   final MobileScannerController _cameraController = MobileScannerController();
   final PageController _pageController = PageController();
   final List<Product> _scannedProducts = [];
   bool _isProcessing = false;
+  String? _lastScannedGtin;
 
   @override
   void initState() {
     super.initState();
-    _scanController = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 2),
-    )..repeat(reverse: true);
+    // Barcode mode is now the primary mode
+    Future.microtask(() => ref.read(scannerModeProvider.notifier).state = ScannerMode.barcode);
   }
 
   @override
   void dispose() {
-    _scanController.dispose();
     _cameraController.dispose();
     _pageController.dispose();
     super.dispose();
@@ -62,6 +59,9 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> with SingleTicker
     if (barcodes.isNotEmpty) {
       final String? code = barcodes.first.rawValue;
       if (code != null) {
+        if (code == _lastScannedGtin) return;
+        _lastScannedGtin = code;
+
         setState(() => _isProcessing = true);
         ref.read(scannedGtinProvider.notifier).state = code;
 
@@ -84,6 +84,10 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> with SingleTicker
           if (!mounted) return;
 
           setState(() {
+            final existingIndex = _scannedProducts.indexWhere((p) => p.gtin == product.gtin);
+            if (existingIndex != -1) {
+              _scannedProducts.removeAt(existingIndex);
+            }
             _scannedProducts.insert(0, product);
             _isProcessing = false;
           });
@@ -99,7 +103,10 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> with SingleTicker
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text(e.toString())),
           );
-          setState(() => _isProcessing = false);
+          setState(() {
+            _isProcessing = false;
+            _lastScannedGtin = null;
+          });
         }
       }
     }
@@ -234,9 +241,9 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> with SingleTicker
       backgroundColor: AppColors.background,
       body: Column(
         children: [
-          // Top camera zone (35%)
+          // Top camera zone (42%)
           Expanded(
-            flex: 35,
+            flex: 42,
             child: ClipRRect(
               borderRadius: const BorderRadius.vertical(bottom: Radius.circular(24)),
               child: Stack(
@@ -284,30 +291,6 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> with SingleTicker
                                     icon: const Icon(Icons.close, color: Colors.white),
                                     onPressed: () => Navigator.pop(context),
                                   ),
-                                if (!widget.showBackButton)
-                                  const SizedBox(width: 48), // Spacer to balance
-                                Row(
-                                  children: [
-                                    ModePill(
-                                      label: l10n.barcodeMode,
-                                      isActive: mode == ScannerMode.barcode,
-                                      onTap: () => ref.read(scannerModeProvider.notifier).state = ScannerMode.barcode,
-                                    ),
-                                    const SizedBox(width: 8),
-                                    ModePill(
-                                      label: l10n.labelMode,
-                                      isActive: mode == ScannerMode.label,
-                                      onTap: () => ref.read(scannerModeProvider.notifier).state = ScannerMode.label,
-                                    ),
-                                    const SizedBox(width: 8),
-                                    ModePill(
-                                      label: l10n.manualMode,
-                                      isActive: mode == ScannerMode.manual,
-                                      onTap: () => ref.read(scannerModeProvider.notifier).state = ScannerMode.manual,
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(width: 48), // Balancing spacer
                               ],
                             ),
                           ),
@@ -317,28 +300,42 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> with SingleTicker
                   ),
 
                   // Barcode Overlay
-                  if (mode == ScannerMode.barcode) ...[
-                    AnimatedBuilder(
-                      animation: _scanController,
-                      builder: (context, child) {
-                        return ScanFrameOverlay(scanLineOffset: _scanController.value);
-                      },
-                    ),
-                    Positioned(
-                      bottom: 12,
-                      left: 0,
-                      right: 0,
-                      child: Center(
-                        child: Text(
-                          l10n.pointCameraAtBarcode,
-                          style: AppTypography.body(locale).copyWith(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w500,
+                  if (mode == ScannerMode.barcode)
+                    IgnorePointer(
+                      child: Stack(
+                        children: [
+                          ScanFrameOverlay(topPadding: MediaQuery.of(context).padding.top),
+                          Positioned(
+                            bottom: 8,
+                            left: 0,
+                            right: 0,
+                            child: Center(
+                              child: Text(
+                                l10n.pointCameraAtBarcode,
+                                style: AppTypography.body(locale).copyWith(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
                           ),
-                        ),
+                        ],
                       ),
                     ),
-                  ],
+
+                  if (mode != ScannerMode.manual)
+                    Positioned(
+                      bottom: 40,
+                      left: 48,
+                      right: 48,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          _FlashButton(controller: _cameraController),
+                          _CameraSwitchButton(controller: _cameraController),
+                        ],
+                      ),
+                    ),
 
                   // Label Mode UI
                   if (mode == ScannerMode.label) ...[
@@ -451,21 +448,15 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> with SingleTicker
                     },
                   ),
 
-                  // Flash Toggle
-                  if (mode != ScannerMode.manual)
-                    Positioned(
-                      bottom: 12,
-                      right: 16,
-                      child: _FlashButton(controller: _cameraController),
-                    ),
+
                 ],
               ),
             ),
           ),
 
-          // Bottom carousel zone (65%)
+          // Bottom carousel zone (58%)
           Expanded(
-            flex: 65,
+            flex: 58,
             child: Container(
               color: AppColors.background,
               child: mode == ScannerMode.manual
@@ -536,6 +527,29 @@ class _FlashButton extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+}
+
+class _CameraSwitchButton extends StatelessWidget {
+  final MobileScannerController controller;
+  const _CameraSwitchButton({required this.controller});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () => controller.switchCamera(),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.black.withOpacity(0.4),
+          borderRadius: BorderRadius.circular(30),
+        ),
+        padding: const EdgeInsets.all(16),
+        child: const Icon(
+          Icons.flip_camera_android,
+          color: Colors.white,
+        ),
+      ),
     );
   }
 }
