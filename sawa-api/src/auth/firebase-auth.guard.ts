@@ -24,6 +24,15 @@ export class FirebaseAuthGuard implements CanActivate {
     ]);
 
     const request = context.switchToHttp().getRequest();
+
+    // Dev admin bypass mechanism
+    const devSecret = request.headers['x-dev-admin-secret'];
+    const DEV_ADMIN_SECRET = 'sawa-scanner-dev-2026';
+    if (process.env.NODE_ENV === 'development' && devSecret === DEV_ADMIN_SECRET) {
+      request.user = { role: 'admin', admin: true, uid: 'dev-admin' };
+      return true;
+    }
+
     const token = this.extractTokenFromHeader(request);
 
     if (isOptionalAuth) {

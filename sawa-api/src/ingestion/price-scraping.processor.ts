@@ -3,6 +3,8 @@ import { Job } from 'bullmq';
 import { Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
+import * as path from 'path';
+import * as fs from 'fs';
 
 import { PriceScrapingJobDto, PriceScrapingRetailer } from './dto/price-scraping-job.dto';
 import { RobotsTxtService } from './scraper/robots-txt.service';
@@ -99,7 +101,18 @@ export class PriceScrapingProcessor extends WorkerHost {
   }
 
   private getScraper(retailer: PriceScrapingRetailer) {
-    const config = { headless: true };
+    const sessionPath = path.join(process.cwd(), '.sessions', retailer.toLowerCase());
+    
+    // Ensure session directory exists
+    if (!fs.existsSync(sessionPath)) {
+      fs.mkdirSync(sessionPath, { recursive: true });
+    }
+
+    const config = { 
+      headless: true,
+      cookieSessionPath: sessionPath
+    };
+
     switch (retailer) {
       case PriceScrapingRetailer.PANDA:
         return new PandaPriceScraper(this.robotsTxtService, config);

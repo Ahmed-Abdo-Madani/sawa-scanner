@@ -1,8 +1,8 @@
 import { Controller, Post, Body, Get, Param, NotFoundException, UseGuards, UsePipes, ValidationPipe } from '@nestjs/common';
 import { IngestionService } from './ingestion.service';
 import { IngestionJobDto } from './dto/ingestion-job.dto';
-// Assuming Firebase guard exists (checked PROJECT_STATUS.md)
-// import { FirebaseAuthGuard } from '../auth/firebase-auth.guard'; 
+import { FirebaseAuthGuard } from '../auth/firebase-auth.guard'; 
+import { AdminGuard } from '../auth/admin.guard';
 
 @Controller('ingestion')
 export class IngestionController {
@@ -10,7 +10,7 @@ export class IngestionController {
 
   @Post('jobs')
   @UsePipes(new ValidationPipe({ transform: true, whitelist: true }))
-  //@UseGuards(FirebaseAuthGuard) // Uncomment once auth is fully wired
+  @UseGuards(FirebaseAuthGuard, AdminGuard)
   async createJob(@Body() dto: IngestionJobDto) {
     return this.ingestionService.addIngestionJob(dto);
   }

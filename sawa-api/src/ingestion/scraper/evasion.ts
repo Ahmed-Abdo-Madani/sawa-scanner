@@ -31,6 +31,7 @@ export async function withRetry<T>(
     } catch (error: any) {
       lastError = error;
       const status = error?.response?.status || error?.status;
+      console.warn(`[Evasion Retry] Attempt ${attempt + 1}/${maxRetries} failed: ${error.message} (Status: ${status})`);
 
       // Retry on 429 (Too Many Requests) or 503 (Service Unavailable)
       // or common network errors

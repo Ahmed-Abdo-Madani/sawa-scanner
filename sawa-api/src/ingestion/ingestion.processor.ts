@@ -1,14 +1,22 @@
-import { Processor, WorkerHost } from '@nestjs/bullmq';
-import { Job } from 'bullmq';
+import { Processor, WorkerHost, InjectQueue } from '@nestjs/bullmq';
+import { Job, Queue } from 'bullmq';
 import { Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
 import axios from 'axios';
 
 import { IngestionJobDto, IngestionPlatform, ScrapedProductData } from './dto/ingestion-job.dto';
+import { INGESTION_JOB_OPTIONS } from './ingestion.service';
+import { BaseScraper } from './scraper/base-scraper';
+
+type ScrapedProductDetail = ScrapedProductData & { page?: any };
 import { RobotsTxtService } from './scraper/robots-txt.service';
 import { NinjaScraper } from './scraper/ninja-scraper';
 import { HungerStationScraper } from './scraper/hungerstation-scraper';
+import { PandaPriceScraper } from './scraper/panda-price-scraper';
+import { CarrefourPriceScraper } from './scraper/carrefour-price-scraper';
+import { OthaimPriceScraper } from './scraper/othaim-price-scraper';
+import { TamimiPriceScraper } from './scraper/tamimi-price-scraper';
 import { ProductClusteringService } from './product-clustering.service';
 
 import { SfdaMatcherService } from '../scan/sfda-matcher.service';
@@ -27,6 +35,7 @@ export class IngestionProcessor extends WorkerHost {
   private readonly logger = new Logger(IngestionProcessor.name);
 
   constructor(
+    @InjectQueue('ingestion-queue') private readonly ingestionQueue: Queue,
     private readonly robotsTxtService: RobotsTxtService,
     private readonly productClusteringService: ProductClusteringService,
     private readonly labelCoreService: LabelCoreService,
@@ -35,12 +44,15 @@ export class IngestionProcessor extends WorkerHost {
     @InjectRepository(Merchant) private readonly merchantRepo: Repository<Merchant>,
   ) {
     super();
+    this.logger.log('IngestionProcessor initialized and ready to pick up jobs.');
   }
 
   async process(job: Job<IngestionJobDto>): Promise<any> {
+    this.logger.log(`Worker received job: ${job.id} (name: ${job.name})`);
     if (job.name === 'scrape-category') {
       return this.handleScrapeJob(job);
     }
+    this.logger.warn(`Unknown job name: ${job.name}`);
   }
 
   private async handleScrapeJob(job: Job<IngestionJobDto>) {
@@ -58,19 +70,69 @@ export class IngestionProcessor extends WorkerHost {
         this.logger.log(`Scraping page ${pageNum} of ${platform}`);
         const listingProducts = await scraper.scrapeListingPage(categoryUrl, pageNum);
 
+        // Ninja: Exhaustive recursion logic
+        if (platform === IngestionPlatform.NINJA && pageNum === 1) {
+          const depth = job.data.depth || 0;
+          const maxDepth = 4; // Default safe limit for Ninja structure
+
+          if (depth < maxDepth) {
+            this.logger.log(`[Depth ${depth}] Checking for subcategories at ${categoryUrl}`);
+            const subcategories = await (scraper as NinjaScraper).getSubcategories(categoryUrl);
+            
+            if (subcategories.length > 0) {
+              const visitedUrls = job.data.visitedUrls || [categoryUrl];
+              const newCategories = subcategories.filter(sub => !visitedUrls.includes(sub.url));
+
+              this.logger.log(`Discovered ${subcategories.length} subcategories, ${newCategories.length} new. Enqueueing recursion.`);
+              for (const sub of newCategories) {
+                const base64Url = Buffer.from(sub.url).toString('base64');
+                const dedupeId = `recursive-${IngestionPlatform.NINJA}-${base64Url}-1-20`; // Increased to 20 pages
+
+                await this.ingestionQueue.add('scrape-category', {
+                  platform: IngestionPlatform.NINJA,
+                  categoryUrl: sub.url,
+                  pageRange: { start: 1, end: 20 },
+                  visitedUrls: [...visitedUrls, sub.url],
+                  depth: depth + 1
+                }, { ...INGESTION_JOB_OPTIONS, jobId: dedupeId });
+              }
+              
+              // If we found NO products and NO new subcategories on the first page, we stop this branch.
+              if (listingProducts.length === 0 && newCategories.length === 0) {
+                return { processedCount: 0, status: 'exhausted' };
+              }
+            }
+          } else {
+            this.logger.warn(`Max depth (${maxDepth}) reached at ${categoryUrl}. Skipping further discovery.`);
+          }
+        }
+
         for (const listingItem of listingProducts) {
+          let detailPage: any = null;
           try {
             this.logger.debug(`Processing product: ${listingItem.name}`);
-            const detailData = await scraper.scrapeDetailPage(listingItem.productPageUrl);
+            let detailData: any = {};
+            try {
+               detailData = await scraper.scrapeDetailPage(listingItem.productPageUrl);
+               detailPage = detailData.page;
+            } catch (err) {
+               this.logger.warn(`Detail capture failed for ${listingItem.name} at ${listingItem.productPageUrl}. Saving listing data only. Error: ${err.message}`);
+            }
+            
             const combinedData = { ...listingItem, ...detailData };
 
-            await this.processProductData(platform, combinedData);
+            // 4. Pass the active page and scraper context to allow browser-based image downloads
+            await this.processProductData(platform, scraper, combinedData, detailPage || null);
             
             processedCount++;
             const progress = Math.floor((processedCount / (listingProducts.length * totalPages)) * 100);
             await job.updateProgress(progress);
           } catch (error) {
             this.logger.error(`Failed to process product ${listingItem.name}: ${error.message}`);
+          } finally {
+            if (detailPage) {
+              await detailPage.close().catch(err => this.logger.warn(`Failed to close page: ${err.message}`));
+            }
           }
         }
       }
@@ -83,37 +145,57 @@ export class IngestionProcessor extends WorkerHost {
   }
 
   private getScraper(platform: IngestionPlatform) {
-    const config = { headless: true, cookieSessionPath: `./scraper-sessions/${platform}` };
+    const baseConfig = { headless: true, cookieSessionPath: `./scraper-sessions/${platform}` };
     switch (platform) {
       case IngestionPlatform.NINJA:
-        return new NinjaScraper(this.robotsTxtService, config);
+        return new NinjaScraper(this.robotsTxtService, { ...baseConfig, deviceProfile: 'mobile' });
       case IngestionPlatform.HUNGERSTATION:
-        return new HungerStationScraper(this.robotsTxtService, config);
+        return new HungerStationScraper(this.robotsTxtService, { ...baseConfig, deviceProfile: 'mobile' });
+      case IngestionPlatform.PANDA:
+        return new PandaPriceScraper(this.robotsTxtService, { ...baseConfig, deviceProfile: 'desktop' });
+      case IngestionPlatform.CARREFOUR:
+        return new CarrefourPriceScraper(this.robotsTxtService, { ...baseConfig, deviceProfile: 'desktop' });
+      case IngestionPlatform.OTHAIM:
+        return new OthaimPriceScraper(this.robotsTxtService, { ...baseConfig, deviceProfile: 'mobile' });
+      case IngestionPlatform.TAMIMI:
+        return new TamimiPriceScraper(this.robotsTxtService, { ...baseConfig, deviceProfile: 'desktop' });
       default:
         throw new Error(`Unsupported platform: ${platform}`);
     }
   }
 
-  private async processProductData(platform: IngestionPlatform, data: ScrapedProductData) {
-    // 1. Image Processing & AI Extraction
+  private async processProductData(platform: IngestionPlatform, scraper: BaseScraper, data: ScrapedProductData, page: any = null) {
+    // 1. Image Processing & AI Extraction (Best Effort)
     let structuredLabel: StructuredLabelDto | null = null;
-    for (const imageUrl of data.imageUrls) {
-      try {
-        const base64 = await this.downloadImageAsBase64(imageUrl);
-        structuredLabel = await this.labelCoreService.processImage(base64);
-        break; // Success! Both nutrition and ingredients are valid and present
-      } catch (err) {
-        this.logger.warn(`OCR pipeline failed for image ${imageUrl}: ${err.message}`);
-        // Fall through to next image
+    
+    // We only attempt OCR if we have both a valid image and an active browser page context
+    if (page && data.imageUrls.length > 0) {
+      for (const imageUrl of data.imageUrls) {
+        try {
+          const base64 = await (scraper as any).downloadImageAsBase64(page, imageUrl);
+          structuredLabel = await this.labelCoreService.processImage(base64);
+          this.logger.debug(`Successfully extracted AI structured data for product: ${data.name}`);
+          break; 
+        } catch (err) {
+          // We log the warning but don't abort, as catalog images often aren't labels
+          this.logger.warn(`AI extraction skipped for ${data.name} (image ${imageUrl}): ${err.message}`);
+        }
       }
+    } else {
+      this.logger.debug(`Skipping AI extraction for ${data.name} - no page context or images.`);
     }
 
-    // 2. Find or Create Product
+    // 2. Find or Create Product (Robust Fallback Identity)
+    // If no GTIN provided by catalog, we derive a unique one from the URL hash 
+    // to ensure we can match/update this product in future crawls without duplicates.
+    const fallbackGtin = data.productPageUrl ? `URL-${Buffer.from(data.productPageUrl).toString('base64').slice(-16)}` : null;
+    
     const product = await this.productClusteringService.findOrCreateProduct(
-      data.gtin || null,
-      data.brand || (structuredLabel?.brand as string) || '',
-      data.name || (structuredLabel?.name_en as string) || '',
-      data.weight || ''
+      data.gtin || fallbackGtin,
+      data.brand || (structuredLabel?.brand as string) || 'Generic',
+      data.name || (structuredLabel?.name_en as string) || 'Unnamed Product',
+      data.weight || '',
+      data.name_ar
     );
 
     // 3. Database Updates in Transaction
@@ -161,17 +243,30 @@ export class IngestionProcessor extends WorkerHost {
         throw new Error(`Merchant ${merchantName} not found in database. Run migrations.`);
       }
 
-      // Insert Product Price
-      const priceRecord = manager.create(ProductPrice, {
-        product_id: product.id,
-        merchant_id: merchant.id,
-        price_sar_incl_vat: data.price,
-        currency: 'SAR',
-        source_url: data.productPageUrl,
-        in_stock: true,
-        scraped_at: new Date()
+      // Check for price deduplication (if identical price exists for this merchant/product, just update scraped_at)
+      const existingPrice = await manager.findOne(ProductPrice, {
+        where: { product_id: product.id, merchant_id: merchant.id },
+        order: { scraped_at: 'DESC' }
       });
-      await manager.save(priceRecord);
+
+      if (existingPrice && existingPrice.price_sar_incl_vat === data.price) {
+        // Price hasn't changed. Just bump the timestamp
+        existingPrice.scraped_at = new Date();
+        existingPrice.in_stock = data.inStock ?? existingPrice.in_stock;
+        await manager.save(existingPrice);
+      } else {
+        // Insert new Product Price
+        const priceRecord = manager.create(ProductPrice, {
+          product_id: product.id,
+          merchant_id: merchant.id,
+          price_sar_incl_vat: data.price,
+          currency: 'SAR',
+          source_url: data.productPageUrl,
+          in_stock: data.inStock ?? true,
+          scraped_at: new Date()
+        });
+        await manager.save(priceRecord);
+      }
 
       // Upsert Images
       for (const url of data.imageUrls) {
@@ -197,6 +292,10 @@ export class IngestionProcessor extends WorkerHost {
 
   private capitalize(s: string) {
     if (s === 'hungerstation') return 'HungerStation';
+    if (s === 'carrefour') return 'Carrefour';
+    if (s === 'panda') return 'Panda';
+    if (s === 'othaim') return 'Othaim';
+    if (s === 'tamimi') return 'Tamimi';
     return s.charAt(0).toUpperCase() + s.slice(1);
   }
 }

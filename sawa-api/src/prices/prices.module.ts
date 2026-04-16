@@ -6,6 +6,7 @@ import { PricesController } from './prices.controller';
 import { ProductPrice } from '../entities/product-price.entity';
 import { Product } from '../entities/product.entity';
 import Redis from 'ioredis';
+import { getRedisOptions } from '../config/redis.config';
 
 @Module({
   imports: [TypeOrmModule.forFeature([ProductPrice, Product])],
@@ -16,10 +17,7 @@ import Redis from 'ioredis';
       provide: 'REDIS_CLIENT',
       inject: [ConfigService],
       useFactory: (config: ConfigService) => {
-        return new Redis({
-          host: config.get<string>('REDIS_HOST'),
-          port: config.get<number>('REDIS_PORT'),
-        });
+        return new Redis(getRedisOptions(config));
       },
     },
   ],

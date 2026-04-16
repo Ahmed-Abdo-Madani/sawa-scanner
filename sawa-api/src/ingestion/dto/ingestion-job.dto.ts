@@ -1,11 +1,13 @@
-import { IsEnum, IsString, IsUrl, IsObject, ValidateNested, IsNumber, IsPositive } from 'class-validator';
+import { IsEnum, IsString, IsUrl, IsObject, ValidateNested, IsNumber, IsPositive, IsArray, IsOptional } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export enum IngestionPlatform {
   NINJA = 'ninja',
   HUNGERSTATION = 'hungerstation',
-  // PANDA = 'panda', // Future implementation
-  // CARREFOUR = 'carrefour', // Future implementation
+  PANDA = 'panda',
+  CARREFOUR = 'carrefour',
+  OTHAIM = 'othaim',
+  TAMIMI = 'tamimi',
 }
 
 export class PageRangeDto {
@@ -31,10 +33,20 @@ export class IngestionJobDto {
   @ValidateNested()
   @Type(() => PageRangeDto)
   pageRange: PageRangeDto;
+
+  @IsArray()
+  @IsString({ each: true })
+  @IsOptional()
+  visitedUrls?: string[];
+
+  @IsNumber()
+  @IsOptional()
+  depth?: number;
 }
 
 export interface ScrapedProductData {
   name: string;
+  name_ar?: string;
   price: number;
   weight?: string;
   productPageUrl: string;
@@ -42,4 +54,5 @@ export interface ScrapedProductData {
   brand?: string;
   description?: string;
   gtin?: string;
+  inStock?: boolean;
 }

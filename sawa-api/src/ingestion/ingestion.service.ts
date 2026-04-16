@@ -3,6 +3,16 @@ import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { IngestionJobDto } from './dto/ingestion-job.dto';
 
+export const INGESTION_JOB_OPTIONS = {
+  attempts: 3,
+  backoff: {
+    type: 'exponential',
+    delay: 5000,
+  },
+  removeOnComplete: 100,
+  removeOnFail: 50,
+};
+
 @Injectable()
 export class IngestionService {
   private readonly logger = new Logger(IngestionService.name);
@@ -14,15 +24,7 @@ export class IngestionService {
   async addIngestionJob(dto: IngestionJobDto) {
     this.logger.log(`Adding ingestion job for ${dto.platform}: ${dto.categoryUrl}`);
     
-    const job = await this.ingestionQueue.add('scrape-category', dto, {
-      attempts: 3,
-      backoff: {
-        type: 'exponential',
-        delay: 5000,
-      },
-      removeOnComplete: 100,
-      removeOnFail: 50,
-    });
+    const job = await this.ingestionQueue.add('scrape-category', dto, INGESTION_JOB_OPTIONS);
 
     return { jobId: job.id };
   }
