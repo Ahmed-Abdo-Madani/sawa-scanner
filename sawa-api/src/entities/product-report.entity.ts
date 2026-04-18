@@ -18,9 +18,7 @@ export class ProductReport {
   @Column({ type: 'varchar', nullable: true })
   reporter_uid: string | null;
 
-
   @Column({ type: 'jsonb' })
-
   payload: Record<string, any>;
 
   @Column({ default: 'pending' })

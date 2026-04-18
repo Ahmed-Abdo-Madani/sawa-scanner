@@ -10,15 +10,21 @@ import { getQueueToken } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { Request, Response, NextFunction } from 'express';
 
-const DEV_ADMIN_SECRET = 'sawa-scanner-dev-2026';
 
-async function expressFirebaseAuth(req: Request, res: Response, next: NextFunction) {
-
-
+async function expressFirebaseAuth(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) {
   const devSecret = req.headers['x-dev-admin-secret'];
-  if (process.env.NODE_ENV === 'development' && devSecret === DEV_ADMIN_SECRET) {
-     (req as any).user = { role: 'admin', admin: true, uid: 'dev-admin' };
-     return next();
+  const DEV_ADMIN_SECRET = process.env.DEV_ADMIN_SECRET;
+  if (
+    process.env.NODE_ENV === 'development' &&
+    DEV_ADMIN_SECRET &&
+    devSecret === DEV_ADMIN_SECRET
+  ) {
+    (req as any).user = { role: 'admin', admin: true, uid: 'dev-admin' };
+    return next();
   }
 
   const [type, token] = req.headers.authorization?.split(' ') ?? [];
@@ -28,19 +34,25 @@ async function expressFirebaseAuth(req: Request, res: Response, next: NextFuncti
 
   try {
     if (!admin.apps.length) {
-      return res.status(401).json({ statusCode: 401, message: 'Firebase Admin not initialized' });
+      return res
+        .status(401)
+        .json({ statusCode: 401, message: 'Firebase Admin not initialized' });
     }
     const decodedToken = await admin.auth().verifyIdToken(token);
-    
+
     // Admin check: ensure the trusted 'admin' claim is present
     if (decodedToken.role !== 'admin' && decodedToken.admin !== true) {
-      return res.status(403).json({ statusCode: 403, message: 'Forbidden: Admin access required' });
+      return res
+        .status(403)
+        .json({ statusCode: 403, message: 'Forbidden: Admin access required' });
     }
 
     (req as any).user = decodedToken;
     next();
   } catch (error) {
-    return res.status(401).json({ statusCode: 401, message: 'Invalid or expired token' });
+    return res
+      .status(401)
+      .json({ statusCode: 401, message: 'Invalid or expired token' });
   }
 }
 
@@ -62,7 +74,18 @@ async function bootstrap() {
   // Fast-fail if region is not validated
   const allowedRegions = ['me-south-1', 'me-central2-a'];
   if (!region || !allowedRegions.includes(region)) {
-    console.error(`FATAL: Invalid CLOUD_REGION "${region}". Must be one of ${allowedRegions.join(', ')} for KSA compliance.`);
+    console.error(
+      `FATAL: Invalid CLOUD_REGION "${region}". Must be one of ${allowedRegions.join(', ')} for KSA compliance.`,
+    );
+    process.exit(1);
+  }
+
+  // Comment 1.2: Startup check for dev admin secret
+  const devAdminSecret = configService.get('DEV_ADMIN_SECRET');
+  if (nodeEnv !== 'development' && devAdminSecret) {
+    console.error(
+      `FATAL: DEV_ADMIN_SECRET is set in "${nodeEnv}" environment. This bypass is ONLY permitted in "development" mode.`,
+    );
     process.exit(1);
   }
 

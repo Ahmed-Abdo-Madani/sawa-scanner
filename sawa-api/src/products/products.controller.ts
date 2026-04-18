@@ -24,7 +24,7 @@ export class ProductsController {
   @Get(':gtin')
   async getProductByGtin(@Param('gtin') gtin: string) {
     const product = await this.productsService.findByGtin(gtin);
-    
+
     return {
       id: product.id,
       gtin: product.gtin,
@@ -36,29 +36,31 @@ export class ProductsController {
       nutri_score_grade: product.nutri_score_grade,
       nova_group: product.nova_group,
       sfda_npm_score: product.sfda_npm_score,
-      nutrition: product.nutritionFact ? {
-        energy_kcal: product.nutritionFact.energy_kcal,
-        fat_g: product.nutritionFact.fat_g,
-        saturated_fat_g: product.nutritionFact.saturated_fat_g,
-        carbs_g: product.nutritionFact.carbs_g,
-        sugars_g: product.nutritionFact.sugars_g,
-        fiber_g: product.nutritionFact.fiber_g,
-        protein_g: product.nutritionFact.protein_g,
-        sodium_mg: product.nutritionFact.sodium_mg,
-        serving_size_g: product.nutritionFact.serving_size_g,
-      } : null,
-      ingredients: product.ingredients.map(i => ({
+      nutrition: product.nutritionFact
+        ? {
+            energy_kcal: product.nutritionFact.energy_kcal,
+            fat_g: product.nutritionFact.fat_g,
+            saturated_fat_g: product.nutritionFact.saturated_fat_g,
+            carbs_g: product.nutritionFact.carbs_g,
+            sugars_g: product.nutritionFact.sugars_g,
+            fiber_g: product.nutritionFact.fiber_g,
+            protein_g: product.nutritionFact.protein_g,
+            sodium_mg: product.nutritionFact.sodium_mg,
+            serving_size_g: product.nutritionFact.serving_size_g,
+          }
+        : null,
+      ingredients: product.ingredients.map((i) => ({
         name_ar: i.name_ar,
         name_en: i.name_en,
         e_number: i.e_number,
         sfda_status: i.sfda_status,
       })),
-      prices: product.prices.map(p => ({
+      prices: product.prices.map((p) => ({
         merchant: p.merchant?.name_en || 'Unknown',
         price_sar_incl_vat: p.price_sar_incl_vat,
         scraped_at: p.scraped_at,
       })),
-      images: product.images?.map(i => ({
+      images: product.images?.map((i) => ({
         url: i.url,
         image_type: i.image_type,
       })),
@@ -87,14 +89,25 @@ export class ProductsController {
         storage: diskStorage({
           destination: './uploads/reports',
           filename: (_req, file, cb) => {
-            const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-            cb(null, `${file.fieldname}-${uniqueSuffix}${extname(file.originalname)}`);
+            const uniqueSuffix =
+              Date.now() + '-' + Math.round(Math.random() * 1e9);
+            cb(
+              null,
+              `${file.fieldname}-${uniqueSuffix}${extname(file.originalname)}`,
+            );
           },
         }),
         limits: { fileSize: 5 * 1024 * 1024 }, // 5 MB per file
         fileFilter: (_req, file, cb) => {
-          if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.mimetype)) {
-            return cb(new BadRequestException(`Unsupported image type: ${file.mimetype}`), false);
+          if (
+            !['image/jpeg', 'image/png', 'image/webp'].includes(file.mimetype)
+          ) {
+            return cb(
+              new BadRequestException(
+                `Unsupported image type: ${file.mimetype}`,
+              ),
+              false,
+            );
           }
           cb(null, true);
         },
@@ -110,11 +123,14 @@ export class ProductsController {
     },
   ) {
     const images: Record<string, string> = {};
-    
+
     // Return relative URLs that point to the ServeStatic route.
-    if (files?.front?.[0]) images.front = `/uploads/reports/${files.front[0].filename}`;
-    if (files?.ingredients?.[0]) images.ingredients = `/uploads/reports/${files.ingredients[0].filename}`;
-    if (files?.nutrition?.[0]) images.nutrition = `/uploads/reports/${files.nutrition[0].filename}`;
+    if (files?.front?.[0])
+      images.front = `/uploads/reports/${files.front[0].filename}`;
+    if (files?.ingredients?.[0])
+      images.ingredients = `/uploads/reports/${files.ingredients[0].filename}`;
+    if (files?.nutrition?.[0])
+      images.nutrition = `/uploads/reports/${files.nutrition[0].filename}`;
 
     return { images };
   }
@@ -127,7 +143,11 @@ export class ProductsController {
     @Request() req: any,
   ) {
     const reporterUid: string | undefined = req.user?.uid;
-    const report = await this.productsService.createReport(gtin, body, reporterUid);
+    const report = await this.productsService.createReport(
+      gtin,
+      body,
+      reporterUid,
+    );
     return { success: true, id: report.id };
   }
 }

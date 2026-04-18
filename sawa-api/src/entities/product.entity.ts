@@ -1,4 +1,13 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, Index, OneToOne, OneToMany } from 'typeorm';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  CreateDateColumn,
+  UpdateDateColumn,
+  Index,
+  OneToOne,
+  OneToMany,
+} from 'typeorm';
 import { NutritionFact } from './nutrition-fact.entity';
 import { Ingredient } from './ingredient.entity';
 import { ProductPrice } from './product-price.entity';
@@ -42,7 +51,7 @@ export class Product {
 
   @Column({ type: 'integer', nullable: true })
   sfda_npm_score: number | null;
-  
+
   @Column({ type: 'double precision', nullable: true })
   net_weight_value: number;
 
@@ -55,15 +64,15 @@ export class Product {
   @UpdateDateColumn()
   updated_at: Date;
 
-  @OneToOne(() => NutritionFact, nutritionFact => nutritionFact.product)
+  @OneToOne(() => NutritionFact, (nutritionFact) => nutritionFact.product)
   nutritionFact: NutritionFact;
 
-  @OneToMany(() => Ingredient, ingredient => ingredient.product)
+  @OneToMany(() => Ingredient, (ingredient) => ingredient.product)
   ingredients: Ingredient[];
 
-  @OneToMany(() => ProductPrice, price => price.product)
+  @OneToMany(() => ProductPrice, (price) => price.product)
   prices: ProductPrice[];
 
-  @OneToMany(() => ProductImage, image => image.product)
+  @OneToMany(() => ProductImage, (image) => image.product)
   images: ProductImage[];
 }

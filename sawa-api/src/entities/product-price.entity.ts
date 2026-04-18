@@ -1,6 +1,14 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, Index } from 'typeorm';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  ManyToOne,
+  JoinColumn,
+  Index,
+} from 'typeorm';
 import { Product } from './product.entity';
 import { Merchant } from './merchant.entity';
+import { Store } from './store.entity';
 
 @Entity()
 export class ProductPrice {
@@ -23,7 +31,9 @@ export class ProductPrice {
   @Column({ type: 'timestamp' })
   scraped_at: Date;
 
-  @ManyToOne(() => Product, product => product.prices, { onDelete: 'CASCADE' })
+  @ManyToOne(() => Product, (product) => product.prices, {
+    onDelete: 'CASCADE',
+  })
   @JoinColumn({ name: 'product_id' })
   product: Product;
 
@@ -38,4 +48,12 @@ export class ProductPrice {
   @Index()
   @Column()
   merchant_id: string;
+
+  @ManyToOne(() => Store, { onDelete: 'SET NULL', nullable: true })
+  @JoinColumn({ name: 'store_id' })
+  store?: Store | null;
+
+  @Index()
+  @Column({ type: 'uuid', nullable: true })
+  store_id: string | null;
 }

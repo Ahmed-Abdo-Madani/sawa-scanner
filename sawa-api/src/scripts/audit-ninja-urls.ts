@@ -8,7 +8,8 @@ const ds = new DataSource({
   username: process.env.DATABASE_USERNAME,
   password: process.env.DATABASE_PASSWORD,
   database: process.env.DATABASE_NAME,
-  ssl: process.env.DATABASE_SSL === 'true' ? { rejectUnauthorized: false } : true
+  ssl:
+    process.env.DATABASE_SSL === 'true' ? { rejectUnauthorized: false } : true,
 });
 
 async function auditUrls() {
@@ -24,7 +25,7 @@ async function auditUrls() {
       ORDER BY pp.scraped_at DESC
       LIMIT 10
     `);
-    
+
     res.forEach((row: any) => {
       console.log(`Product: ${row.name_en}`);
       console.log(`URL:     ${row.source_url}`);
@@ -38,8 +39,9 @@ async function auditUrls() {
       JOIN merchant m ON m.id = pp.merchant_id
       WHERE m.name_en = 'Ninja' AND (pp.source_url LIKE '%-%-%-%-%' OR pp.source_url NOT LIKE '%/product/%')
     `);
-    console.log(`\nPotential Pollution (Non-canonical URLs): ${pollutionCheck[0].count}`);
-
+    console.log(
+      `\nPotential Pollution (Non-canonical URLs): ${pollutionCheck[0].count}`,
+    );
   } catch (err) {
     console.error(err);
   } finally {

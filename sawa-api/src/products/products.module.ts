@@ -9,7 +9,15 @@ import { ProductPrice } from '../entities/product-price.entity';
 import { ProductReport } from '../entities/product-report.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Product, NutritionFact, Ingredient, ProductPrice, ProductReport])],
+  imports: [
+    TypeOrmModule.forFeature([
+      Product,
+      NutritionFact,
+      Ingredient,
+      ProductPrice,
+      ProductReport,
+    ]),
+  ],
   controllers: [ProductsController],
   providers: [ProductsService],
   exports: [ProductsService],

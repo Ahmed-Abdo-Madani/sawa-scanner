@@ -1,5 +1,10 @@
 import { chromium } from 'playwright-extra';
-import { Browser, BrowserContext, Page } from 'playwright';
+import {
+  Browser,
+  BrowserContext,
+  Page,
+  Response as PlaywrightResponse,
+} from 'playwright';
 import StealthPlugin from 'puppeteer-extra-plugin-stealth';
 import { Logger } from '@nestjs/common';
 import { getRandomUA, applyJitter, withRetry } from './evasion';
@@ -16,22 +21,26 @@ export abstract class BaseScraper {
 
   constructor(
     protected readonly robotsTxtService: RobotsTxtService,
-    protected readonly config: { headless: boolean; cookieSessionPath?: string; deviceProfile?: 'mobile' | 'desktop' },
-  ) {}
+    protected readonly config: {
+      headless: boolean;
+      cookieSessionPath?: string;
+      deviceProfile?: 'mobile' | 'desktop';
+    },
+  ) { }
 
   async launch(): Promise<void> {
     this.logger.log('Launching browser...');
-    
+
     const launchOptions = {
       headless: this.config.headless,
       args: ['--no-sandbox', '--disable-setuid-sandbox'],
     };
 
     const isMobile = this.config.deviceProfile !== 'desktop';
-    const viewport = isMobile ? { width: 390, height: 844 } : { width: 1280, height: 800 };
-    const userAgent = isMobile 
-      ? 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1'
-      : 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
+    const viewport = isMobile
+      ? { width: 390, height: 844 }
+      : { width: 1280, height: 800 };
+    const userAgent = getRandomUA(isMobile ? 'mobile' : 'desktop');
 
     if (this.config.cookieSessionPath) {
       this.context = await chromium.launchPersistentContext(
@@ -58,11 +67,11 @@ export abstract class BaseScraper {
   }
 
   protected async navigateWithEvasion(
-    page: Page, 
-    url: string, 
+    page: Page,
+    url: string,
     waitUntil: 'load' | 'domcontentloaded' | 'networkidle' | 'commit' = 'load',
-    timeout: number = 60000
-  ): Promise<void> {
+    timeout: number = 60000,
+  ): Promise<PlaywrightResponse | null> {
     if (!url || url.trim() === '') {
       throw new Error(`Invalid navigation URL: "${url}"`);
     }
@@ -74,27 +83,32 @@ export abstract class BaseScraper {
 
     await applyJitter();
 
+    let navigationResponse: PlaywrightResponse | null = null;
     await withRetry(async () => {
       this.logger.debug(`Navigating to: ${url}`);
       const response = await page.goto(url, { waitUntil, timeout });
-      
+      navigationResponse = response;
+
       if (!response) {
         throw new Error('No response received during navigation');
       }
 
       const status = response.status();
       if (status === 429 || status >= 500) {
-        throw new Error(`Navigation failed with status: ${status}`);
+        const err = new Error(`Navigation failed with status: ${status}`);
+        (err as any).status = status;
+        throw err;
       }
     });
 
     await this.dismissConsentModals(page);
+    return navigationResponse;
   }
 
   protected async dismissConsentModals(page: Page): Promise<void> {
     const selectors = [
       '#onetrust-accept-btn-handler', // Carrefour, etc.
-      'button[aria-label="Close"]',      // Tamimi, etc.
+      'button[aria-label="Close"]', // Tamimi, etc.
       '#gdpr-cookie-accept',
       '.cookie-accept',
       '#cookiescript_accept',
@@ -107,8 +121,10 @@ export abstract class BaseScraper {
     for (const selector of selectors) {
       try {
         const element = await page.$(selector);
-        if (element && await element.isVisible()) {
-          this.logger.debug(`Dismissing consent modal with selector: ${selector}`);
+        if (element && (await element.isVisible())) {
+          this.logger.debug(
+            `Dismissing consent modal with selector: ${selector}`,
+          );
           await element.click();
           await page.waitForTimeout(500); // Wait for animation
         }
@@ -123,7 +139,10 @@ export abstract class BaseScraper {
     }
   }
 
-  protected async downloadImageAsBase64(page: Page, url: string): Promise<string> {
+  protected async downloadImageAsBase64(
+    page: Page,
+    url: string,
+  ): Promise<string> {
     this.logger.debug(`Downloading image via browser context: ${url}`);
     return await page.evaluate(async (imgUrl) => {
       const resp = await fetch(imgUrl);
@@ -139,7 +158,7 @@ export abstract class BaseScraper {
         reader.onerror = reject;
         reader.readAsDataURL(blob);
       });
-    }, url) as string;
+    }, url);
   }
 
   async close(): Promise<void> {
@@ -159,6 +178,11 @@ export abstract class BaseScraper {
     }
   }
 
-  abstract scrapeListingPage(categoryUrl: string, page: number): Promise<ScrapedProductData[]>;
-  abstract scrapeDetailPage(productUrl: string): Promise<ScrapedProductData & { page?: Page }>;
+  abstract scrapeListingPage(
+    categoryUrl: string,
+    page: number,
+  ): Promise<ScrapedProductData[]>;
+  abstract scrapeDetailPage(
+    productUrl: string,
+  ): Promise<ScrapedProductData & { page?: Page }>;
 }

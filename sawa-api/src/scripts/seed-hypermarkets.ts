@@ -13,7 +13,10 @@ async function seed() {
     password: process.env.DATABASE_PASSWORD,
     database: process.env.DATABASE_NAME,
     entities: [Merchant],
-    ssl: process.env.DATABASE_SSL === 'true' ? { rejectUnauthorized: false } : false,
+    ssl:
+      process.env.DATABASE_SSL === 'true'
+        ? { rejectUnauthorized: false }
+        : false,
   });
 
   try {
@@ -27,7 +30,8 @@ async function seed() {
         name_en: 'Carrefour',
         name_ar: 'كارفور',
         base_url: 'https://www.carrefourksa.com',
-        logo_url: 'https://www.carrefourksa.com/mafksa/config/carrefour-logo.svg',
+        logo_url:
+          'https://www.carrefourksa.com/mafksa/config/carrefour-logo.svg',
         data_source_type: 'web',
       },
       {
@@ -54,7 +58,9 @@ async function seed() {
     ];
 
     for (const m of merchants) {
-      const existing = await merchantRepo.findOne({ where: { name_en: m.name_en } });
+      const existing = await merchantRepo.findOne({
+        where: { name_en: m.name_en },
+      });
       if (!existing) {
         const newMerchant = merchantRepo.create(m);
         await merchantRepo.save(newMerchant);

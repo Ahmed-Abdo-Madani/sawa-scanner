@@ -1,4 +1,10 @@
-import { Entity, PrimaryGeneratedColumn, Column, OneToOne, JoinColumn } from 'typeorm';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  OneToOne,
+  JoinColumn,
+} from 'typeorm';
 import { Product } from './product.entity';
 
 @Entity()
@@ -33,7 +39,9 @@ export class NutritionFact {
   @Column({ nullable: true })
   serving_size_g: number;
 
-  @OneToOne(() => Product, product => product.nutritionFact, { onDelete: 'CASCADE' })
+  @OneToOne(() => Product, (product) => product.nutritionFact, {
+    onDelete: 'CASCADE',
+  })
   @JoinColumn({ name: 'product_id' })
   product: Product;
 

@@ -8,7 +8,9 @@ export class OcrService {
 
   constructor(private configService: ConfigService) {
     this.client = new ImageAnnotatorClient({
-      keyFilename: this.configService.get<string>('GOOGLE_APPLICATION_CREDENTIALS'),
+      keyFilename: this.configService.get<string>(
+        'GOOGLE_APPLICATION_CREDENTIALS',
+      ),
     });
   }
 

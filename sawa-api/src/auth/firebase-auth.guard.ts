@@ -1,4 +1,9 @@
-import { Injectable, CanActivate, ExecutionContext, UnauthorizedException } from '@nestjs/common';
+import {
+  Injectable,
+  CanActivate,
+  ExecutionContext,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import * as admin from 'firebase-admin';
 import { IS_PUBLIC_KEY } from './public.decorator';
@@ -18,17 +23,21 @@ export class FirebaseAuthGuard implements CanActivate {
       return true;
     }
 
-    const isOptionalAuth = this.reflector.getAllAndOverride<boolean>(IS_OPTIONAL_AUTH_KEY, [
-      context.getHandler(),
-      context.getClass(),
-    ]);
+    const isOptionalAuth = this.reflector.getAllAndOverride<boolean>(
+      IS_OPTIONAL_AUTH_KEY,
+      [context.getHandler(), context.getClass()],
+    );
 
     const request = context.switchToHttp().getRequest();
 
     // Dev admin bypass mechanism
     const devSecret = request.headers['x-dev-admin-secret'];
-    const DEV_ADMIN_SECRET = 'sawa-scanner-dev-2026';
-    if (process.env.NODE_ENV === 'development' && devSecret === DEV_ADMIN_SECRET) {
+    const DEV_ADMIN_SECRET = process.env.DEV_ADMIN_SECRET;
+    if (
+      process.env.NODE_ENV === 'development' &&
+      DEV_ADMIN_SECRET &&
+      devSecret === DEV_ADMIN_SECRET
+    ) {
       request.user = { role: 'admin', admin: true, uid: 'dev-admin' };
       return true;
     }

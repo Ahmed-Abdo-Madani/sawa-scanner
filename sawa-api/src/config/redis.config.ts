@@ -15,7 +15,9 @@ export const getRedisOptions = (config: ConfigService) => {
   const useTls = config.get<string>('REDIS_TLS') === 'true';
 
   // Log configuration state (without secrets) to aid debugging
-  logger.log(`Configuring Redis at ${host}:${port} (TLS: ${useTls ? 'Enabled' : 'Disabled'})`);
+  logger.log(
+    `Configuring Redis at ${host}:${port} (TLS: ${useTls ? 'Enabled' : 'Disabled'})`,
+  );
 
   return {
     host,

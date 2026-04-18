@@ -7,15 +7,15 @@ async function run() {
   console.log('🧟 Cleaning zombie active jobs...');
   const app = await NestFactory.createApplicationContext(AppModule);
   const queue = app.get<Queue>(getQueueToken('ingestion-queue'));
-  
+
   const activeJobs = await queue.getJobs(['active']);
   console.log(`Found ${activeJobs.length} active jobs.`);
-  
+
   for (const job of activeJobs) {
     console.log(`Removing zombie job: ${job.id} (${job.name})`);
     await job.remove();
   }
-  
+
   const waitingJobs = await queue.getJobs(['waiting']);
   console.log(`Found ${waitingJobs.length} waiting jobs.`);
   // Optional: remove all waiting too to start fresh

@@ -1,4 +1,8 @@
-import { Injectable, InternalServerErrorException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  InternalServerErrorException,
+  BadRequestException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
 import { createHash } from 'crypto';
@@ -34,7 +38,9 @@ export class ScanService {
     const structuredData = await this.labelCoreService.processImage(dto.image);
 
     // 5. SFDA Safety Matching
-    const matchedIngredients = await this.sfdaMatcher.matchIngredients(structuredData.ingredients);
+    const matchedIngredients = await this.sfdaMatcher.matchIngredients(
+      structuredData.ingredients,
+    );
 
     // 5. Build/Upsert Product
     return await this.dataSource.transaction(async (manager) => {
@@ -46,9 +52,9 @@ export class ScanService {
       }
 
       // Upsert Product
-      let product = await manager.findOne(Product, { 
+      let product = await manager.findOne(Product, {
         where: { gtin },
-        relations: ['nutritionFact', 'ingredients'] 
+        relations: ['nutritionFact', 'ingredients'],
       });
 
       if (product) {
@@ -83,23 +89,27 @@ export class ScanService {
       if (product.ingredients?.length) {
         await manager.remove(product.ingredients);
       }
-      const ingredients = matchedIngredients.map(ing => manager.create(Ingredient, {
-        name_ar: ing.name_ar,
-        name_en: ing.name_en,
-        e_number: ing.e_number,
-        sfda_status: ing.sfda_status,
-        product,
-      }));
+      const ingredients = matchedIngredients.map((ing) =>
+        manager.create(Ingredient, {
+          name_ar: ing.name_ar,
+          name_en: ing.name_en,
+          e_number: ing.e_number,
+          sfda_status: ing.sfda_status,
+          product,
+        }),
+      );
       await manager.save(ingredients);
 
       // Reload and return in the shape expected by the frontend
-      const finalProduct = await manager.findOne(Product, { 
+      const finalProduct = await manager.findOne(Product, {
         where: { id: product.id },
-        relations: ['nutritionFact', 'ingredients', 'prices', 'images']
+        relations: ['nutritionFact', 'ingredients', 'prices', 'images'],
       });
 
       if (!finalProduct) {
-        throw new InternalServerErrorException('Failed to reload product after save');
+        throw new InternalServerErrorException(
+          'Failed to reload product after save',
+        );
       }
 
       return {
@@ -112,18 +122,20 @@ export class ScanService {
         halal_certified: finalProduct.halal_certified,
         nutri_score_grade: finalProduct.nutri_score_grade,
         nova_group: finalProduct.nova_group,
-        nutrition: finalProduct.nutritionFact ? {
-          energy_kcal: finalProduct.nutritionFact.energy_kcal,
-          fat_g: finalProduct.nutritionFact.fat_g,
-          saturated_fat_g: finalProduct.nutritionFact.saturated_fat_g,
-          carbs_g: finalProduct.nutritionFact.carbs_g,
-          sugars_g: finalProduct.nutritionFact.sugars_g,
-          fiber_g: finalProduct.nutritionFact.fiber_g,
-          protein_g: finalProduct.nutritionFact.protein_g,
-          sodium_mg: finalProduct.nutritionFact.sodium_mg,
-          serving_size_g: finalProduct.nutritionFact.serving_size_g,
-        } : null,
-        ingredients: finalProduct.ingredients.map(i => ({
+        nutrition: finalProduct.nutritionFact
+          ? {
+              energy_kcal: finalProduct.nutritionFact.energy_kcal,
+              fat_g: finalProduct.nutritionFact.fat_g,
+              saturated_fat_g: finalProduct.nutritionFact.saturated_fat_g,
+              carbs_g: finalProduct.nutritionFact.carbs_g,
+              sugars_g: finalProduct.nutritionFact.sugars_g,
+              fiber_g: finalProduct.nutritionFact.fiber_g,
+              protein_g: finalProduct.nutritionFact.protein_g,
+              sodium_mg: finalProduct.nutritionFact.sodium_mg,
+              serving_size_g: finalProduct.nutritionFact.serving_size_g,
+            }
+          : null,
+        ingredients: finalProduct.ingredients.map((i) => ({
           name_ar: i.name_ar,
           name_en: i.name_en,
           e_number: i.e_number,

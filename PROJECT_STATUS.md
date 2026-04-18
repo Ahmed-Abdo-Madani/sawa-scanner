@@ -265,6 +265,81 @@ Sawa Scanner is a bilingual (AR/EN) product scanning system designed for the Sau
 - [x] **Inventory Persistence**: Fixed `IngestionProcessor` to correctly persist scraped `inStock` values from all retailers.
 - [x] **Automatic Tab Cleanup**: Ensured `page.close()` is called on both success and failure paths for `IngestionProcessor` and retail scrapers.
 
+### Phase 31: HungerStation Multi-Store Catalog Crawl (Completed ✅)
+- [x] **Per-Branch Schema**: New `Store` entity (chain × city × district × HS branch UUID + lat/lng), nullable `store_id` FK on `ProductPrice`, indexed for per-branch comparisons.
+- [x] **Discovery Pipeline**: `HungerStationScraper` enumerates cities → districts → branches via Next.js + GraphQL interception, gated by `HS_PILOT_CITIES` (default Riyadh) and a vertical whitelist that hard-rejects restaurants.
+- [x] **Per-Store Catalog Scrape**: Each in-scope branch is crawled category-by-category, with `ProductPrice` rows scoped by `store_id` so the same product across two Carrefour branches yields two comparable price rows.
+- [x] **Cluster Tightening**: `ProductClusteringService.findOrCreateProduct` now requires brand match before fuzzy when GTIN is missing, preventing cross-chain over-clustering.
+- [x] **Failure Isolation**: Per-(store, category) try/finally with guaranteed `page.close()`; one failure never aborts a city.
+- [x] **Schedulers**: `hungerstation-weekly-discovery` (Sun 01:00 KSA) and `hungerstation-daily-prices` (04:00 KSA) wired via `upsertJobScheduler` on `ingestion-queue`, gated by `HUNGERSTATION_DISCOVERY_ENABLED` / `HUNGERSTATION_DAILY_ENABLED` env flags. Daily run dispatches per-store children with deterministic `hs-daily-{storeId}-{YYYYMMDD}` job IDs for idempotency.
+- [x] **APIs**: `GET /stores`, `GET /stores/:id`, and `GET /products/:gtin/prices/by-store` for branch-aware price comparison in the Flutter app.
+- [x] **Merchant Normalization & Dynamic Creation**:
+    - [x] Implemented `normalizeHsMerchantName` to strip delivery time estimation suffixes (e.g., "25 - 40mins") and "Al " prefixes.
+    - [x] Refactored `StoresService` to dynamically create new `Merchant` entries for newly discovered brands on HungerStation, rather than falling back to a generic platform merchant.
+- [x] **Product Ingestion Hardening**:
+    - [x] Enhanced `discoverCategories` with `domcontentloaded` + `waitForSelector` for JS-rendered category tiles, replacing the `'commit'` strategy that missed them.
+    - [x] Broadened DOM category selectors to include `/cat/` URL pattern and improved text extraction.
+    - [x] Fixed branch vertical classification in `discoverBranches` DOM sweep: restored `'hypermarket'` as the correct fallback for branches discovered on the `/qc/supermarkets/` page (no explicit vertical segment in their URLs).
+    - [x] Fixed critical stale-dist bug: app was running old compiled code that still had the generic-merchant fallback. Rebuilt and restarted to apply all changes.
+    - [x] Added deduplication of repeated suffix words in `normalizeHsMerchantName` (e.g., `"Evey BakeryBakery"` → `"Evey Bakery"`) caused by DOM text concatenation of nested elements.
+    - [x] Added `Spinneys` and `Circle K` to the known-chain alias table in `normalizeHsMerchantName`.
+
+### Phase 32: Ingestion Reliability & Architecture Hardening (Completed ✅)
+- [x] **Resource Leak Prevention**:
+    - Eliminated duplicate `page.close()` calls on error paths in `scrapeDetailPage`.
+    - Implemented GraphQL interceptor `teardown()` in all discovery flows to prevent listener leaks.
+    - Added 30-minute BullMQ job timeouts and a 25-minute per-store internal watchdog to prevent worker stalls.
+- [x] **Concurrency & Atomicity**:
+    - Refactored merchant creation to be transaction-safe using `manager.upsert`, preventing duplicates during parallel ingestion.
+    - Standardized job routing in `IngestionService` to rely exclusively on job names, removing dual-routing re-dispatch logic in workers.
+- [x] **Scraper Resilience**:
+    - Enhanced `withRetry` to include HTTP 500 as a transient failure.
+    - Attached HTTP status codes to Playwright errors for informed retry decisions.
+    - Implemented 24h cache TTL for `robots.txt` with fail-soft behavior (fallback parsers are no longer cached permanently).
+- [x] **Data Integrity**:
+    - Tightened `isOfferStyleName` regex to avoid false positives on 'Free Range' products.
+    - Updated `ProductClusteringService` to return `null` on rejection, allowing callers to skip problematic items with localized metrics.
+    - Added `warn` level visibility for districts with zero branches.
+    - Hardened `Merchant` entity with non-nullable `name_en` column.
+
+### Phase 33: Database Query & Scraper Logic Optimization (Completed ✅)
+- [x] **N+1 Query Resolution**:
+    - Refactored `PriceScrapingProcessor` to use `getRawMany()` for a single joined query, eliminating per-product price lookups.
+    - Optimized `ProductImage` upserts in `IngestionProcessor` by pre-fetching all existing images for a product, reducing database roundtrips.
+- [x] **Fan-out Precision**:
+    - Refined HungerStation branch discovery to only enqueue `products-for-store` jobs for newly discovered or updated branches, reducing redundant BullMQ traffic.
+- [x] **Scraper Refinement**:
+    - Fixed recursion bug in `HungerStationScraper.extractHsProductNodes` to skip sub-object traversal once a product is identified.
+- [x] **Schema Integrity**:
+    - Added a composite unique index on `(product_id, url)` in `ProductImage` entity to enforce deduplication at the DB level.
+
+### Phase 34: Admin Security & Environment Hardening (Completed ✅)
+- [x] **Secret Management**:
+    - Removed hardcoded `DEV_ADMIN_SECRET` from `FirebaseAuthGuard`, `main.ts`, and automation scripts.
+    - Switched all admin bypasses to use `process.env.DEV_ADMIN_SECRET` with zero default fallbacks.
+    - Cleaned NUL-byte corruption in `.env.example` and replaced the leaked secret with a placeholder.
+- [x] **Production Safety**:
+    - Implemented a fail-fast startup check in `main.ts` that prevents the application from booting if `DEV_ADMIN_SECRET` is set in a non-development environment.
+    - Automation scripts now fail loudly if the required environment variable is missing, preventing silent auth failures.
+
+### Phase 35: Architectural Decoupling & Scraper Resilience (Completed ✅)
+- [x] **State Management**:
+    - Eliminated hidden coupling in `HungerStationScraper` by removing mutable `currentStore` and `currentStoreDbId` instance fields.
+    - Methods now accept explicit `HsBranch` context parameters, enabling stateless and thread-safe scraper operations.
+- [x] **Hydration Logic**:
+    - Centralized RSC (React Server Component) decoding into `hydration-utils.ts` as `decodeRscStream`.
+    - Switched to `JSON.parse` for robust unescaping of RSC chunks, correctly handling Unicode and complex escape sequences.
+- [x] **Bot Evasion**:
+    - Implemented platform-aware User Agent randomization in `BaseScraper`.
+    - UAs are now selected dynamically from a curated list in `evasion.ts` based on the requested device profile (mobile vs. desktop).
+- [x] **Script Safety & Hygiene**:
+    - Added mandatory `DEV_ADMIN_SECRET` guards to HungerStation trigger scripts to prevent unauthenticated requests.
+    - Cleaned up dead `hsScraper` variable references in `IngestionProcessor` following the stateless refactor.
+    - Fixed missing GraphQL interceptor teardown in `discoverDistricts`.
+
+### Security/Hardening Follow-ups (Deferred — does not block HungerStation functional testing)
+- [ ] **Rotate Exposed Redis Credential**: Remove hardcoded Redis URL/password from [`sawa-api/src/scripts/obliterate-queue.ts`](sawa-api/src/scripts/obliterate-queue.ts) and migrate to env-based config before any production use.
+
 ---
 
 ## 📂 Key Architecture & File References
@@ -280,8 +355,10 @@ Sawa Scanner is a bilingual (AR/EN) product scanning system designed for the Sau
 | **Price Sync Processor** | [`src/ingestion/price-scraping.processor.ts`](file:///c:/Users/Design_Bench_12/Documents/sawa-scanner/sawa-api/src/ingestion/price-scraping.processor.ts) | Daily historical price scraper logic. |
 | **Product Entities** | [`src/entities/product.entity.ts`](file:///c:/Users/Design_Bench_12/Documents/sawa-scanner/sawa-api/src/entities/product.entity.ts) | TypeORM entities. |
 | **Ingestion Engine** | [`src/ingestion/ingestion.processor.ts`](file:///c:/Users/Design_Bench_12/Documents/sawa-scanner/sawa-api/src/ingestion/ingestion.processor.ts) | Main ingestion queue worker. |
+| **Stores Service** | [`src/stores/stores.service.ts`](file:///c:/Users/Design_Bench_12/Documents/sawa-scanner/sawa-api/src/stores/stores.service.ts) | Store query/upsert service powering branch-aware ingestion and APIs. |
 | **Product Clustering**| [`src/ingestion/product-clustering.service.ts`](file:///c:/Users/Design_Bench_12/Documents/sawa-scanner/sawa-api/src/ingestion/product-clustering.service.ts) | Merges products from multiple sources (GTIN-first). |
 | **Retailer Scrapers** | [`src/ingestion/scraper/`](file:///c:/Users/Design_Bench_12/Documents/sawa-scanner/sawa-api/src/ingestion/scraper/) | Implementation for Carrefour, Panda, Othaim (Noon), Tamimi, Ninja. |
+| **HungerStation Scraper** | [`src/ingestion/scraper/hungerstation-scraper.ts`](file:///c:/Users/Design_Bench_12/Documents/sawa-scanner/sawa-api/src/ingestion/scraper/hungerstation-scraper.ts) | City/district/branch discovery and per-store catalog extraction. |
 | **Base Scraper** | [`src/ingestion/scraper/base-scraper.ts`](file:///c:/Users/Design_Bench_12/Documents/sawa-scanner/sawa-api/src/ingestion/scraper/base-scraper.ts) | Playwright wrapper with stealth & cookie handling. |
 | **Seeding Logic** | [`src/scripts/seed-hypermarkets.ts`](file:///c:/Users/Design_Bench_12/Documents/sawa-scanner/sawa-api/src/scripts/seed-hypermarkets.ts) | Standalone script for merchant registration. |
 | **Trigger Logic** | [`src/scripts/trigger-ingestion.ts`](file:///c:/Users/Design_Bench_12/Documents/sawa-scanner/sawa-api/src/scripts/trigger-ingestion.ts) | Script to launch mass ingestion jobs. |

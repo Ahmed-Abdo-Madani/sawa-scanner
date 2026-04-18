@@ -1,5 +1,14 @@
 import { plainToInstance } from 'class-transformer';
-import { IsEnum, IsNotEmpty, IsNumber, IsString, validateSync } from 'class-validator';
+import {
+  IsEnum,
+  IsIn,
+  IsNotEmpty,
+  IsNumber,
+  IsOptional,
+  IsString,
+  Min,
+  validateSync,
+} from 'class-validator';
 
 enum Environment {
   Development = 'development',
@@ -78,13 +87,33 @@ class EnvironmentVariables {
   @IsString()
   @IsNotEmpty()
   GEMINI_API_KEY: string;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(1)
+  INGESTION_WORKER_CONCURRENCY?: number;
+
+  @IsOptional()
+  @IsIn(['true', 'false'])
+  HUNGERSTATION_DISCOVERY_ENABLED?: string;
+
+  @IsOptional()
+  @IsIn(['true', 'false'])
+  HUNGERSTATION_DAILY_ENABLED?: string;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  HUNGERSTATION_DAILY_STAGGER_MS?: number;
 }
 
 export function validate(config: Record<string, any>) {
   const validatedConfig = plainToInstance(EnvironmentVariables, config, {
     enableImplicitConversion: true,
   });
-  const errors = validateSync(validatedConfig, { skipMissingProperties: false });
+  const errors = validateSync(validatedConfig, {
+    skipMissingProperties: false,
+  });
 
   if (errors.length > 0) {
     throw new Error(`Configuration validation failed: ${errors.toString()}`);

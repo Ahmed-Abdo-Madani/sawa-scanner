@@ -17,15 +17,25 @@ export class LabelValidationService {
     const n = label.nutrition;
     if (!n) {
       errors.push('Nutrition facts are missing or could not be structured');
-      throw new BadRequestException({ message: 'Nutrition label validation failed', errors });
+      throw new BadRequestException({
+        message: 'Nutrition label validation failed',
+        errors,
+      });
     }
 
     // 2. Non-negative values
     const numericFields = [
-      'energy_kcal', 'fat_g', 'saturated_fat_g', 'carbs_g', 
-      'sugars_g', 'fiber_g', 'protein_g', 'sodium_mg', 'serving_size_g'
+      'energy_kcal',
+      'fat_g',
+      'saturated_fat_g',
+      'carbs_g',
+      'sugars_g',
+      'fiber_g',
+      'protein_g',
+      'sodium_mg',
+      'serving_size_g',
     ];
-    
+
     for (const field of numericFields) {
       if (n[field] < 0) {
         errors.push(`Nutrient ${field} cannot be negative`);
@@ -39,7 +49,9 @@ export class LabelValidationService {
 
     const macroSum = (n.fat_g || 0) + (n.carbs_g || 0) + (n.protein_g || 0);
     if (macroSum > 100) {
-      errors.push(`Sum of macros (${macroSum.toFixed(1)}g) exceeds 100g per 100g`);
+      errors.push(
+        `Sum of macros (${macroSum.toFixed(1)}g) exceeds 100g per 100g`,
+      );
     }
 
     // 4. Individual caps

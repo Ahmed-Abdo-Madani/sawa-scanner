@@ -5,7 +5,8 @@ import robotsParser from 'robots-parser';
 @Injectable()
 export class RobotsTxtService {
   private readonly logger = new Logger(RobotsTxtService.name);
-  private readonly cache = new Map<string, any>();
+  private readonly cache = new Map<string, { parser: any; fetchedAt: number }>();
+  private readonly TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 
   async isAllowed(url: string): Promise<boolean> {
     try {
@@ -13,28 +14,35 @@ export class RobotsTxtService {
       const domain = `${parsedUrl.protocol}//${parsedUrl.host}`;
       const robotsUrl = `${domain}/robots.txt`;
 
-      let parser = this.cache.get(domain);
+      let entry = this.cache.get(domain);
+      const now = Date.now();
 
-      if (!parser) {
+      if (!entry || now - entry.fetchedAt > this.TTL_MS) {
         this.logger.debug(`Fetching robots.txt for ${domain}`);
         try {
           const response = await axios.get(robotsUrl, { timeout: 5000 });
-          parser = robotsParser(robotsUrl, response.data);
+          const parser = robotsParser(robotsUrl, response.data);
+          entry = { parser, fetchedAt: now };
+          this.cache.set(domain, entry);
         } catch (error) {
-          this.logger.warn(`Could not fetch robots.txt from ${robotsUrl}, assuming allowed. Error: ${error.message}`);
-          // Create a dummy parser that allows everything if we can't find robots.txt
-          parser = robotsParser(robotsUrl, 'User-agent: *\nAllow: /');
+          this.logger.warn(
+            `Could not fetch robots.txt from ${robotsUrl}, assuming allowed. Error: ${error.message}`,
+          );
+          // Do not cache the fallback parser so we retry next time.
+          // Or cache with a very short TTL (e.g., 5 mins) to avoid hammering.
+          return true;
         }
-        this.cache.set(domain, parser);
       }
 
-      const allowed = parser.isAllowed(url, '*');
+      const allowed = entry.parser.isAllowed(url, '*');
       if (!allowed) {
         this.logger.warn(`Skipping disallowed path per robots.txt: ${url}`);
       }
       return allowed;
     } catch (error) {
-      this.logger.error(`Error checking robots.txt for ${url}: ${error.message}`);
+      this.logger.error(
+        `Error checking robots.txt for ${url}: ${error.message}`,
+      );
       return true; // Default to allowed on error to avoid blocking valid runs
     }
   }

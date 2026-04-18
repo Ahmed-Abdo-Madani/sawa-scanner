@@ -10,7 +10,9 @@ export const FirebaseAdminProvider: Provider = {
   useFactory: (configService: ConfigService) => {
     const projectId = configService.get<string>('FIREBASE_PROJECT_ID');
     const clientEmail = configService.get<string>('FIREBASE_CLIENT_EMAIL');
-    const privateKey = configService.get<string>('FIREBASE_PRIVATE_KEY')?.replace(/\\n/g, '\n');
+    const privateKey = configService
+      .get<string>('FIREBASE_PRIVATE_KEY')
+      ?.replace(/\\n/g, '\n');
 
     if (!admin.apps.length && projectId && clientEmail && privateKey) {
       return admin.initializeApp({

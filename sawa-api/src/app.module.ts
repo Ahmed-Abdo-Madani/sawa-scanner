@@ -14,14 +14,14 @@ import { PricesModule } from './prices/prices.module';
 import { ScanModule } from './scan/scan.module';
 import { UsersModule } from './users/users.module';
 import { IngestionModule } from './ingestion/ingestion.module';
+import { StoresModule } from './stores/stores.module';
 
 import { getRedisOptions } from './config/redis.config';
 import { validate } from './config/env.validation';
 
 @Module({
-
   imports: [
-    ConfigModule.forRoot({ 
+    ConfigModule.forRoot({
       isGlobal: true,
       validate: validate,
     }),
@@ -36,7 +36,10 @@ import { validate } from './config/env.validation';
         database: config.get<string>('DATABASE_NAME'),
         autoLoadEntities: true,
         synchronize: false,
-        ssl: config.get<string>('DATABASE_SSL') === 'true' ? { rejectUnauthorized: false } : false,
+        ssl:
+          config.get<string>('DATABASE_SSL') === 'true'
+            ? { rejectUnauthorized: false }
+            : false,
       }),
     }),
     BullModule.forRootAsync({
@@ -52,6 +55,7 @@ import { validate } from './config/env.validation';
     ScanModule,
     UsersModule,
     IngestionModule,
+    StoresModule,
     ServeStaticModule.forRoot({
       rootPath: join(__dirname, '..', '..', 'uploads'),
       serveRoot: '/uploads',

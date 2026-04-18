@@ -9,7 +9,7 @@ export class Merchant {
   name_ar: string;
 
   @Index({ unique: true })
-  @Column({ nullable: true, unique: true })
+  @Column({ nullable: false, unique: true })
   name_en: string;
 
   @Column({ nullable: true })

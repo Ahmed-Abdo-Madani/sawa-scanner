@@ -1,11 +1,16 @@
 import { Processor, WorkerHost, InjectQueue } from '@nestjs/bullmq';
-import { Job, Queue } from 'bullmq';
-import { Logger } from '@nestjs/common';
+import { Job, Queue, UnrecoverableError } from 'bullmq';
+import { Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, DataSource } from 'typeorm';
+import { Repository, DataSource, IsNull } from 'typeorm';
 import axios from 'axios';
 
-import { IngestionJobDto, IngestionPlatform, ScrapedProductData } from './dto/ingestion-job.dto';
+import {
+  IngestionJobDto,
+  IngestionPlatform,
+  IngestionJobMode,
+  ScrapedProductData,
+} from './dto/ingestion-job.dto';
 import { INGESTION_JOB_OPTIONS } from './ingestion.service';
 import { BaseScraper } from './scraper/base-scraper';
 
@@ -13,15 +18,22 @@ type ScrapedProductDetail = ScrapedProductData & { page?: any };
 import { RobotsTxtService } from './scraper/robots-txt.service';
 import { NinjaScraper } from './scraper/ninja-scraper';
 import { HungerStationScraper } from './scraper/hungerstation-scraper';
+import { normalizeHsMerchantName } from './scraper/hydration-utils';
 import { PandaPriceScraper } from './scraper/panda-price-scraper';
 import { CarrefourPriceScraper } from './scraper/carrefour-price-scraper';
 import { OthaimPriceScraper } from './scraper/othaim-price-scraper';
 import { TamimiPriceScraper } from './scraper/tamimi-price-scraper';
 import { ProductClusteringService } from './product-clustering.service';
+import { StoresService } from '../stores/stores.service';
+import {
+  HUNGERSTATION_ALLOWED_VERTICALS,
+  HUNGERSTATION_REJECTED_VERTICALS,
+} from './scraper/hungerstation-types';
 
 import { SfdaMatcherService } from '../scan/sfda-matcher.service';
 import { LabelCoreService } from '../scan/label-core.service';
 import { StructuredLabelDto } from '../scan/dto/structured-label.dto';
+import { PricesService } from '../prices/prices.service';
 
 import { Product } from '../entities/product.entity';
 import { ProductPrice } from '../entities/product-price.entity';
@@ -30,9 +42,35 @@ import { Merchant } from '../entities/merchant.entity';
 import { NutritionFact } from '../entities/nutrition-fact.entity';
 import { Ingredient } from '../entities/ingredient.entity';
 
-@Processor('ingestion-queue')
+const INGESTION_WORKER_CONCURRENCY = Number.parseInt(
+  process.env.INGESTION_WORKER_CONCURRENCY ?? '2',
+  10,
+);
+
+const HS_DAILY_STAGGER_MS = Number.parseInt(
+  process.env.HUNGERSTATION_DAILY_STAGGER_MS ?? '30000',
+  10,
+);
+
+@Processor('ingestion-queue', {
+  // GLOBAL queue concurrency (all platforms), kept low by default for HungerStation Cloudflare friendliness
+  concurrency:
+    Number.isFinite(INGESTION_WORKER_CONCURRENCY) &&
+      INGESTION_WORKER_CONCURRENCY > 0
+      ? INGESTION_WORKER_CONCURRENCY
+      : 2,
+})
 export class IngestionProcessor extends WorkerHost {
   private readonly logger = new Logger(IngestionProcessor.name);
+  private rejectedProductsCount = 0;
+
+  private todayDateSuffix(): string {
+    const now = new Date();
+    const y = now.getUTCFullYear();
+    const m = String(now.getUTCMonth() + 1).padStart(2, '0');
+    const d = String(now.getUTCDate()).padStart(2, '0');
+    return `${y}${m}${d}`;
+  }
 
   constructor(
     @InjectQueue('ingestion-queue') private readonly ingestionQueue: Queue,
@@ -41,22 +79,55 @@ export class IngestionProcessor extends WorkerHost {
     private readonly labelCoreService: LabelCoreService,
     private readonly sfdaMatcherService: SfdaMatcherService,
     private readonly dataSource: DataSource,
-    @InjectRepository(Merchant) private readonly merchantRepo: Repository<Merchant>,
+    @InjectRepository(Merchant)
+    private readonly merchantRepo: Repository<Merchant>,
+    private readonly pricesService: PricesService,
+    private readonly storesService: StoresService,
   ) {
     super();
-    this.logger.log('IngestionProcessor initialized and ready to pick up jobs.');
+    this.logger.log(
+      'IngestionProcessor initialized and ready to pick up jobs.',
+    );
   }
 
   async process(job: Job<IngestionJobDto>): Promise<any> {
     this.logger.log(`Worker received job: ${job.id} (name: ${job.name})`);
-    if (job.name === 'scrape-category') {
-      return this.handleScrapeJob(job);
+    switch (job.name) {
+      case 'scrape':
+        return this.handleScrapeJob(job);
+      case 'scrape-category':
+        return this.handleScrapeJob(job);
+      case 'discover-cities':
+        return this.handleDiscoverCities(job);
+      case 'daily-refresh-hungerstation':
+        return this.handleDailyRefreshHungerStation(job);
+      case 'discover-districts':
+        return this.handleDiscoverDistricts(job);
+      case 'discover-branches':
+        return this.handleDiscoverBranches(job);
+      case 'products-for-store':
+        return this.handleProductsForStore(job);
+      default:
+        this.logger.warn(`Unknown job name: ${job.name}`);
     }
-    this.logger.warn(`Unknown job name: ${job.name}`);
   }
 
   private async handleScrapeJob(job: Job<IngestionJobDto>) {
-    const { platform, categoryUrl, pageRange } = job.data;
+    const { platform, categoryUrl, pageRange, mode } = job.data;
+
+    if (mode && mode !== IngestionJobMode.SCRAPE) {
+      this.logger.warn(
+        `Job ${job.id} called with mode ${mode} but routed to handleScrapeJob. Skipping.`,
+      );
+      return;
+    }
+
+    if (!categoryUrl || !pageRange) {
+      this.logger.error(
+        `scrape-category job ${job.id} is missing categoryUrl or pageRange — skipping.`,
+      );
+      return;
+    }
     this.logger.log(`Starting ingestion job for ${platform} - ${categoryUrl}`);
 
     const scraper = this.getScraper(platform);
@@ -68,7 +139,10 @@ export class IngestionProcessor extends WorkerHost {
 
       for (let pageNum = pageRange.start; pageNum <= pageRange.end; pageNum++) {
         this.logger.log(`Scraping page ${pageNum} of ${platform}`);
-        const listingProducts = await scraper.scrapeListingPage(categoryUrl, pageNum);
+        const listingProducts = await scraper.scrapeListingPage(
+          categoryUrl,
+          pageNum,
+        );
 
         // Ninja: Exhaustive recursion logic
         if (platform === IngestionPlatform.NINJA && pageNum === 1) {
@@ -76,34 +150,48 @@ export class IngestionProcessor extends WorkerHost {
           const maxDepth = 4; // Default safe limit for Ninja structure
 
           if (depth < maxDepth) {
-            this.logger.log(`[Depth ${depth}] Checking for subcategories at ${categoryUrl}`);
-            const subcategories = await (scraper as NinjaScraper).getSubcategories(categoryUrl);
-            
+            this.logger.log(
+              `[Depth ${depth}] Checking for subcategories at ${categoryUrl}`,
+            );
+            const subcategories = await (
+              scraper as NinjaScraper
+            ).getSubcategories(categoryUrl);
+
             if (subcategories.length > 0) {
               const visitedUrls = job.data.visitedUrls || [categoryUrl];
-              const newCategories = subcategories.filter(sub => !visitedUrls.includes(sub.url));
+              const newCategories = subcategories.filter(
+                (sub) => !visitedUrls.includes(sub.url),
+              );
 
-              this.logger.log(`Discovered ${subcategories.length} subcategories, ${newCategories.length} new. Enqueueing recursion.`);
+              this.logger.log(
+                `Discovered ${subcategories.length} subcategories, ${newCategories.length} new. Enqueueing recursion.`,
+              );
               for (const sub of newCategories) {
                 const base64Url = Buffer.from(sub.url).toString('base64');
                 const dedupeId = `recursive-${IngestionPlatform.NINJA}-${base64Url}-1-20`; // Increased to 20 pages
 
-                await this.ingestionQueue.add('scrape-category', {
-                  platform: IngestionPlatform.NINJA,
-                  categoryUrl: sub.url,
-                  pageRange: { start: 1, end: 20 },
-                  visitedUrls: [...visitedUrls, sub.url],
-                  depth: depth + 1
-                }, { ...INGESTION_JOB_OPTIONS, jobId: dedupeId });
+                await this.ingestionQueue.add(
+                  'scrape-category',
+                  {
+                    platform: IngestionPlatform.NINJA,
+                    categoryUrl: sub.url,
+                    pageRange: { start: 1, end: 20 },
+                    visitedUrls: [...visitedUrls, sub.url],
+                    depth: depth + 1,
+                  },
+                  { ...INGESTION_JOB_OPTIONS, jobId: dedupeId },
+                );
               }
-              
+
               // If we found NO products and NO new subcategories on the first page, we stop this branch.
               if (listingProducts.length === 0 && newCategories.length === 0) {
                 return { processedCount: 0, status: 'exhausted' };
               }
             }
           } else {
-            this.logger.warn(`Max depth (${maxDepth}) reached at ${categoryUrl}. Skipping further discovery.`);
+            this.logger.warn(
+              `Max depth (${maxDepth}) reached at ${categoryUrl}. Skipping further discovery.`,
+            );
           }
         }
 
@@ -113,90 +201,601 @@ export class IngestionProcessor extends WorkerHost {
             this.logger.debug(`Processing product: ${listingItem.name}`);
             let detailData: any = {};
             try {
-               detailData = await scraper.scrapeDetailPage(listingItem.productPageUrl);
-               detailPage = detailData.page;
+              const scrapeResult = await scraper.scrapeDetailPage(
+                listingItem.productPageUrl,
+              );
+              detailPage = scrapeResult.page;
+              detailData = scrapeResult;
             } catch (err) {
-               this.logger.warn(`Detail capture failed for ${listingItem.name} at ${listingItem.productPageUrl}. Saving listing data only. Error: ${err.message}`);
+              this.logger.warn(
+                `Detail capture failed for ${listingItem.name} at ${listingItem.productPageUrl}. Saving listing data only. Error: ${err.message}`,
+              );
             }
-            
+
             const combinedData = { ...listingItem, ...detailData };
 
             // 4. Pass the active page and scraper context to allow browser-based image downloads
-            await this.processProductData(platform, scraper, combinedData, detailPage || null);
-            
+            await this.processProductData(
+              platform,
+              scraper,
+              combinedData,
+              detailPage || null,
+            );
+
             processedCount++;
-            const progress = Math.floor((processedCount / (listingProducts.length * totalPages)) * 100);
+            const progress = Math.floor(
+              (processedCount / (listingProducts.length * totalPages)) * 100,
+            );
             await job.updateProgress(progress);
           } catch (error) {
-            this.logger.error(`Failed to process product ${listingItem.name}: ${error.message}`);
+            this.logger.error(
+              `Failed to process product ${listingItem.name}: ${error.message}`,
+            );
           } finally {
             if (detailPage) {
-              await detailPage.close().catch(err => this.logger.warn(`Failed to close page: ${err.message}`));
+              await detailPage
+                .close()
+                .catch((err) =>
+                  this.logger.warn(`Failed to close page: ${err.message}`),
+                );
             }
           }
         }
       }
 
-      this.logger.log(`Ingestion job completed. Processed ${processedCount} products.`);
+      this.logger.log(
+        `Ingestion job completed. Processed ${processedCount} products.`,
+      );
       return { processedCount };
     } finally {
       await scraper.close();
     }
   }
 
+  // ─── HungerStation discovery handlers ──────────────────────────────────────
+
+  private async handleDiscoverCities(job: Job<IngestionJobDto>) {
+    const scraper = this.getScraper(
+      IngestionPlatform.HUNGERSTATION,
+    ) as HungerStationScraper;
+    await scraper.launch();
+    try {
+      const cities = await scraper.discoverCities();
+      let citiesFailed = 0;
+      const dateSuffix = this.todayDateSuffix();
+      for (const city of cities) {
+        try {
+          const jobId = `hs-disc-cities-${city.slug}-${dateSuffix}`;
+          await this.ingestionQueue.add(
+            'discover-districts',
+            {
+              platform: IngestionPlatform.HUNGERSTATION,
+              mode: IngestionJobMode.DISCOVER_DISTRICTS,
+              citySlug: city.slug,
+              city_name_en: city.name_en,
+              cityUrl: city.url,
+            } as IngestionJobDto,
+            { ...INGESTION_JOB_OPTIONS, jobId },
+          );
+        } catch (err) {
+          citiesFailed++;
+          this.logger.error(
+            `[HS] discover-cities: failed to enqueue districts job for ${city.slug}: ${err.message}`,
+          );
+        }
+      }
+      this.logger.log(
+        `[HS] discover-cities: enqueued=${cities.length - citiesFailed}, failed=${citiesFailed}.`,
+      );
+      return { citiesEnqueued: cities.length - citiesFailed, citiesFailed };
+    } finally {
+      await scraper.close();
+    }
+  }
+
+  private async handleDiscoverDistricts(job: Job<IngestionJobDto>) {
+    const { citySlug, city_name_en, cityUrl } = job.data;
+    const scraper = this.getScraper(
+      IngestionPlatform.HUNGERSTATION,
+    ) as HungerStationScraper;
+    await scraper.launch();
+    try {
+      const city = {
+        slug: citySlug!,
+        name_en: city_name_en ?? citySlug!,
+        url: cityUrl!,
+      };
+      const districts = await scraper.discoverDistricts(city);
+      let districtsFailed = 0;
+      const dateSuffix = this.todayDateSuffix();
+      for (const district of districts) {
+        try {
+          const jobId = `hs-disc-${citySlug}-${district.slug}-${dateSuffix}`;
+          await this.ingestionQueue.add(
+            'discover-branches',
+            {
+              platform: IngestionPlatform.HUNGERSTATION,
+              mode: IngestionJobMode.DISCOVER_BRANCHES,
+              citySlug,
+              districtSlug: district.slug,
+              city_name_en,
+              district_name_en: district.name_en,
+              districtUrl: district.url,
+              cityUrl,
+            } as IngestionJobDto,
+            { ...INGESTION_JOB_OPTIONS, jobId },
+          );
+        } catch (err) {
+          districtsFailed++;
+          this.logger.error(
+            `[HS] discover-districts(${citySlug}): failed to enqueue branches job for ${district.slug}: ${err.message}`,
+          );
+        }
+      }
+      this.logger.log(
+        `[HS] discover-districts(${citySlug}): enqueued=${districts.length - districtsFailed}, failed=${districtsFailed}.`,
+      );
+      return {
+        districtsEnqueued: districts.length - districtsFailed,
+        districtsFailed,
+      };
+    } finally {
+      await scraper.close();
+    }
+  }
+
+  private async handleDiscoverBranches(job: Job<IngestionJobDto>) {
+    const {
+      citySlug,
+      districtSlug,
+      city_name_en,
+      district_name_en,
+      districtUrl,
+      cityUrl,
+    } = job.data;
+    const scraper = this.getScraper(
+      IngestionPlatform.HUNGERSTATION,
+    ) as HungerStationScraper;
+    await scraper.launch();
+    let branchesUpserted = 0;
+    let branchesSkipped = 0;
+    let branchesFailed = 0;
+    const skippedMerchantCounts = new Map<string, number>();
+    try {
+      const district = {
+        slug: districtSlug!,
+        name_en: district_name_en ?? districtSlug!,
+        url: districtUrl!,
+        citySlug: citySlug!,
+      };
+      const branches = await scraper.discoverBranches(district);
+      const upsertedUuids = new Set<string>();
+
+      for (const branch of branches) {
+        try {
+          await this.storesService.upsertByPlatformUuid({
+            platform: 'hungerstation',
+            platform_branch_id: branch.platform_branch_id,
+            platform_branch_uuid: branch.platform_branch_uuid,
+            merchant_name_en: normalizeHsMerchantName(branch.merchant_name_en),
+            merchant_name_ar: branch.merchant_name_ar,
+            vertical: branch.vertical,
+            city_slug: citySlug!,
+            city_name_en,
+            district_slug: districtSlug,
+            district_name_en,
+            lat: branch.lat ?? null,
+            lng: branch.lng ?? null,
+            source_url: branch.source_url,
+          });
+          branchesUpserted++;
+          upsertedUuids.add(branch.platform_branch_uuid);
+        } catch (err) {
+          if (err instanceof NotFoundException) {
+            const merchantName =
+              branch.merchant_name_en ||
+              branch.merchant_name_ar ||
+              branch.platform_branch_uuid;
+            skippedMerchantCounts.set(
+              merchantName,
+              (skippedMerchantCounts.get(merchantName) ?? 0) + 1,
+            );
+            branchesSkipped++;
+          } else {
+            branchesFailed++;
+            this.logger.error(
+              `Upsert failed for branch ${branch.platform_branch_uuid}: ${err.message}`,
+            );
+          }
+        }
+      }
+      if (branches.length > 0 && branchesFailed / branches.length > 0.25) {
+        throw new Error(
+          `[HS] discover-branches(${citySlug}/${districtSlug}): failure ratio too high (${branchesFailed}/${branches.length})`,
+        );
+      }
+      if (skippedMerchantCounts.size > 0) {
+        const skippedSummary = [...skippedMerchantCounts.entries()]
+          .sort((a, b) => b[1] - a[1])
+          .map(([name, count]) => `${name}=${count}`)
+          .join(', ');
+        this.logger.warn(`Skipped (unseeded merchants): ${skippedSummary}`);
+      }
+      if (branches.length === 0) {
+        this.logger.warn(
+          `[HS] discover-branches(${citySlug}/${districtSlug}): NO branches found. URL: ${districtUrl}`,
+        );
+        return {
+          branchesUpserted: 0,
+          branchesSkipped: 0,
+          branchesFailed: 0,
+          warning: 'no-branches-discovered',
+        };
+      }
+
+      this.logger.log(
+        `[HS] discover-branches(${citySlug}/${districtSlug}): upserted=${branchesUpserted}, skipped=${branchesSkipped}, failed=${branchesFailed}`,
+      );
+
+      const stores = await this.storesService.findByDistrict(
+        citySlug!,
+        districtSlug!,
+      );
+      let productsJobsEnqueued = 0;
+      let productsJobsFailed = 0;
+      const dateSuffix = this.todayDateSuffix();
+
+      for (const store of stores.filter(
+        (s) =>
+          s.platform === IngestionPlatform.HUNGERSTATION &&
+          upsertedUuids.has(s.platform_branch_uuid),
+      )) {
+        try {
+          const jobId = `hs-prod-${store.platform_branch_uuid}-${dateSuffix}`;
+          await this.ingestionQueue.add(
+            'products-for-store',
+            {
+              platform: IngestionPlatform.HUNGERSTATION,
+              mode: IngestionJobMode.PRODUCTS_FOR_STORE,
+              storeId: store.id,
+            } as IngestionJobDto,
+            { ...INGESTION_JOB_OPTIONS, jobId },
+          );
+          productsJobsEnqueued++;
+        } catch (err) {
+          productsJobsFailed++;
+          this.logger.error(
+            `[HS] products enqueue failed for store ${store.id}: ${err.message}`,
+          );
+        }
+      }
+
+      this.logger.log(
+        `[HS] discover-branches → fan-out: enqueued=${productsJobsEnqueued}, failed=${productsJobsFailed}`,
+      );
+
+      return {
+        branchesUpserted,
+        branchesSkipped,
+        branchesFailed,
+        productsJobsEnqueued,
+        productsJobsFailed,
+      };
+    } finally {
+      await scraper.close();
+    }
+  }
+
+  private async handleProductsForStore(job: Job<IngestionJobDto>) {
+    const { storeId } = job.data;
+    if (!storeId) {
+      throw new UnrecoverableError(
+        'products-for-store requires storeId in job payload',
+      );
+    }
+
+    let store;
+    try {
+      store = await this.storesService.findById(storeId);
+    } catch (err) {
+      if (err instanceof NotFoundException) {
+        throw new UnrecoverableError(
+          `products-for-store received missing storeId=${storeId}`,
+        );
+      }
+      throw err;
+    }
+    const branch = {
+      platform_branch_id: store.platform_branch_id || store.platform_branch_uuid,
+      platform_branch_uuid: store.platform_branch_uuid,
+      merchant_name_en: store.merchant?.name_en || '',
+      merchant_name_ar: store.merchant?.name_ar || undefined,
+      vertical: (store.vertical as any) || 'other',
+      lat: store.lat ?? undefined,
+      lng: store.lng ?? undefined,
+      source_url: store.source_url || '',
+      citySlug: store.city_slug,
+      districtSlug: store.district_slug || '',
+    };
+
+    if (HUNGERSTATION_REJECTED_VERTICALS.has(branch.vertical)) {
+      this.logger.warn(
+        `[HS] products-for-store skipped storeId=${storeId} due to rejected vertical=${branch.vertical}`,
+      );
+      return { skipped: true, reason: 'rejected-vertical' };
+    }
+    if (!HUNGERSTATION_ALLOWED_VERTICALS.has(branch.vertical)) {
+      this.logger.warn(
+        `[HS] products-for-store skipped storeId=${storeId} due to unsupported vertical=${branch.vertical}`,
+      );
+      return { skipped: true, reason: 'unsupported-vertical' };
+    }
+
+    const scraper = this.getScraper(
+      IngestionPlatform.HUNGERSTATION,
+    ) as HungerStationScraper;
+    await scraper.launch();
+
+    let categoriesProcessed = 0;
+    let categoriesFailed = 0;
+    let productsProcessed = 0;
+    const startTime = Date.now();
+    const TIMEOUT_THRESHOLD = 25 * 60 * 1000; // 25 minutes
+
+    try {
+      const categories = await scraper.discoverCategories(branch as any);
+
+      for (const [catIdx, category] of categories.entries()) {
+        const elapsed = Date.now() - startTime;
+        if (elapsed > TIMEOUT_THRESHOLD) {
+          this.logger.warn(
+            `[HS] products-for-store storeId=${storeId} reached 25m threshold. Breaking early. ${categories.length - catIdx} categories remaining.`,
+          );
+          break;
+        }
+        try {
+          let consecutiveEmpty = 0;
+          let previousPageUrls = new Set<string>();
+          for (let pageNum = 1; pageNum <= 25; pageNum++) {
+            const listingItems = await scraper.scrapeListingPage(
+              category.url,
+              pageNum,
+              branch as any,
+            );
+
+            const currentPageUrls = new Set(
+              listingItems
+                .map((item) => item.productPageUrl)
+                .filter((url): url is string => !!url),
+            );
+
+            const sameAsPreviousPage =
+              currentPageUrls.size > 0 &&
+              currentPageUrls.size === previousPageUrls.size &&
+              [...currentPageUrls].every((url) => previousPageUrls.has(url));
+
+            if (listingItems.length === 0 || sameAsPreviousPage) {
+              consecutiveEmpty++;
+              if (consecutiveEmpty >= 2) break;
+              previousPageUrls = currentPageUrls;
+              continue;
+            }
+            consecutiveEmpty = 0;
+            previousPageUrls = currentPageUrls;
+
+            for (const listingItem of listingItems) {
+              let detailPage: any = null;
+              try {
+                let detailData: any = {};
+                try {
+                  const scrapeResult = await scraper.scrapeDetailPage(
+                    listingItem.productPageUrl,
+                    branch as any,
+                  );
+                  detailPage = scrapeResult.page;
+                  detailData = scrapeResult;
+                } catch (err) {
+                  this.logger.warn(
+                    `[HS] detail capture failed for ${listingItem.productPageUrl}: ${err.message}`,
+                  );
+                }
+
+                const combinedData = { ...listingItem, ...detailData };
+                await this.processProductData(
+                  IngestionPlatform.HUNGERSTATION,
+                  scraper,
+                  combinedData,
+                  detailPage || null,
+                  {
+                    storeDbId: store.id,
+                    merchantName: branch.merchant_name_en,
+                    merchantNameAr: branch.merchant_name_ar,
+                  },
+                );
+                productsProcessed++;
+              } catch (err) {
+                this.logger.error(
+                  `[HS] product processing failed (${listingItem.name}): ${err.message}`,
+                );
+              } finally {
+                if (detailPage) {
+                  await detailPage.close().catch(() => undefined);
+                }
+              }
+            }
+          }
+          categoriesProcessed++;
+        } catch (err) {
+          categoriesFailed++;
+          this.logger.error(
+            `[HS] category failed (${category.name}) for store ${storeId}: ${err.message}`,
+          );
+        }
+      }
+
+      this.logger.log(`[HS] products-for-store storeId=${storeId} finished: categoriesProcessed=${categoriesProcessed}, productsProcessed=${productsProcessed}`);
+      return { categoriesProcessed, categoriesFailed, productsProcessed };
+    } catch (err) {
+      this.logger.error(`[HS] products-for-store storeId=${storeId} CRITICAL failure: ${err.message}`);
+      throw err;
+    } finally {
+      await scraper.close();
+    }
+  }
+
+  private async handleDailyRefreshHungerStation(job: Job<IngestionJobDto>) {
+    const stores = await this.storesService.findActiveByPlatform(
+      IngestionPlatform.HUNGERSTATION,
+    );
+
+    let enqueued = 0;
+    let skipped = 0;
+    const dateSuffix = this.todayDateSuffix();
+
+    for (const [index, store] of stores.entries()) {
+      try {
+        const jobId = `hs-daily-${store.id}-${dateSuffix}`;
+        await this.ingestionQueue.add(
+          'products-for-store',
+          {
+            platform: IngestionPlatform.HUNGERSTATION,
+            mode: IngestionJobMode.PRODUCTS_FOR_STORE,
+            storeId: store.id,
+          } as IngestionJobDto,
+          {
+            ...INGESTION_JOB_OPTIONS,
+            jobId,
+            delay: index * HS_DAILY_STAGGER_MS,
+          },
+        );
+        enqueued++;
+      } catch (err) {
+        skipped++;
+        this.logger.error(
+          `[HS] daily refresh enqueue failed for store ${store.id}: ${err.message}`,
+        );
+      }
+    }
+
+    this.logger.log(
+      `[HS] daily refresh dispatcher: enqueued=${enqueued}, skipped=${skipped}`,
+    );
+
+    return { enqueued, skipped };
+  }
+
+  // ─── Scraper factory ────────────────────────────────────────────────────────
+
   private getScraper(platform: IngestionPlatform) {
-    const baseConfig = { headless: true, cookieSessionPath: `./scraper-sessions/${platform}` };
+    const baseConfig = {
+      headless: true,
+      cookieSessionPath: `./scraper-sessions/${platform}`,
+    };
     switch (platform) {
       case IngestionPlatform.NINJA:
-        return new NinjaScraper(this.robotsTxtService, { ...baseConfig, deviceProfile: 'mobile' });
+        return new NinjaScraper(this.robotsTxtService, {
+          ...baseConfig,
+          deviceProfile: 'mobile',
+        });
       case IngestionPlatform.HUNGERSTATION:
-        return new HungerStationScraper(this.robotsTxtService, { ...baseConfig, deviceProfile: 'mobile' });
+        return new HungerStationScraper(this.robotsTxtService, {
+          headless: baseConfig.headless,
+          deviceProfile: 'mobile',
+        });
       case IngestionPlatform.PANDA:
-        return new PandaPriceScraper(this.robotsTxtService, { ...baseConfig, deviceProfile: 'desktop' });
+        return new PandaPriceScraper(this.robotsTxtService, {
+          ...baseConfig,
+          deviceProfile: 'desktop',
+        });
       case IngestionPlatform.CARREFOUR:
-        return new CarrefourPriceScraper(this.robotsTxtService, { ...baseConfig, deviceProfile: 'desktop' });
+        return new CarrefourPriceScraper(this.robotsTxtService, {
+          ...baseConfig,
+          deviceProfile: 'desktop',
+        });
       case IngestionPlatform.OTHAIM:
-        return new OthaimPriceScraper(this.robotsTxtService, { ...baseConfig, deviceProfile: 'mobile' });
+        return new OthaimPriceScraper(this.robotsTxtService, {
+          ...baseConfig,
+          deviceProfile: 'mobile',
+        });
       case IngestionPlatform.TAMIMI:
-        return new TamimiPriceScraper(this.robotsTxtService, { ...baseConfig, deviceProfile: 'desktop' });
+        return new TamimiPriceScraper(this.robotsTxtService, {
+          ...baseConfig,
+          deviceProfile: 'desktop',
+        });
       default:
         throw new Error(`Unsupported platform: ${platform}`);
     }
   }
 
-  private async processProductData(platform: IngestionPlatform, scraper: BaseScraper, data: ScrapedProductData, page: any = null) {
+  private async processProductData(
+    platform: IngestionPlatform,
+    scraper: BaseScraper,
+    data: ScrapedProductData,
+    page: any = null,
+    options?: {
+      storeDbId?: string;
+      merchantName?: string;
+      merchantNameAr?: string;
+    },
+  ) {
+    if (!data.price || data.price <= 0) {
+      this.logger.warn(
+        `Skipping non-positive price for ${data.name} (${data.productPageUrl}): ${data.price}`,
+      );
+      return;
+    }
+
     // 1. Image Processing & AI Extraction (Best Effort)
     let structuredLabel: StructuredLabelDto | null = null;
-    
+
     // We only attempt OCR if we have both a valid image and an active browser page context
     if (page && data.imageUrls.length > 0) {
       for (const imageUrl of data.imageUrls) {
         try {
-          const base64 = await (scraper as any).downloadImageAsBase64(page, imageUrl);
+          const base64 = await (scraper as any).downloadImageAsBase64(
+            page,
+            imageUrl,
+          );
           structuredLabel = await this.labelCoreService.processImage(base64);
-          this.logger.debug(`Successfully extracted AI structured data for product: ${data.name}`);
-          break; 
+          this.logger.debug(
+            `Successfully extracted AI structured data for product: ${data.name}`,
+          );
+          break;
         } catch (err) {
           // We log the warning but don't abort, as catalog images often aren't labels
-          this.logger.warn(`AI extraction skipped for ${data.name} (image ${imageUrl}): ${err.message}`);
+          this.logger.warn(
+            `AI extraction skipped for ${data.name} (image ${imageUrl}): ${err.message}`,
+          );
         }
       }
     } else {
-      this.logger.debug(`Skipping AI extraction for ${data.name} - no page context or images.`);
+      this.logger.debug(
+        `Skipping AI extraction for ${data.name} - no page context or images.`,
+      );
     }
 
     // 2. Find or Create Product (Robust Fallback Identity)
-    // If no GTIN provided by catalog, we derive a unique one from the URL hash 
+    // If no GTIN provided by catalog, we derive a unique one from the URL hash
     // to ensure we can match/update this product in future crawls without duplicates.
-    const fallbackGtin = data.productPageUrl ? `URL-${Buffer.from(data.productPageUrl).toString('base64').slice(-16)}` : null;
-    
+    const fallbackGtin = data.productPageUrl
+      ? `URL-${Buffer.from(data.productPageUrl).toString('base64').slice(-16)}`
+      : null;
+
     const product = await this.productClusteringService.findOrCreateProduct(
       data.gtin || fallbackGtin,
       data.brand || (structuredLabel?.brand as string) || 'Generic',
       data.name || (structuredLabel?.name_en as string) || 'Unnamed Product',
       data.weight || '',
-      data.name_ar
+      data.name_ar,
     );
+
+    if (!product) {
+      this.rejectedProductsCount++;
+      this.logger.warn(
+        `Product rejected by clustering (metric total: ${this.rejectedProductsCount}): ${data.name} - ${data.productPageUrl}`,
+      );
+      return;
+    }
 
     // 3. Database Updates in Transaction
     await this.dataSource.transaction(async (manager) => {
@@ -204,49 +803,92 @@ export class IngestionProcessor extends WorkerHost {
       if (structuredLabel) {
         product.name_ar = product.name_ar || structuredLabel.name_ar;
         product.name_en = product.name_en || structuredLabel.name_en;
-        
+
         if (structuredLabel.nutrition) {
           // Flatten/map structure to entity fields if they differ
-          let nf = await manager.findOne(NutritionFact, { where: { product: { id: product.id } } });
+          let nf = await manager.findOne(NutritionFact, {
+            where: { product: { id: product.id } },
+          });
           if (!nf) {
-            nf = manager.create(NutritionFact, { ...structuredLabel.nutrition, product });
+            nf = manager.create(NutritionFact, {
+              ...structuredLabel.nutrition,
+              product,
+            });
           } else {
             Object.assign(nf, structuredLabel.nutrition);
           }
           await manager.save(nf);
         }
 
-        if (structuredLabel.ingredients && structuredLabel.ingredients.length > 0) {
+        if (
+          structuredLabel.ingredients &&
+          structuredLabel.ingredients.length > 0
+        ) {
           // Use SfdaMatcherService to check ingredients
-          const enrichedIngredients = await this.sfdaMatcherService.matchIngredients(structuredLabel.ingredients);
-          
+          const enrichedIngredients =
+            await this.sfdaMatcherService.matchIngredients(
+              structuredLabel.ingredients,
+            );
+
           await manager.delete(Ingredient, { product: { id: product.id } });
           for (const ing of enrichedIngredients) {
-             const ingredient = manager.create(Ingredient, {
-               name_ar: ing.name_ar,
-               name_en: ing.name_en,
-               e_number: ing.e_number,
-               sfda_status: ing.sfda_status,
-               restriction_note: ing.restriction_note,
-               product
-             });
-             await manager.save(ingredient);
+            const ingredient = manager.create(Ingredient, {
+              name_ar: ing.name_ar,
+              name_en: ing.name_en,
+              e_number: ing.e_number,
+              sfda_status: ing.sfda_status,
+              restriction_note: ing.restriction_note,
+              product,
+            });
+            await manager.save(ingredient);
           }
         }
       }
       await manager.save(product);
 
-      // Find Merchant
-      const merchantName = this.capitalize(platform);
-      const merchant = await this.merchantRepo.findOne({ where: { name_en: merchantName } });
+      // Find or Create Merchant (Transaction-safe)
+      const merchantName = this.resolveMerchantName(platform, scraper, options);
+      let merchant = await manager.findOne(Merchant, {
+        where: { name_en: merchantName },
+      });
+
       if (!merchant) {
-        throw new Error(`Merchant ${merchantName} not found in database. Run migrations.`);
+        if (platform === IngestionPlatform.HUNGERSTATION) {
+          const merchantData = {
+            name_en: merchantName,
+            name_ar: options?.merchantNameAr || merchantName,
+            base_url: 'https://hungerstation.com',
+            data_source_type: 'hungerstation',
+          };
+
+          // Use upsert to handle race conditions atomically
+          await manager.upsert(Merchant, merchantData, ['name_en']);
+          merchant = await manager.findOne(Merchant, {
+            where: { name_en: merchantName },
+          });
+        }
+
+        if (!merchant) {
+          throw new Error(
+            `Merchant ${merchantName} not found and could not be created.`,
+          );
+        }
       }
 
+      const storeId =
+        platform === IngestionPlatform.HUNGERSTATION
+          ? options?.storeDbId || null
+          : null;
+
+      // store_id IS NULL rows represent chain-wide pricing (non-store-scoped platforms)
       // Check for price deduplication (if identical price exists for this merchant/product, just update scraped_at)
       const existingPrice = await manager.findOne(ProductPrice, {
-        where: { product_id: product.id, merchant_id: merchant.id },
-        order: { scraped_at: 'DESC' }
+        where: {
+          product_id: product.id,
+          merchant_id: merchant.id,
+          store_id: storeId ?? IsNull(),
+        },
+        order: { scraped_at: 'DESC' },
       });
 
       if (existingPrice && existingPrice.price_sar_incl_vat === data.price) {
@@ -254,32 +896,38 @@ export class IngestionProcessor extends WorkerHost {
         existingPrice.scraped_at = new Date();
         existingPrice.in_stock = data.inStock ?? existingPrice.in_stock;
         await manager.save(existingPrice);
+        await this.pricesService.invalidateGtinCache(product.gtin);
       } else {
         // Insert new Product Price
         const priceRecord = manager.create(ProductPrice, {
           product_id: product.id,
           merchant_id: merchant.id,
+          store_id: storeId ?? null,
           price_sar_incl_vat: data.price,
           currency: 'SAR',
           source_url: data.productPageUrl,
           in_stock: data.inStock ?? true,
-          scraped_at: new Date()
+          scraped_at: new Date(),
         });
         await manager.save(priceRecord);
+        await this.pricesService.invalidateGtinCache(product.gtin);
       }
 
       // Upsert Images
+      const existingImages = await manager.find(ProductImage, {
+        where: { product_id: product.id },
+      });
+      const existingUrls = new Set(existingImages.map((img) => img.url));
+
       for (const url of data.imageUrls) {
-        const existingImg = await manager.findOne(ProductImage, { 
-          where: { product_id: product.id, url: url } 
-        });
-        if (!existingImg) {
+        if (!existingUrls.has(url)) {
           const img = manager.create(ProductImage, {
             product_id: product.id,
             url: url,
-            source: platform
+            source: platform,
           });
           await manager.save(img);
+          existingUrls.add(url);
         }
       }
     });
@@ -297,5 +945,17 @@ export class IngestionProcessor extends WorkerHost {
     if (s === 'othaim') return 'Othaim';
     if (s === 'tamimi') return 'Tamimi';
     return s.charAt(0).toUpperCase() + s.slice(1);
+  }
+
+  private resolveMerchantName(
+    platform: IngestionPlatform,
+    scraper: BaseScraper,
+    options?: { merchantName?: string },
+  ): string {
+    if (platform === IngestionPlatform.HUNGERSTATION) {
+      const chainName = options?.merchantName?.trim();
+      if (chainName) return chainName;
+    }
+    return this.capitalize(platform);
   }
 }

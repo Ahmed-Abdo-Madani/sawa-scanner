@@ -7,15 +7,20 @@ async function inspectNinja() {
 
   console.log('--- Inspecting Ninja Product Page Hydration ---');
 
-  await page.goto('https://ananinja.com/sa/en/product/zamani-cashwe-fingers-beklava-large-950-gm-19304468', { waitUntil: 'networkidle' });
-  
+  await page.goto(
+    'https://ananinja.com/sa/en/product/zamani-cashwe-fingers-beklava-large-950-gm-19304468',
+    { waitUntil: 'networkidle' },
+  );
+
   const hydration = await page.evaluate(() => {
-    return (window as any).__next_f?.map((f: any) => f[1]).filter(Boolean) || [];
+    return (
+      (window as any).__next_f?.map((f: any) => f[1]).filter(Boolean) || []
+    );
   });
-  
+
   console.log('Hydration Data Sample:');
   console.log(JSON.stringify(hydration, null, 2).substring(0, 2000));
-  
+
   await browser.close();
 }
 

@@ -1,7 +1,15 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn } from 'typeorm';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  ManyToOne,
+  JoinColumn,
+  Index,
+} from 'typeorm';
 import { Product } from './product.entity';
 
 @Entity()
+@Index('UQ_product_image_product_url', ['product_id', 'url'], { unique: true })
 export class ProductImage {
   @PrimaryGeneratedColumn('uuid')
   id: string;
@@ -18,7 +26,9 @@ export class ProductImage {
   @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
   ingested_at: Date;
 
-  @ManyToOne(() => Product, product => product.images, { onDelete: 'CASCADE' })
+  @ManyToOne(() => Product, (product) => product.images, {
+    onDelete: 'CASCADE',
+  })
   @JoinColumn({ name: 'product_id' })
   product: Product;
 

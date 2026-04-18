@@ -16,7 +16,13 @@ export class ProductsService {
   async findByGtin(gtin: string): Promise<Product> {
     const product = await this.productRepository.findOne({
       where: { gtin },
-      relations: ['nutritionFact', 'ingredients', 'prices', 'prices.merchant', 'images'],
+      relations: [
+        'nutritionFact',
+        'ingredients',
+        'prices',
+        'prices.merchant',
+        'images',
+      ],
     });
 
     if (!product) {
@@ -24,14 +30,16 @@ export class ProductsService {
     }
 
     if (product.prices && product.prices.length > 0) {
-      const latestPricesMap = new Map<string, typeof product.prices[0]>();
+      const latestPricesMap = new Map<string, (typeof product.prices)[0]>();
       for (const p of product.prices) {
         const existing = latestPricesMap.get(p.merchant_id);
         if (!existing || p.scraped_at > existing.scraped_at) {
           latestPricesMap.set(p.merchant_id, p);
         }
       }
-      product.prices = Array.from(latestPricesMap.values()).sort((a, b) => a.price_sar_incl_vat - b.price_sar_incl_vat);
+      product.prices = Array.from(latestPricesMap.values()).sort(
+        (a, b) => a.price_sar_incl_vat - b.price_sar_incl_vat,
+      );
     }
 
     return product;

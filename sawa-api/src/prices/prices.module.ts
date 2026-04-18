@@ -5,11 +5,12 @@ import { PricesService } from './prices.service';
 import { PricesController } from './prices.controller';
 import { ProductPrice } from '../entities/product-price.entity';
 import { Product } from '../entities/product.entity';
+import { Store } from '../entities/store.entity';
 import Redis from 'ioredis';
 import { getRedisOptions } from '../config/redis.config';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([ProductPrice, Product])],
+  imports: [TypeOrmModule.forFeature([ProductPrice, Product, Store])],
   controllers: [PricesController],
   providers: [
     PricesService,

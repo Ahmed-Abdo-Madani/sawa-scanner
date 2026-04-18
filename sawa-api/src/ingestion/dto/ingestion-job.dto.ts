@@ -1,4 +1,15 @@
-import { IsEnum, IsString, IsUrl, IsObject, ValidateNested, IsNumber, IsPositive, IsArray, IsOptional } from 'class-validator';
+import {
+  IsEnum,
+  IsString,
+  IsUrl,
+  IsObject,
+  ValidateNested,
+  IsNumber,
+  IsPositive,
+  IsArray,
+  IsOptional,
+  ValidateIf,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 
 export enum IngestionPlatform {
@@ -8,6 +19,15 @@ export enum IngestionPlatform {
   CARREFOUR = 'carrefour',
   OTHAIM = 'othaim',
   TAMIMI = 'tamimi',
+}
+
+export enum IngestionJobMode {
+  SCRAPE = 'scrape',
+  DISCOVER_CITIES = 'discover-cities',
+  DISCOVER_DISTRICTS = 'discover-districts',
+  DISCOVER_BRANCHES = 'discover-branches',
+  PRODUCTS_FOR_STORE = 'products-for-store',
+  DAILY_REFRESH_HUNGERSTATION = 'daily-refresh-hungerstation',
 }
 
 export class PageRangeDto {
@@ -26,13 +46,17 @@ export class IngestionJobDto {
   @IsEnum(IngestionPlatform)
   platform: IngestionPlatform;
 
+  /** Required only for regular scrape jobs (not discovery jobs). */
+  @ValidateIf((o) => !o.mode || o.mode === IngestionJobMode.SCRAPE)
   @IsUrl()
-  categoryUrl: string;
+  categoryUrl?: string;
 
+  /** Required only for regular scrape jobs (not discovery jobs). */
+  @ValidateIf((o) => !o.mode || o.mode === IngestionJobMode.SCRAPE)
   @IsObject()
   @ValidateNested()
   @Type(() => PageRangeDto)
-  pageRange: PageRangeDto;
+  pageRange?: PageRangeDto;
 
   @IsArray()
   @IsString({ each: true })
@@ -42,6 +66,40 @@ export class IngestionJobDto {
   @IsNumber()
   @IsOptional()
   depth?: number;
+
+  // ── Discovery mode ─────────────────────────────────────────────────────────
+
+  @IsOptional()
+  @IsEnum(IngestionJobMode)
+  mode?: IngestionJobMode;
+
+  @ValidateIf((o) => o.mode === IngestionJobMode.DISCOVER_DISTRICTS)
+  @IsString()
+  citySlug?: string;
+
+  @ValidateIf((o) => o.mode === IngestionJobMode.DISCOVER_BRANCHES)
+  @IsString()
+  districtSlug?: string;
+
+  @ValidateIf((o) => o.mode === IngestionJobMode.DISCOVER_DISTRICTS)
+  @IsString()
+  city_name_en?: string;
+
+  @ValidateIf((o) => o.mode === IngestionJobMode.DISCOVER_BRANCHES)
+  @IsString()
+  district_name_en?: string;
+
+  @ValidateIf((o) => o.mode === IngestionJobMode.DISCOVER_DISTRICTS)
+  @IsString()
+  cityUrl?: string;
+
+  @ValidateIf((o) => o.mode === IngestionJobMode.DISCOVER_BRANCHES)
+  @IsString()
+  districtUrl?: string;
+
+  @ValidateIf((o) => o.mode === IngestionJobMode.PRODUCTS_FOR_STORE)
+  @IsString()
+  storeId?: string;
 }
 
 export interface ScrapedProductData {

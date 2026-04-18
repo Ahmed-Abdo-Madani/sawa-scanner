@@ -1,4 +1,10 @@
-import { Controller, Post, Body, UsePipes, ValidationPipe } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Body,
+  UsePipes,
+  ValidationPipe,
+} from '@nestjs/common';
 import { ScanService } from './scan.service';
 import { ScanLabelDto } from './dto/scan-label.dto';
 import { Public } from '../auth/public.decorator';

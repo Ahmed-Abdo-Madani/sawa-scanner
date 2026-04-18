@@ -22,13 +22,17 @@ export class LabelCoreService {
     // 1. OCR Extraction
     const rawText = await this.ocrService.extractText(imageBase64);
     if (!rawText || rawText.trim().length === 0) {
-      throw new BadRequestException('No text could be extracted from the image');
+      throw new BadRequestException(
+        'No text could be extracted from the image',
+      );
     }
 
     // 2. LLM Structuring
     const structuredData = await this.llmService.structureLabel(rawText);
     if (!structuredData) {
-      throw new BadRequestException('Failed to structure the label data from extracted text');
+      throw new BadRequestException(
+        'Failed to structure the label data from extracted text',
+      );
     }
 
     // 3. Heuristic Validation (Checks macro sums, non-negatives, etc.)
@@ -36,11 +40,18 @@ export class LabelCoreService {
 
     // 4. Critical Invariants: Both Nutrition and Ingredients must be present
     if (!structuredData.nutrition) {
-      throw new BadRequestException('Nutrition facts are missing or could not be structured');
+      throw new BadRequestException(
+        'Nutrition facts are missing or could not be structured',
+      );
     }
-    
-    if (!structuredData.ingredients || structuredData.ingredients.length === 0) {
-      throw new BadRequestException('Ingredient list is required but missing or empty');
+
+    if (
+      !structuredData.ingredients ||
+      structuredData.ingredients.length === 0
+    ) {
+      throw new BadRequestException(
+        'Ingredient list is required but missing or empty',
+      );
     }
 
     return structuredData;

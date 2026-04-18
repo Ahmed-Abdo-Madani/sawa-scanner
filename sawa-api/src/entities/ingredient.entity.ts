@@ -1,4 +1,11 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, Index } from 'typeorm';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  ManyToOne,
+  JoinColumn,
+  Index,
+} from 'typeorm';
 import { Product } from './product.entity';
 
 @Entity()
@@ -24,7 +31,9 @@ export class Ingredient {
   @Column({ nullable: true })
   restriction_note: string;
 
-  @ManyToOne(() => Product, product => product.ingredients, { onDelete: 'CASCADE' })
+  @ManyToOne(() => Product, (product) => product.ingredients, {
+    onDelete: 'CASCADE',
+  })
   @JoinColumn({ name: 'product_id' })
   product: Product;
 

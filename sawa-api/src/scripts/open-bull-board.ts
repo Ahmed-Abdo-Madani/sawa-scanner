@@ -25,14 +25,15 @@ async function openBullBoard() {
     await page.goto(targetUrl);
 
     console.log(`[Admin] Bull Board is now open.`);
-    console.log(`[Admin] Note: Do not close this terminal script to keep the browser open.`);
-    
+    console.log(
+      `[Admin] Note: Do not close this terminal script to keep the browser open.`,
+    );
+
     // Keep script running until browser is closed
     browser.on('disconnected', () => {
       console.log('[Admin] Browser closed. Exiting script.');
       process.exit(0);
     });
-
   } catch (error) {
     console.error(`\n[FATAL ERROR] Failed to open Bull Board:`);
     console.error(`- ${error.message}`);

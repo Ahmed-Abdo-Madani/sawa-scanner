@@ -8,6 +8,7 @@ import { Merchant } from './entities/merchant.entity';
 import { ProductImage } from './entities/product-image.entity';
 import { SfdaProhibitedIngredient } from './entities/sfda-prohibited-ingredient.entity';
 import { ProductReport } from './entities/product-report.entity';
+import { Store } from './entities/store.entity';
 
 config();
 
@@ -20,7 +21,8 @@ export const AppDataSource = new DataSource({
   database: process.env.DATABASE_NAME || 'sawa',
   synchronize: false,
   logging: true,
-  ssl: process.env.DATABASE_SSL === 'true' ? { rejectUnauthorized: false } : false,
+  ssl:
+    process.env.DATABASE_SSL === 'true' ? { rejectUnauthorized: false } : false,
   entities: [
     Product,
     NutritionFact,
@@ -30,6 +32,7 @@ export const AppDataSource = new DataSource({
     ProductImage,
     SfdaProhibitedIngredient,
     ProductReport,
+    Store,
   ],
   migrations: [__dirname + '/migrations/*{.ts,.js}'],
   subscribers: [],
