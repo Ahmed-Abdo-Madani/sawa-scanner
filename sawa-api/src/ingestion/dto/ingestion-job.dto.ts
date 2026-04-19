@@ -106,11 +106,18 @@ export interface ScrapedProductData {
   name: string;
   name_ar?: string;
   price: number;
+  promo_price?: number;
   weight?: string;
   productPageUrl: string;
   imageUrls: string[];
+  imageTypes?: string[]; // parallel array: 'front' | 'nutrition' | 'ingredients'
   brand?: string;
   description?: string;
+  description_ar?: string;
   gtin?: string;
   inStock?: boolean;
+  allergen_tags?: string[];
+  ingredient_tags?: string[];
+  subcategory?: string;
 }
+

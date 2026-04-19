@@ -546,4 +546,122 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get scanOrSearchPrompt => 'امسح باركود أو ابحث عن منتج';
+
+  @override
+  String get nearbyStores => 'المتاجر القريبة';
+
+  @override
+  String get nearbyStoresSubtitle => 'أسعار المتاجر القريبة منك';
+
+  @override
+  String storeDistance(String distance) {
+    return '$distance كم';
+  }
+
+  @override
+  String get promoPrice => 'عرض';
+
+  @override
+  String get unitPrice => 'سعر الوحدة';
+
+  @override
+  String perUnit(String unit) {
+    return 'لكل $unit';
+  }
+
+  @override
+  String get locationPermissionRequired =>
+      'يلزم إذن الموقع لعرض المتاجر القريبة';
+
+  @override
+  String get enableLocation => 'تفعيل الموقع';
+
+  @override
+  String get noNearbyStores => 'لم يتم العثور على متاجر قريبة لهذا المنتج';
+
+  @override
+  String get nutritionIntelligence => 'الذكاء الغذائي';
+
+  @override
+  String get healthSummary => 'ملخص صحي';
+
+  @override
+  String get harmfulSubstances => 'مواد ضارة';
+
+  @override
+  String get allergenWarnings => 'تحذيرات الحساسية';
+
+  @override
+  String get noHarmfulSubstances => 'لم يتم اكتشاف مواد ضارة';
+
+  @override
+  String get noAllergenWarnings => 'لا توجد تحذيرات حساسية';
+
+  @override
+  String get lowLevel => 'منخفض';
+
+  @override
+  String get mediumLevel => 'متوسط';
+
+  @override
+  String get highLevel => 'مرتفع';
+
+  @override
+  String get nutriScoreExplanation =>
+      'يقيّم NutriScore الجودة الغذائية من A (الأفضل) إلى E (الأقل ملاءمة)';
+
+  @override
+  String get nutritionDataIncomplete =>
+      'البيانات الغذائية غير مكتملة لهذا المنتج';
+
+  @override
+  String get compareProducts => 'مقارنة المنتجات';
+
+  @override
+  String get similarProducts => 'منتجات مشابهة';
+
+  @override
+  String get noSimilarProducts => 'لم يتم العثور على منتجات مشابهة';
+
+  @override
+  String get selectToCompare => 'اختر للمقارنة';
+
+  @override
+  String get nutritionComparison => 'مقارنة التغذية';
+
+  @override
+  String get allergenComparison => 'مقارنة الحساسية';
+
+  @override
+  String get recommendation => 'التوصية';
+
+  @override
+  String get betterChoice => 'الخيار الأفضل';
+
+  @override
+  String get tieResult => 'تعادل';
+
+  @override
+  String get onlyInA => 'في المنتج الأول فقط';
+
+  @override
+  String get onlyInB => 'في المنتج الثاني فقط';
+
+  @override
+  String get shared => 'مشترك';
+
+  @override
+  String get vsLabel => 'مقابل';
+
+  @override
+  String get lower => 'أقل';
+
+  @override
+  String get higher => 'أعلى';
+
+  @override
+  String get equal => 'متساوٍ';
+
+  @override
+  String get unknown => 'غير معروف';
 }

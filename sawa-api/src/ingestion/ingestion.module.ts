@@ -23,6 +23,7 @@ import { NutritionFact } from '../entities/nutrition-fact.entity';
 import { Ingredient } from '../entities/ingredient.entity';
 import { ProductPrice } from '../entities/product-price.entity';
 import { ProductImage } from '../entities/product-image.entity';
+import { ProductAllergen } from '../entities/product-allergen.entity';
 import { Merchant } from '../entities/merchant.entity';
 import { Store } from '../entities/store.entity';
 
@@ -34,6 +35,7 @@ import { Store } from '../entities/store.entity';
       Ingredient,
       ProductPrice,
       ProductImage,
+      ProductAllergen,
       Merchant,
       Store,
     ]),

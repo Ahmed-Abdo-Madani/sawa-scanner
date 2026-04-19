@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sawa_app/l10n/app_localizations.dart';
 import '../../providers/product_provider.dart';
 import '../../providers/scan_history_provider.dart';
+import '../../providers/nutrition_comparison_provider.dart';
 import '../../widgets/nutri_score_badge.dart';
 import '../../widgets/nova_group_badge.dart';
 import '../../widgets/eco_score_badge.dart';
@@ -17,6 +18,9 @@ import '../../../domain/entities/product.dart';
 import '../../../core/exceptions.dart';
 import '../../../domain/entities/ingredient.dart';
 import '../product_edit/product_edit_screen.dart';
+import 'nutrition_intelligence_screen.dart';
+import 'comparison_screen.dart';
+import 'nearby_prices_screen.dart';
 
 class ProductDetailScreen extends ConsumerStatefulWidget {
   final String gtin;
@@ -272,7 +276,186 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                   ),
                 ),
 
-              // 8. Price Comparison
+              // 8. Nutrition Intelligence deep-dive button
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 16, vertical: 6),
+                child: Material(
+                  color: AppColors.surface,
+                  borderRadius: BorderRadius.circular(14),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(14),
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => NutritionIntelligenceScreen(
+                          gtin: product.gtin,
+                          productName: locale.languageCode == 'ar'
+                              ? product.nameAr
+                              : product.nameEn,
+                        ),
+                      ),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 40,
+                            height: 40,
+                            decoration: BoxDecoration(
+                              color: AppColors.primary.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Icon(Icons.insights,
+                                color: AppColors.primary, size: 22),
+                          ),
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  l10n.nutritionIntelligence,
+                                  style: AppTypography.body(locale).copyWith(
+                                    color: AppColors.onBackground,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                Text(
+                                  l10n.healthSummary,
+                                  style: AppTypography.caption(locale)
+                                      .copyWith(color: AppColors.onSurface),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const Icon(Icons.chevron_right,
+                              color: AppColors.onSurface),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+
+              // 9. Compare Products button
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 16, vertical: 6),
+                child: Material(
+                  color: AppColors.surface,
+                  borderRadius: BorderRadius.circular(14),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(14),
+                    onTap: () => _showSimilarProductsSheet(context, product, l10n, locale),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 40,
+                            height: 40,
+                            decoration: BoxDecoration(
+                              color: AppColors.secondary.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Icon(Icons.compare_arrows,
+                                color: AppColors.secondary, size: 22),
+                          ),
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  l10n.compareProducts,
+                                  style: AppTypography.body(locale).copyWith(
+                                    color: AppColors.onBackground,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                Text(
+                                  l10n.similarProducts,
+                                  style: AppTypography.caption(locale)
+                                      .copyWith(color: AppColors.onSurface),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const Icon(Icons.chevron_right,
+                              color: AppColors.onSurface),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+
+              // 10. Nearby Stores button
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 16, vertical: 6),
+                child: Material(
+                  color: AppColors.surface,
+                  borderRadius: BorderRadius.circular(14),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(14),
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => NearbyPricesScreen(
+                          gtin: product.gtin,
+                          productName: locale.languageCode == 'ar'
+                              ? product.nameAr
+                              : product.nameEn,
+                        ),
+                      ),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 40,
+                            height: 40,
+                            decoration: BoxDecoration(
+                              color: AppColors.warning.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Icon(Icons.location_on,
+                                color: AppColors.warning, size: 22),
+                          ),
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  l10n.nearbyStores,
+                                  style: AppTypography.body(locale).copyWith(
+                                    color: AppColors.onBackground,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                Text(
+                                  l10n.nearbyStoresSubtitle,
+                                  style: AppTypography.caption(locale)
+                                      .copyWith(color: AppColors.onSurface),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const Icon(Icons.chevron_right,
+                              color: AppColors.onSurface),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+
+              // 11. Price Comparison
               if (product.prices.isNotEmpty)
                 Padding(
                   padding: const EdgeInsets.symmetric(
@@ -651,4 +834,236 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
     );
   }
 
+  // --------------------------------------------------------------------------
+  // Similar products bottom sheet → Comparison screen navigator
+  // --------------------------------------------------------------------------
+
+  void _showSimilarProductsSheet(
+    BuildContext context,
+    Product product,
+    AppLocalizations l10n,
+    Locale locale,
+  ) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      isScrollControlled: true,
+      builder: (_) => DraggableScrollableSheet(
+        expand: false,
+        initialChildSize: 0.5,
+        maxChildSize: 0.85,
+        minChildSize: 0.3,
+        builder: (context, scrollController) => Consumer(
+          builder: (context, ref, _) {
+            final similarAsync =
+                ref.watch(similarProductsProvider(product.gtin));
+            final isAr = locale.languageCode == 'ar';
+
+            return Column(
+              children: [
+                Container(
+                  width: 40,
+                  height: 4,
+                  margin: const EdgeInsets.only(top: 12, bottom: 16),
+                  decoration: BoxDecoration(
+                    color: AppColors.onSurface.withValues(alpha: 0.3),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Row(
+                    children: [
+                      Icon(Icons.compare_arrows,
+                          color: AppColors.primary, size: 22),
+                      const SizedBox(width: 10),
+                      Text(
+                        l10n.similarProducts,
+                        style: AppTypography.headline(locale).copyWith(
+                          color: AppColors.onBackground,
+                          fontSize: 18,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Expanded(
+                  child: similarAsync.when(
+                    data: (items) {
+                      if (items.isEmpty) {
+                        return Center(
+                          child: Text(
+                            l10n.noSimilarProducts,
+                            style: AppTypography.body(locale)
+                                .copyWith(color: AppColors.onSurface),
+                          ),
+                        );
+                      }
+                      return ListView.builder(
+                        controller: scrollController,
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        itemCount: items.length,
+                        itemBuilder: (context, index) {
+                          final item = items[index];
+                          final name = isAr
+                              ? (item['name_ar'] ?? '')
+                              : (item['name_en'] ?? '');
+                          final brand = item['brand'] ?? '';
+                          final grade =
+                              item['nutri_score_grade']?.toString();
+                          final gtin = item['gtin']?.toString() ?? '';
+                          final imageUrl = item['image_front_url'];
+
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 8),
+                            child: Material(
+                              color: AppColors.background,
+                              borderRadius: BorderRadius.circular(12),
+                              child: InkWell(
+                                borderRadius: BorderRadius.circular(12),
+                                onTap: () {
+                                  Navigator.pop(context); // close sheet
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => ComparisonScreen(
+                                        gtinA: product.gtin,
+                                        gtinB: gtin,
+                                        nameA: isAr
+                                            ? product.nameAr
+                                            : product.nameEn,
+                                        nameB: name.toString(),
+                                      ),
+                                    ),
+                                  );
+                                },
+                                child: Padding(
+                                  padding: const EdgeInsets.all(12),
+                                  child: Row(
+                                    children: [
+                                      if (imageUrl != null)
+                                        ClipRRect(
+                                          borderRadius:
+                                              BorderRadius.circular(8),
+                                          child: Image.network(
+                                            imageUrl.toString(),
+                                            width: 48,
+                                            height: 48,
+                                            fit: BoxFit.contain,
+                                            errorBuilder: (_, __, ___) =>
+                                                const Icon(
+                                                    Icons.image_not_supported,
+                                                    size: 32),
+                                          ),
+                                        )
+                                      else
+                                        const Icon(
+                                            Icons.inventory_2_outlined,
+                                            size: 32,
+                                            color: AppColors.onSurface),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              name.toString(),
+                                              maxLines: 2,
+                                              overflow:
+                                                  TextOverflow.ellipsis,
+                                              style: AppTypography.body(
+                                                      locale)
+                                                  .copyWith(
+                                                color:
+                                                    AppColors.onBackground,
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
+                                            Text(
+                                              brand.toString(),
+                                              style:
+                                                  AppTypography.caption(
+                                                          locale)
+                                                      .copyWith(
+                                                color: AppColors.onSurface,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      if (grade != null)
+                                        Container(
+                                          padding:
+                                              const EdgeInsets.symmetric(
+                                                  horizontal: 8,
+                                                  vertical: 4),
+                                          decoration: BoxDecoration(
+                                            color: _gradeColor(grade),
+                                            borderRadius:
+                                                BorderRadius.circular(6),
+                                          ),
+                                          child: Text(
+                                            grade.toUpperCase(),
+                                            style: const TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ),
+                                      const SizedBox(width: 8),
+                                      Icon(Icons.compare_arrows,
+                                          color: AppColors.primary,
+                                          size: 20),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      );
+                    },
+                    loading: () => const Center(
+                      child: CircularProgressIndicator(
+                          color: AppColors.primary),
+                    ),
+                    error: (err, _) => Center(
+                      child: Text(
+                        err.toString(),
+                        style: AppTypography.body(locale)
+                            .copyWith(color: AppColors.error),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  Color _gradeColor(String grade) {
+    switch (grade.toUpperCase()) {
+      case 'A':
+        return const Color(0xFF1B8539);
+      case 'B':
+        return const Color(0xFF85BB2F);
+      case 'C':
+        return const Color(0xFFFECB02);
+      case 'D':
+        return const Color(0xFFEE8100);
+      case 'E':
+        return const Color(0xFFE63E11);
+      default:
+        return AppColors.onSurface;
+    }
+  }
 }

@@ -41,6 +41,8 @@ import { ProductImage } from '../entities/product-image.entity';
 import { Merchant } from '../entities/merchant.entity';
 import { NutritionFact } from '../entities/nutrition-fact.entity';
 import { Ingredient } from '../entities/ingredient.entity';
+import { ProductAllergen } from '../entities/product-allergen.entity';
+import { detectAllergensFromText, getAllergenByKey } from './constants/sfda-allergens';
 
 const INGESTION_WORKER_CONCURRENCY = Number.parseInt(
   process.env.INGESTION_WORKER_CONCURRENCY ?? '2',
@@ -797,7 +799,39 @@ export class IngestionProcessor extends WorkerHost {
       return;
     }
 
-    // 3. Database Updates in Transaction
+    // 3. Enrich product metadata from scraped data (don't overwrite non-null with null)
+    if (data.description && !product.description_en) {
+      product.description_en = data.description;
+    }
+    if (data.description_ar && !product.description_ar) {
+      product.description_ar = data.description_ar;
+    }
+    if (data.subcategory && !product.subcategory) {
+      product.subcategory = data.subcategory;
+    }
+    if (data.allergen_tags && data.allergen_tags.length > 0) {
+      product.allergen_tags = data.allergen_tags;
+    }
+    if (data.ingredient_tags && data.ingredient_tags.length > 0) {
+      product.ingredient_tags = data.ingredient_tags;
+    }
+
+    // Set canonical image URLs from scraped data
+    if (data.imageUrls.length > 0 && !product.image_front_url) {
+      const frontIdx = data.imageTypes?.indexOf('front') ?? -1;
+      product.image_front_url = frontIdx >= 0 ? data.imageUrls[frontIdx] : data.imageUrls[0];
+    }
+    if (data.imageTypes && data.imageUrls.length > 0 && !product.image_nutrition_url) {
+      const nutritionIdx = data.imageTypes.indexOf('nutrition');
+      if (nutritionIdx >= 0) {
+        product.image_nutrition_url = data.imageUrls[nutritionIdx];
+      }
+    }
+
+    // Compute unit price if weight is known
+    const computedUnitPrice = this.computeUnitPrice(data.price, product.net_weight_value, product.net_unit);
+
+    // 4. Database Updates in Transaction
     await this.dataSource.transaction(async (manager) => {
       // Update Product with AI data if available
       if (structuredLabel) {
@@ -818,6 +852,7 @@ export class IngestionProcessor extends WorkerHost {
             Object.assign(nf, structuredLabel.nutrition);
           }
           await manager.save(nf);
+          product.nutrition_data_complete = true;
         }
 
         if (
@@ -845,6 +880,30 @@ export class IngestionProcessor extends WorkerHost {
         }
       }
       await manager.save(product);
+
+      // Detect allergens from ingredient tags and upsert ProductAllergen rows
+      const allergenSources: string[] = [
+        ...(data.allergen_tags || []),
+        ...(data.ingredient_tags || []),
+      ];
+      if (allergenSources.length > 0) {
+        const detectedKeys = detectAllergensFromText(allergenSources);
+        for (const key of detectedKeys) {
+          const def = getAllergenByKey(key);
+          if (!def) continue;
+          await manager.upsert(
+            ProductAllergen,
+            {
+              product_id: product.id,
+              allergen_key: key,
+              name_en: def.name_en,
+              name_ar: def.name_ar,
+              source: 'scrape',
+            },
+            ['product_id', 'allergen_key'],
+          );
+        }
+      }
 
       // Find or Create Merchant (Transaction-safe)
       const merchantName = this.resolveMerchantName(platform, scraper, options);
@@ -895,6 +954,14 @@ export class IngestionProcessor extends WorkerHost {
         // Price hasn't changed. Just bump the timestamp
         existingPrice.scraped_at = new Date();
         existingPrice.in_stock = data.inStock ?? existingPrice.in_stock;
+        // Update unit/promo prices even on unchanged price
+        if (computedUnitPrice) {
+          existingPrice.unit_price_sar = computedUnitPrice.value;
+          existingPrice.unit_price_unit = computedUnitPrice.unit;
+        }
+        if (data.promo_price && data.promo_price > 0) {
+          existingPrice.promo_price_sar = data.promo_price;
+        }
         await manager.save(existingPrice);
         await this.pricesService.invalidateGtinCache(product.gtin);
       } else {
@@ -902,8 +969,11 @@ export class IngestionProcessor extends WorkerHost {
         const priceRecord = manager.create(ProductPrice, {
           product_id: product.id,
           merchant_id: merchant.id,
-          store_id: storeId ?? null,
+          store_id: storeId ?? undefined,
           price_sar_incl_vat: data.price,
+          promo_price_sar: (data.promo_price && data.promo_price > 0) ? data.promo_price : undefined,
+          unit_price_sar: computedUnitPrice?.value ?? undefined,
+          unit_price_unit: computedUnitPrice?.unit ?? undefined,
           currency: 'SAR',
           source_url: data.productPageUrl,
           in_stock: data.inStock ?? true,
@@ -919,12 +989,14 @@ export class IngestionProcessor extends WorkerHost {
       });
       const existingUrls = new Set(existingImages.map((img) => img.url));
 
-      for (const url of data.imageUrls) {
+      for (let i = 0; i < data.imageUrls.length; i++) {
+        const url = data.imageUrls[i];
         if (!existingUrls.has(url)) {
           const img = manager.create(ProductImage, {
             product_id: product.id,
             url: url,
             source: platform,
+            image_type: data.imageTypes?.[i] || undefined,
           });
           await manager.save(img);
           existingUrls.add(url);
@@ -957,5 +1029,30 @@ export class IngestionProcessor extends WorkerHost {
       if (chainName) return chainName;
     }
     return this.capitalize(platform);
+  }
+
+  /**
+   * Compute unit price (per kg or per L) from the overall price and product weight.
+   */
+  private computeUnitPrice(
+    price: number,
+    weightValue?: number,
+    weightUnit?: string,
+  ): { value: number; unit: string } | null {
+    if (!weightValue || weightValue <= 0 || !weightUnit) return null;
+
+    const unit = weightUnit.toLowerCase();
+    if (unit === 'g' || unit === 'kg') {
+      const weightInKg = unit === 'g' ? weightValue / 1000 : weightValue;
+      if (weightInKg <= 0) return null;
+      return { value: Math.round((price / weightInKg) * 100) / 100, unit: 'kg' };
+    }
+    if (unit === 'ml' || unit === 'l') {
+      const volumeInL = unit === 'ml' ? weightValue / 1000 : weightValue;
+      if (volumeInL <= 0) return null;
+      return { value: Math.round((price / volumeInL) * 100) / 100, unit: 'L' };
+    }
+
+    return null;
   }
 }

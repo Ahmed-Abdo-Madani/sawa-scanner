@@ -186,4 +186,126 @@ class ProductRemoteDataSource {
       throw ServerException(e.toString());
     }
   }
+
+  /// Fetch store-scoped prices for a product in a specific city.
+  Future<List<Map<String, dynamic>>> fetchPricesByStore(
+    String gtin,
+    String citySlug, {
+    String? districtSlug,
+  }) async {
+    ApiConfig.validate();
+    try {
+      final queryParams = {
+        'city': citySlug,
+        if (districtSlug != null) 'district': districtSlug,
+      };
+
+      final uri = Uri.parse('$baseUrl/products/$gtin/prices/by-store')
+          .replace(queryParameters: queryParams);
+
+      final response = await client.get(
+        uri,
+        headers: {'Content-Type': 'application/json'},
+      );
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = json.decode(response.body);
+        return data.cast<Map<String, dynamic>>();
+      } else {
+        throw ServerException(
+            'Failed to fetch store prices: ${response.statusCode}');
+      }
+    } catch (e) {
+      if (e is ServerException) rethrow;
+      throw ServerException(e.toString());
+    }
+  }
+
+  /// Fetch full nutrition analysis for a product.
+  Future<Map<String, dynamic>> fetchNutritionAnalysis(
+    String gtin, {
+    List<String>? userAllergens,
+  }) async {
+    ApiConfig.validate();
+    try {
+      final queryParams = <String, String>{};
+      if (userAllergens != null && userAllergens.isNotEmpty) {
+        queryParams['allergens'] = userAllergens.join(',');
+      }
+
+      final uri = Uri.parse('$baseUrl/products/$gtin/nutrition')
+          .replace(queryParameters: queryParams.isNotEmpty ? queryParams : null);
+
+      final response = await client.get(
+        uri,
+        headers: {'Content-Type': 'application/json'},
+      );
+
+      if (response.statusCode == 200) {
+        return json.decode(response.body) as Map<String, dynamic>;
+      } else {
+        throw ServerException(
+            'Failed to fetch nutrition: ${response.statusCode}');
+      }
+    } catch (e) {
+      if (e is ServerException) rethrow;
+      throw ServerException(e.toString());
+    }
+  }
+
+  /// Fetch similar products for comparison.
+  Future<List<Map<String, dynamic>>> fetchSimilarProducts(
+    String gtin, {
+    int limit = 10,
+  }) async {
+    ApiConfig.validate();
+    try {
+      final uri = Uri.parse('$baseUrl/products/$gtin/similar')
+          .replace(queryParameters: {'limit': limit.toString()});
+
+      final response = await client.get(
+        uri,
+        headers: {'Content-Type': 'application/json'},
+      );
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = json.decode(response.body);
+        return data.cast<Map<String, dynamic>>();
+      } else {
+        throw ServerException(
+            'Failed to fetch similar products: ${response.statusCode}');
+      }
+    } catch (e) {
+      if (e is ServerException) rethrow;
+      throw ServerException(e.toString());
+    }
+  }
+
+  /// Fetch side-by-side comparison of two products.
+  Future<Map<String, dynamic>> fetchComparison(
+    String gtinA,
+    String gtinB,
+  ) async {
+    ApiConfig.validate();
+    try {
+      final uri = Uri.parse('$baseUrl/comparison').replace(
+        queryParameters: {'gtinA': gtinA, 'gtinB': gtinB},
+      );
+
+      final response = await client.get(
+        uri,
+        headers: {'Content-Type': 'application/json'},
+      );
+
+      if (response.statusCode == 200) {
+        return json.decode(response.body) as Map<String, dynamic>;
+      } else {
+        throw ServerException(
+            'Failed to fetch comparison: ${response.statusCode}');
+      }
+    } catch (e) {
+      if (e is ServerException) rethrow;
+      throw ServerException(e.toString());
+    }
+  }
 }

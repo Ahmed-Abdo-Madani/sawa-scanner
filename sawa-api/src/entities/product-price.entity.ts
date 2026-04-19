@@ -27,6 +27,15 @@ export class ProductPrice {
   @Column({ nullable: true })
   source_url: string;
 
+  @Column({ type: 'float', nullable: true })
+  promo_price_sar: number | null;
+
+  @Column({ type: 'float', nullable: true })
+  unit_price_sar: number | null;
+
+  @Column({ nullable: true })
+  unit_price_unit: string;
+
   @Index()
   @Column({ type: 'timestamp' })
   scraped_at: Date;

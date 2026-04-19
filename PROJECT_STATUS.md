@@ -337,8 +337,48 @@ Sawa Scanner is a bilingual (AR/EN) product scanning system designed for the Sau
     - Cleaned up dead `hsScraper` variable references in `IngestionProcessor` following the stateless refactor.
     - Fixed missing GraphQL interceptor teardown in `discoverDistricts`.
 
-### Security/Hardening Follow-ups (Deferred — does not block HungerStation functional testing)
-- [ ] **Rotate Exposed Redis Credential**: Remove hardcoded Redis URL/password from [`sawa-api/src/scripts/obliterate-queue.ts`](sawa-api/src/scripts/obliterate-queue.ts) and migrate to env-based config before any production use.
+### Phase 36: Data Quality & Core Intelligence Features (Completed ✅)
+- [x] **Schema Enrichment (Backend)**:
+    - Extended `Product` entity with `description_ar/en`, `subcategory`, `allergen_tags`, `ingredient_tags`, `net_weight_value/net_unit`, `nutrition_data_complete`, `image_front_url`, `image_nutrition_url`.
+    - Extended `ProductPrice` entity with `promo_price_sar`, `unit_price_sar`, `unit_price_unit`.
+    - Created `ProductAllergen` entity with bilingual names and SFDA-aligned allergen constant table.
+    - Updated `IngestionProcessor` with unit price computation, allergen detection, and promotional pricing.
+- [x] **Nutritional Intelligence Module (Backend)**:
+    - New `NutritionModule` + `NutritionService` + `NutritionController`.
+    - SFDA NPM-based NutriScore engine (A–E grading).
+    - Traffic-light health summary (fat, saturated fat, sugar, sodium).
+    - Harmful substance detection and personalized allergen warnings.
+    - `GET /nutrition/:gtin/analysis` endpoint.
+- [x] **Product Comparison Module (Backend)**:
+    - New `ComparisonModule` + `ComparisonService` + `ComparisonController`.
+    - Similarity engine using category/subcategory + weight-based (±30%) matching.
+    - Side-by-side comparison with nutrition deltas and allergen diffs.
+    - Rule-based recommendation formula (65% NutriScore, 35% Price).
+    - `GET /comparison/:gtin/similar`, `GET /comparison/compare` endpoints.
+- [x] **Flutter Data Layer**:
+    - Extended `Product` and `PriceInfo` domain entities with all enriched fields.
+    - Created `LocationService` with static Saudi city bounding-box GPS resolution.
+    - Extended `ProductModel` and `PriceInfoModel` with enriched JSON parsing.
+    - Extended `ProductRepository` interface and implementation with 4 new methods.
+    - Added `fetchPricesByStore`, `fetchNutritionAnalysis`, `fetchSimilarProducts`, `fetchComparison` to remote data source.
+- [x] **Flutter Providers**:
+    - `NearbyPricesProvider` with GPS city resolution and distance sorting.
+    - `NutritionAnalysisProvider`, `SimilarProductsProvider`, `ComparisonProvider`.
+- [x] **Flutter UI Screens**:
+    - `NutritionIntelligenceScreen`: NutriScore visualization, traffic-light health summary, harmful substance alerts, allergen warnings.
+    - `ComparisonScreen`: VS header, recommendation card, nutrition deltas table, allergen diff.
+    - Similar products bottom sheet in `ProductDetailScreen` for comparison navigation.
+    - Action panels integrated into `ProductDetailScreen` for Nutrition Intelligence and Compare Products.
+    - `NearbyPricesScreen` with full `geolocator` permission flow, distance sorting, promo badges, and unit pricing.
+    - Nearby Stores action panel integrated into `ProductDetailScreen`.
+- [x] **HungerStation Scraper Enrichment**:
+    - Enriched `mapHsProduct` to extract `promo_price` (original vs offer disambiguation).
+    - Added `description_ar` extraction from bilingual HS payloads.
+    - Implemented `extractAllergenTags` with structured field mining + description heuristic fallback (EN + AR keywords).
+    - Implemented `extractIngredientTags` from array and comma-separated string fields.
+    - Added `subcategory` extraction from category/menuCategory fields.
+- [x] **Localization**: Full AR/EN coverage with 30+ new keys for all new features.
+- [x] **Static Analysis**: `flutter analyze` passed with 0 new errors. `tsc --noEmit` passed for backend.
 
 ---
 
@@ -355,6 +395,8 @@ Sawa Scanner is a bilingual (AR/EN) product scanning system designed for the Sau
 | **Price Sync Processor** | [`src/ingestion/price-scraping.processor.ts`](file:///c:/Users/Design_Bench_12/Documents/sawa-scanner/sawa-api/src/ingestion/price-scraping.processor.ts) | Daily historical price scraper logic. |
 | **Product Entities** | [`src/entities/product.entity.ts`](file:///c:/Users/Design_Bench_12/Documents/sawa-scanner/sawa-api/src/entities/product.entity.ts) | TypeORM entities. |
 | **Ingestion Engine** | [`src/ingestion/ingestion.processor.ts`](file:///c:/Users/Design_Bench_12/Documents/sawa-scanner/sawa-api/src/ingestion/ingestion.processor.ts) | Main ingestion queue worker. |
+| **Nutrition Module** | [`src/nutrition/`](file:///c:/Users/Design_Bench_12/Documents/sawa-scanner/sawa-api/src/nutrition/) | NutriScore, health summary, harmful substance detection. |
+| **Comparison Module** | [`src/comparison/`](file:///c:/Users/Design_Bench_12/Documents/sawa-scanner/sawa-api/src/comparison/) | Similar products, side-by-side comparison, recommendation engine. |
 | **Stores Service** | [`src/stores/stores.service.ts`](file:///c:/Users/Design_Bench_12/Documents/sawa-scanner/sawa-api/src/stores/stores.service.ts) | Store query/upsert service powering branch-aware ingestion and APIs. |
 | **Product Clustering**| [`src/ingestion/product-clustering.service.ts`](file:///c:/Users/Design_Bench_12/Documents/sawa-scanner/sawa-api/src/ingestion/product-clustering.service.ts) | Merges products from multiple sources (GTIN-first). |
 | **Retailer Scrapers** | [`src/ingestion/scraper/`](file:///c:/Users/Design_Bench_12/Documents/sawa-scanner/sawa-api/src/ingestion/scraper/) | Implementation for Carrefour, Panda, Othaim (Noon), Tamimi, Ninja. |
@@ -364,7 +406,15 @@ Sawa Scanner is a bilingual (AR/EN) product scanning system designed for the Sau
 | **Trigger Logic** | [`src/scripts/trigger-ingestion.ts`](file:///c:/Users/Design_Bench_12/Documents/sawa-scanner/sawa-api/src/scripts/trigger-ingestion.ts) | Script to launch mass ingestion jobs. |
 
 ### Frontend (`sawa_app`)
-<truncated for brevity - table continues as before>
+| Responsibility | File Path | Description |
+| :--- | :--- | :--- |
+| **Product Detail** | [`lib/presentation/screens/product_detail/product_detail_screen.dart`](file:///c:/Users/Design_Bench_12/Documents/sawa-scanner/sawa_app/lib/presentation/screens/product_detail/product_detail_screen.dart) | Main product view with knowledge panels and navigation. |
+| **Nutrition Intelligence** | [`lib/presentation/screens/product_detail/nutrition_intelligence_screen.dart`](file:///c:/Users/Design_Bench_12/Documents/sawa-scanner/sawa_app/lib/presentation/screens/product_detail/nutrition_intelligence_screen.dart) | Deep-dive NutriScore, health summary, harmful substances, allergen warnings. |
+| **Comparison Screen** | [`lib/presentation/screens/product_detail/comparison_screen.dart`](file:///c:/Users/Design_Bench_12/Documents/sawa-scanner/sawa_app/lib/presentation/screens/product_detail/comparison_screen.dart) | Side-by-side VS comparison with recommendation. |
+| **Nearby Prices** | [`lib/presentation/screens/product_detail/nearby_prices_screen.dart`](file:///c:/Users/Design_Bench_12/Documents/sawa-scanner/sawa_app/lib/presentation/screens/product_detail/nearby_prices_screen.dart) | Store-scoped prices with GPS permission flow and distance sorting. |
+| **Location Service** | [`lib/data/datasources/location_service.dart`](file:///c:/Users/Design_Bench_12/Documents/sawa-scanner/sawa_app/lib/data/datasources/location_service.dart) | Static GPS→city slug resolver for Saudi Arabia. |
+| **Product Model** | [`lib/data/models/product_model.dart`](file:///c:/Users/Design_Bench_12/Documents/sawa-scanner/sawa_app/lib/data/models/product_model.dart) | JSON parsing for enriched product responses. |
+| **Providers** | [`lib/presentation/providers/`](file:///c:/Users/Design_Bench_12/Documents/sawa-scanner/sawa_app/lib/presentation/providers/) | Riverpod providers for nutrition, comparison, nearby prices. |
 
 ---
 
@@ -387,10 +437,10 @@ The following are now **fully configured** in the local environment:
 ---
 
 ## 🔮 Next Steps for Future Agents
-1. **Catalog Ingestion**: Trigger the initial crawl for hypermarkets via `POST /ingestion/jobs` to populate the `Product` table.
+1. **End-to-End Testing**: Verify full pipeline from HungerStation ingestion through Nutrition Intelligence, Comparison, and Nearby Prices UI.
 2. **SFDA Expansion**: Populate `sfda_prohibited_ingredients` with full restricted additive lists.
 3. **Offline Support**: Cache scanned products locally via SQLite/Drift.
 4. **Analytics**: Implement event tracking for scan success/failure rates.
-5. **Preference Filtering**: Update search and scan logic to actually highlight matched/prohibited items based on user preferences.
+5. **Preference Filtering**: Update search and scan logic to highlight matched/prohibited items based on user preferences.
 6. **Real-time Pricing**: Integrate the newly hardened `scrapeProductPrice` logic into the weekly price trends chart.
-7. **Throughput Profiling**: Monitor worker memory stability during the 24-hour ingestion cycle following the resource leak fix.
+7. **iOS Location Plist**: Add `NSLocationWhenInUseUsageDescription` to `Info.plist` for iOS builds.

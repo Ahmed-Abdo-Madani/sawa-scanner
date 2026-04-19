@@ -170,4 +170,43 @@ class ProductRepositoryImpl implements ProductRepository {
     return success;
   }
 
+  @override
+  Future<Map<String, dynamic>> getNutritionAnalysis(
+    String gtin, {
+    List<String>? userAllergens,
+  }) {
+    return remoteDataSource.fetchNutritionAnalysis(
+      gtin,
+      userAllergens: userAllergens,
+    );
+  }
+
+  @override
+  Future<List<Map<String, dynamic>>> getSimilarProducts(
+    String gtin, {
+    int limit = 10,
+  }) {
+    return remoteDataSource.fetchSimilarProducts(gtin, limit: limit);
+  }
+
+  @override
+  Future<Map<String, dynamic>> getComparison(String gtinA, String gtinB) {
+    return remoteDataSource.fetchComparison(gtinA, gtinB);
+  }
+
+  @override
+  Future<List<PriceInfo>> getPricesByStore(
+    String gtin,
+    String citySlug, {
+    String? districtSlug,
+  }) async {
+    final rawList = await remoteDataSource.fetchPricesByStore(
+      gtin,
+      citySlug,
+      districtSlug: districtSlug,
+    );
+    return rawList
+        .map((json) => PriceInfoModel.fromStoreJson(json).toEntity())
+        .toList();
+  }
 }

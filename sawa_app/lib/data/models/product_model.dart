@@ -11,32 +11,67 @@ class ProductModel extends Product {
     required super.nameAr,
     required super.nameEn,
     required super.brand,
+    super.category,
+    super.subcategory,
+    super.descriptionAr,
+    super.descriptionEn,
     required super.nutriScoreGrade,
     required super.novaGroup,
     required super.sfdaRegistrationStatus,
     required super.halalCertified,
+    super.netWeightValue,
+    super.netUnit,
     super.nutritionFact,
     required super.ingredients,
+    super.allergenDetails = const [],
     required super.prices,
     required super.images,
     super.ecoScore,
     super.allergens = const [],
+    super.allergenTags = const [],
+    super.ingredientTags = const [],
     super.allergensDataAvailable = false,
     super.categories = const [],
     super.ingredientsText,
+    super.imageFrontUrl,
+    super.imageNutritionUrl,
+    super.nutritionDataComplete = false,
   });
 
   factory ProductModel.fromJson(Map<String, dynamic> json) {
+    // Parse allergen details from the enriched response
+    final allergenDetailsList = (json['allergens'] as List<dynamic>?)
+        ?.where((e) => e is Map<String, dynamic>)
+        .map((e) {
+          final m = e as Map<String, dynamic>;
+          return AllergenInfo(
+            key: m['key']?.toString() ?? '',
+            nameAr: m['name_ar']?.toString() ?? '',
+            nameEn: m['name_en']?.toString() ?? '',
+            source: m['source']?.toString(),
+          );
+        })
+        .toList() ?? const [];
+
+    // Build the string list from allergen details for backward compat
+    final allergenStrings = allergenDetailsList.map((a) => a.nameEn).toList();
+
     return ProductModel(
       id: json['id'].toString(),
       gtin: json['gtin'].toString(),
       nameAr: json['name_ar'] ?? '',
       nameEn: json['name_en'] ?? '',
       brand: json['brand'] ?? '',
+      category: json['category']?.toString(),
+      subcategory: json['subcategory']?.toString(),
+      descriptionAr: json['description_ar']?.toString(),
+      descriptionEn: json['description_en']?.toString(),
       sfdaRegistrationStatus: json['sfda_registration_status']?.toString(),
       halalCertified: json['halal_certified'] as bool?,
       nutriScoreGrade: json['nutri_score_grade']?.toString(),
       novaGroup: json['nova_group'] as int?,
+      netWeightValue: (json['net_weight_value'] as num?)?.toDouble(),
+      netUnit: json['net_unit']?.toString(),
       nutritionFact: json['nutrition'] != null 
           ? NutritionFactModel.fromJson(json['nutrition'] as Map<String, dynamic>)
           : null,
@@ -44,6 +79,7 @@ class ProductModel extends Product {
               ?.map((e) => IngredientModel.fromJson(e as Map<String, dynamic>))
               .toList() ?? 
           [],
+      allergenDetails: allergenDetailsList,
       prices: (json['prices'] as List<dynamic>?)
               ?.map((e) => PriceInfoModel.fromJson(e as Map<String, dynamic>))
               .toList() ??
@@ -53,10 +89,15 @@ class ProductModel extends Product {
               .toList() ??
           [],
       ecoScore: json['eco_score']?.toString(),
-      allergens: (json['allergens'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? const [],
-      allergensDataAvailable: json['allergens_data_available'] as bool? ?? false,
+      allergens: allergenStrings,
+      allergenTags: (json['allergen_tags'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? const [],
+      ingredientTags: (json['ingredient_tags'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? const [],
+      allergensDataAvailable: allergenDetailsList.isNotEmpty || (json['allergens_data_available'] as bool? ?? false),
       categories: (json['categories'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? const [],
       ingredientsText: json['ingredients_text']?.toString(),
+      imageFrontUrl: json['image_front_url']?.toString(),
+      imageNutritionUrl: json['image_nutrition_url']?.toString(),
+      nutritionDataComplete: json['nutrition_data_complete'] as bool? ?? false,
     );
   }
 
@@ -70,16 +111,23 @@ class ProductModel extends Product {
       nameAr: nameAr,
       nameEn: nameEn,
       brand: brand,
+      category: category,
+      subcategory: subcategory,
+      descriptionAr: descriptionAr,
+      descriptionEn: descriptionEn,
       nutriScoreGrade: nutriScoreGrade,
       novaGroup: novaGroup,
       sfdaRegistrationStatus: sfdaRegistrationStatus,
       halalCertified: halalCertified,
+      netWeightValue: netWeightValue,
+      netUnit: netUnit,
       nutritionFact: nutritionFact is NutritionFactModel
           ? (nutritionFact as NutritionFactModel).toEntity()
           : nutritionFact,
       ingredients: ingredients
           .map((i) => i is IngredientModel ? i.toEntity() : i)
           .toList(),
+      allergenDetails: allergenDetails,
       prices: prices
           .map((p) => p is PriceInfoModel ? p.toEntity() : p)
           .toList(),
@@ -88,9 +136,14 @@ class ProductModel extends Product {
           .toList(),
       ecoScore: ecoScore,
       allergens: allergens,
+      allergenTags: allergenTags,
+      ingredientTags: ingredientTags,
       allergensDataAvailable: allergensDataAvailable,
       categories: categories,
       ingredientsText: ingredientsText,
+      imageFrontUrl: imageFrontUrl,
+      imageNutritionUrl: imageNutritionUrl,
+      nutritionDataComplete: nutritionDataComplete,
     );
   }
 }
@@ -190,19 +243,61 @@ class PriceInfoModel extends PriceInfo {
     super.logoUrl,
     super.sourceUrl,
     required super.priceSarInclVat,
+    super.promoPriceSar,
+    super.unitPriceSar,
+    super.unitPriceUnit,
     required super.inStock,
     required super.scrapedAt,
+    super.storeId,
+    super.storeName,
+    super.storeNameAr,
+    super.districtName,
+    super.districtNameAr,
+    super.storeLat,
+    super.storeLng,
+    super.distanceKm,
   });
 
   factory PriceInfoModel.fromJson(Map<String, dynamic> json) {
     return PriceInfoModel(
-      merchant: json['merchant'] ?? 'Unknown',
-      merchantAr: json['merchant_ar'] ?? '',
-      logoUrl: json['logo_url'],
-      sourceUrl: json['source_url'],
+      merchant: json['merchant']?.toString() ?? json['merchant_name_en'] ?? 'Unknown',
+      merchantAr: json['merchant_ar']?.toString() ?? json['merchant_name_ar'] ?? '',
+      logoUrl: json['logo_url']?.toString() ?? json['merchant_logo_url']?.toString(),
+      sourceUrl: json['source_url']?.toString(),
       priceSarInclVat: (json['price_sar_incl_vat'] as num?)?.toDouble() ?? 0.0,
+      promoPriceSar: (json['promo_price_sar'] as num?)?.toDouble(),
+      unitPriceSar: (json['unit_price_sar'] as num?)?.toDouble(),
+      unitPriceUnit: json['unit_price_unit']?.toString(),
       inStock: json['in_stock'] ?? true,
       scrapedAt: DateTime.tryParse(json['scraped_at'] ?? '') ?? DateTime.now(),
+      storeId: json['store_id']?.toString(),
+      storeName: json['store_name']?.toString(),
+      storeNameAr: json['store_name_ar']?.toString(),
+      districtName: json['district_name']?.toString() ?? (json['district'] is Map ? json['district']['name_en'] : null),
+      districtNameAr: json['district_name_ar']?.toString() ?? (json['district'] is Map ? json['district']['name_ar'] : null),
+      storeLat: (json['store_lat'] as num?)?.toDouble(),
+      storeLng: (json['store_lng'] as num?)?.toDouble(),
+    );
+  }
+
+  /// Create from the by-store API response format.
+  factory PriceInfoModel.fromStoreJson(Map<String, dynamic> json) {
+    final merchant = json['merchant'] as Map<String, dynamic>? ?? {};
+    final district = json['district'] as Map<String, dynamic>? ?? {};
+    return PriceInfoModel(
+      merchant: merchant['name_en']?.toString() ?? 'Unknown',
+      merchantAr: merchant['name_ar']?.toString() ?? '',
+      logoUrl: merchant['logo_url']?.toString(),
+      sourceUrl: json['source_url']?.toString(),
+      priceSarInclVat: (json['price_sar_incl_vat'] as num?)?.toDouble() ?? 0.0,
+      promoPriceSar: (json['promo_price_sar'] as num?)?.toDouble(),
+      unitPriceSar: (json['unit_price_sar'] as num?)?.toDouble(),
+      unitPriceUnit: json['unit_price_unit']?.toString(),
+      inStock: json['in_stock'] ?? true,
+      scrapedAt: DateTime.tryParse(json['scraped_at'] ?? '') ?? DateTime.now(),
+      storeId: json['store_id']?.toString(),
+      districtName: district['name_en']?.toString(),
+      districtNameAr: district['name_ar']?.toString(),
     );
   }
 
@@ -213,8 +308,19 @@ class PriceInfoModel extends PriceInfo {
       logoUrl: logoUrl,
       sourceUrl: sourceUrl,
       priceSarInclVat: priceSarInclVat,
+      promoPriceSar: promoPriceSar,
+      unitPriceSar: unitPriceSar,
+      unitPriceUnit: unitPriceUnit,
       inStock: inStock,
       scrapedAt: scrapedAt,
+      storeId: storeId,
+      storeName: storeName,
+      storeNameAr: storeNameAr,
+      districtName: districtName,
+      districtNameAr: districtNameAr,
+      storeLat: storeLat,
+      storeLng: storeLng,
+      distanceKm: distanceKm,
     );
   }
 }

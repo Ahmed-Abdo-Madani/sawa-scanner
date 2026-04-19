@@ -438,6 +438,40 @@ export class HungerStationScraper extends BaseScraper {
       .find((v) => Number.isFinite(v) && v > 0);
     if (!price) return null;
 
+    // ──── Promo / discount pricing ────
+    const originalPriceCandidates = [
+      raw.originalPrice,
+      raw.pricing?.originalPrice,
+      raw.prices?.originalPrice,
+      raw.was_price,
+      raw.wasPrice,
+      raw.price_before_discount,
+    ];
+    const offerPriceCandidates = [
+      raw.offerPrice,
+      raw.pricing?.offerPrice,
+      raw.prices?.offerPrice,
+      raw.discountPrice,
+      raw.discount_price,
+      raw.salePrice,
+      raw.sale_price,
+    ];
+    let promo_price: number | undefined = undefined;
+    const originalPrice = originalPriceCandidates
+      .map((v) => (typeof v === 'number' ? v : parseFloat(String(v ?? '').replace(/[^0-9.]/g, ''))))
+      .find((v) => Number.isFinite(v) && v > 0);
+    const offerPrice = offerPriceCandidates
+      .map((v) => (typeof v === 'number' ? v : parseFloat(String(v ?? '').replace(/[^0-9.]/g, ''))))
+      .find((v) => Number.isFinite(v) && v > 0);
+    // If original > offer → offer is a promo
+    if (originalPrice && offerPrice && originalPrice > offerPrice) {
+      promo_price = offerPrice;
+    }
+    // If the resolved "price" is the original price and there's an offerPrice
+    if (!promo_price && offerPrice && price !== offerPrice && offerPrice < price) {
+      promo_price = offerPrice;
+    }
+
     const images: string[] = [];
     const appendImage = (src: any) => {
       if (!src) return;
@@ -467,18 +501,160 @@ export class HungerStationScraper extends BaseScraper {
           ? inStockValue > 0
           : undefined;
 
+    // ──── Arabic name ────
+    const name_ar = (raw.nameAr || raw.name_ar || '').trim() || undefined;
+
+    // ──── Arabic description ────
+    const description_ar = (
+      raw.descriptionAr || raw.description_ar || raw.shortDescriptionAr || ''
+    ).trim() || undefined;
+
+    // ──── Allergens ────
+    const allergen_tags = this.extractAllergenTags(raw);
+
+    // ──── Ingredients ────
+    const ingredient_tags = this.extractIngredientTags(raw);
+
+    // ──── Subcategory ────
+    let subcategory: string | undefined = undefined;
+    const catCandidates = [
+      raw.category,
+      raw.categoryName,
+      raw.category_name,
+      raw.menuCategoryName,
+      raw.subCategory,
+      raw.sub_category,
+    ];
+    for (const c of catCandidates) {
+      if (typeof c === 'string' && c.trim()) {
+        subcategory = c.trim();
+        break;
+      }
+      if (c && typeof c === 'object' && typeof c.name === 'string') {
+        subcategory = c.name.trim();
+        break;
+      }
+    }
+
     return {
       name,
-      name_ar: raw.nameAr || raw.name_ar,
+      name_ar,
       price,
+      promo_price,
       weight: raw.weight || raw.size || raw.netWeight,
       productPageUrl,
       imageUrls: [...new Set(images)],
       brand: raw.brand || raw.manufacturer,
       description: raw.description || raw.shortDescription,
+      description_ar,
       gtin: raw.gtin || raw.barcode,
       inStock,
+      allergen_tags: allergen_tags.length > 0 ? allergen_tags : undefined,
+      ingredient_tags: ingredient_tags.length > 0 ? ingredient_tags : undefined,
+      subcategory,
     };
+  }
+
+  /**
+   * Extracts allergen tags from the raw HS product node.
+   * Checks `allergens`, `allergenInfo`, and tries to parse
+   * from description text if structured fields are absent.
+   */
+  private extractAllergenTags(raw: any): string[] {
+    const tags = new Set<string>();
+
+    // Direct array fields
+    const arrayFields = [
+      raw.allergens,
+      raw.allergenInfo,
+      raw.allergen_info,
+      raw.allergenTags,
+      raw.allergen_tags,
+    ];
+    for (const field of arrayFields) {
+      if (Array.isArray(field)) {
+        for (const item of field) {
+          const val = typeof item === 'string' ? item : item?.name || item?.label;
+          if (val && typeof val === 'string') {
+            tags.add(val.trim().toLowerCase().replace(/^en:/, ''));
+          }
+        }
+      }
+    }
+
+    // String fields (comma-separated)
+    const stringFields = [
+      raw.allergenList,
+      raw.allergen_list,
+      raw.allergens_text,
+    ];
+    for (const field of stringFields) {
+      if (typeof field === 'string' && field.trim()) {
+        field.split(/[,;]/).forEach((s: string) => {
+          const cleaned = s.trim().toLowerCase().replace(/^en:/, '');
+          if (cleaned) tags.add(cleaned);
+        });
+      }
+    }
+
+    // Heuristic: check description for common allergen keywords
+    if (tags.size === 0) {
+      const text = String(raw.description || raw.shortDescription || '').toLowerCase();
+      const allergenKeywords = [
+        'milk', 'dairy', 'lactose', 'gluten', 'wheat', 'soy', 'soya',
+        'peanut', 'tree nut', 'almond', 'cashew', 'walnut', 'hazelnut',
+        'egg', 'fish', 'shellfish', 'sesame', 'mustard', 'celery', 'sulphite',
+        'حليب', 'قمح', 'صويا', 'بيض', 'سمسم', 'فول سوداني', 'مكسرات',
+      ];
+      for (const kw of allergenKeywords) {
+        if (text.includes(kw)) {
+          tags.add(kw);
+        }
+      }
+    }
+
+    return [...tags];
+  }
+
+  /**
+   * Extracts ingredient tags from the raw HS product node.
+   */
+  private extractIngredientTags(raw: any): string[] {
+    const tags = new Set<string>();
+
+    // Direct array fields
+    const arrayFields = [
+      raw.ingredients,
+      raw.ingredientTags,
+      raw.ingredient_tags,
+    ];
+    for (const field of arrayFields) {
+      if (Array.isArray(field)) {
+        for (const item of field) {
+          const val = typeof item === 'string' ? item : item?.name || item?.text;
+          if (val && typeof val === 'string') {
+            tags.add(val.trim().toLowerCase().replace(/^en:/, ''));
+          }
+        }
+      }
+    }
+
+    // String fields (comma-separated)
+    const stringFields = [
+      raw.ingredientsText,
+      raw.ingredients_text,
+      raw.ingredientsList,
+    ];
+    for (const field of stringFields) {
+      if (typeof field === 'string' && field.trim()) {
+        field.split(/[,;]/).forEach((s: string) => {
+          const cleaned = s.trim().toLowerCase();
+          if (cleaned && cleaned.length > 1) tags.add(cleaned);
+        });
+      }
+    }
+
+    return [...tags];
   }
 
   private async autoScroll(page: Page): Promise<void> {

@@ -205,5 +205,55 @@
   "fallbackConfigurationDescription": "The application is misconfigured (User-Agent missing). Please contact support.",
   "apiConfiguration": "Sawa API Not Configured",
   "apiConfigurationDescription": "The backend URL is missing. Developers must build with --dart-define=API_BASE_URL=...",
-  "scanOrSearchPrompt": "Scan a barcode or search for a product"
+  "scanOrSearchPrompt": "Scan a barcode or search for a product",
+
+  "nearbyStores": "Nearby Stores",
+  "nearbyStoresSubtitle": "Prices from stores near you",
+  "storeDistance": "{distance} km away",
+  "@storeDistance": {
+    "placeholders": {
+      "distance": { "type": "String" }
+    }
+  },
+  "promoPrice": "Promo",
+  "unitPrice": "Unit Price",
+  "perUnit": "per {unit}",
+  "@perUnit": {
+    "placeholders": {
+      "unit": { "type": "String" }
+    }
+  },
+  "locationPermissionRequired": "Location permission is required to show nearby stores",
+  "enableLocation": "Enable Location",
+  "noNearbyStores": "No stores found nearby for this product",
+
+  "nutritionIntelligence": "Nutrition Intelligence",
+  "healthSummary": "Health Summary",
+  "harmfulSubstances": "Harmful Substances",
+  "allergenWarnings": "Allergen Warnings",
+  "noHarmfulSubstances": "No harmful substances detected",
+  "noAllergenWarnings": "No allergen warnings",
+  "lowLevel": "Low",
+  "mediumLevel": "Medium",
+  "highLevel": "High",
+  "nutriScoreExplanation": "NutriScore rates nutritional quality from A (best) to E (least favorable)",
+  "nutritionDataIncomplete": "Nutrition data is incomplete for this product",
+
+  "compareProducts": "Compare Products",
+  "similarProducts": "Similar Products",
+  "noSimilarProducts": "No similar products found",
+  "selectToCompare": "Select to compare",
+  "nutritionComparison": "Nutrition Comparison",
+  "allergenComparison": "Allergen Comparison",
+  "recommendation": "Recommendation",
+  "betterChoice": "Better Choice",
+  "tieResult": "Tie",
+  "onlyInA": "Only in Product A",
+  "onlyInB": "Only in Product B",
+  "shared": "Shared",
+  "vsLabel": "VS",
+  "lower": "Lower",
+  "higher": "Higher",
+  "equal": "Equal",
+  "unknown": "Unknown"
 }

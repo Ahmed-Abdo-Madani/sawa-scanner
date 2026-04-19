@@ -12,6 +12,7 @@ import { NutritionFact } from './nutrition-fact.entity';
 import { Ingredient } from './ingredient.entity';
 import { ProductPrice } from './product-price.entity';
 import { ProductImage } from './product-image.entity';
+import { ProductAllergen } from './product-allergen.entity';
 
 @Entity()
 export class Product {
@@ -38,6 +39,15 @@ export class Product {
   category: string;
 
   @Column({ nullable: true })
+  subcategory: string;
+
+  @Column({ nullable: true })
+  description_ar: string;
+
+  @Column({ nullable: true })
+  description_en: string;
+
+  @Column({ nullable: true })
   sfda_registration_status: string;
 
   @Column({ type: 'boolean', nullable: true })
@@ -58,6 +68,21 @@ export class Product {
   @Column({ nullable: true })
   net_unit: string;
 
+  @Column({ type: 'simple-array', nullable: true })
+  allergen_tags: string[];
+
+  @Column({ type: 'simple-array', nullable: true })
+  ingredient_tags: string[];
+
+  @Column({ nullable: true })
+  image_front_url: string;
+
+  @Column({ nullable: true })
+  image_nutrition_url: string;
+
+  @Column({ type: 'boolean', default: false })
+  nutrition_data_complete: boolean;
+
   @CreateDateColumn()
   created_at: Date;
 
@@ -70,9 +95,13 @@ export class Product {
   @OneToMany(() => Ingredient, (ingredient) => ingredient.product)
   ingredients: Ingredient[];
 
+  @OneToMany(() => ProductAllergen, (allergen) => allergen.product)
+  allergens: ProductAllergen[];
+
   @OneToMany(() => ProductPrice, (price) => price.product)
   prices: ProductPrice[];
 
   @OneToMany(() => ProductImage, (image) => image.product)
   images: ProductImage[];
 }
+

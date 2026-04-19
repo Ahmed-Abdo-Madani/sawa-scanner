@@ -544,4 +544,122 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get scanOrSearchPrompt => 'Scan a barcode or search for a product';
+
+  @override
+  String get nearbyStores => 'Nearby Stores';
+
+  @override
+  String get nearbyStoresSubtitle => 'Prices from stores near you';
+
+  @override
+  String storeDistance(String distance) {
+    return '$distance km away';
+  }
+
+  @override
+  String get promoPrice => 'Promo';
+
+  @override
+  String get unitPrice => 'Unit Price';
+
+  @override
+  String perUnit(String unit) {
+    return 'per $unit';
+  }
+
+  @override
+  String get locationPermissionRequired =>
+      'Location permission is required to show nearby stores';
+
+  @override
+  String get enableLocation => 'Enable Location';
+
+  @override
+  String get noNearbyStores => 'No stores found nearby for this product';
+
+  @override
+  String get nutritionIntelligence => 'Nutrition Intelligence';
+
+  @override
+  String get healthSummary => 'Health Summary';
+
+  @override
+  String get harmfulSubstances => 'Harmful Substances';
+
+  @override
+  String get allergenWarnings => 'Allergen Warnings';
+
+  @override
+  String get noHarmfulSubstances => 'No harmful substances detected';
+
+  @override
+  String get noAllergenWarnings => 'No allergen warnings';
+
+  @override
+  String get lowLevel => 'Low';
+
+  @override
+  String get mediumLevel => 'Medium';
+
+  @override
+  String get highLevel => 'High';
+
+  @override
+  String get nutriScoreExplanation =>
+      'NutriScore rates nutritional quality from A (best) to E (least favorable)';
+
+  @override
+  String get nutritionDataIncomplete =>
+      'Nutrition data is incomplete for this product';
+
+  @override
+  String get compareProducts => 'Compare Products';
+
+  @override
+  String get similarProducts => 'Similar Products';
+
+  @override
+  String get noSimilarProducts => 'No similar products found';
+
+  @override
+  String get selectToCompare => 'Select to compare';
+
+  @override
+  String get nutritionComparison => 'Nutrition Comparison';
+
+  @override
+  String get allergenComparison => 'Allergen Comparison';
+
+  @override
+  String get recommendation => 'Recommendation';
+
+  @override
+  String get betterChoice => 'Better Choice';
+
+  @override
+  String get tieResult => 'Tie';
+
+  @override
+  String get onlyInA => 'Only in Product A';
+
+  @override
+  String get onlyInB => 'Only in Product B';
+
+  @override
+  String get shared => 'Shared';
+
+  @override
+  String get vsLabel => 'VS';
+
+  @override
+  String get lower => 'Lower';
+
+  @override
+  String get higher => 'Higher';
+
+  @override
+  String get equal => 'Equal';
+
+  @override
+  String get unknown => 'Unknown';
 }

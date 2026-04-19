@@ -20,5 +20,27 @@ abstract class ProductRepository {
   });
 
   Future<void> clearProductCache(String gtin);
+
+  /// Fetch nutrition analysis for a product.
+  Future<Map<String, dynamic>> getNutritionAnalysis(
+    String gtin, {
+    List<String>? userAllergens,
+  });
+
+  /// Fetch similar products for comparison.
+  Future<List<Map<String, dynamic>>> getSimilarProducts(
+    String gtin, {
+    int limit = 10,
+  });
+
+  /// Side-by-side comparison of two products.
+  Future<Map<String, dynamic>> getComparison(String gtinA, String gtinB);
+
+  /// Fetch store-scoped prices for a product in a city.
+  Future<List<PriceInfo>> getPricesByStore(
+    String gtin,
+    String citySlug, {
+    String? districtSlug,
+  });
 }
 

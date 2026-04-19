@@ -1099,6 +1099,228 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Scan a barcode or search for a product'**
   String get scanOrSearchPrompt;
+
+  /// No description provided for @nearbyStores.
+  ///
+  /// In en, this message translates to:
+  /// **'Nearby Stores'**
+  String get nearbyStores;
+
+  /// No description provided for @nearbyStoresSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Prices from stores near you'**
+  String get nearbyStoresSubtitle;
+
+  /// No description provided for @storeDistance.
+  ///
+  /// In en, this message translates to:
+  /// **'{distance} km away'**
+  String storeDistance(String distance);
+
+  /// No description provided for @promoPrice.
+  ///
+  /// In en, this message translates to:
+  /// **'Promo'**
+  String get promoPrice;
+
+  /// No description provided for @unitPrice.
+  ///
+  /// In en, this message translates to:
+  /// **'Unit Price'**
+  String get unitPrice;
+
+  /// No description provided for @perUnit.
+  ///
+  /// In en, this message translates to:
+  /// **'per {unit}'**
+  String perUnit(String unit);
+
+  /// No description provided for @locationPermissionRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Location permission is required to show nearby stores'**
+  String get locationPermissionRequired;
+
+  /// No description provided for @enableLocation.
+  ///
+  /// In en, this message translates to:
+  /// **'Enable Location'**
+  String get enableLocation;
+
+  /// No description provided for @noNearbyStores.
+  ///
+  /// In en, this message translates to:
+  /// **'No stores found nearby for this product'**
+  String get noNearbyStores;
+
+  /// No description provided for @nutritionIntelligence.
+  ///
+  /// In en, this message translates to:
+  /// **'Nutrition Intelligence'**
+  String get nutritionIntelligence;
+
+  /// No description provided for @healthSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'Health Summary'**
+  String get healthSummary;
+
+  /// No description provided for @harmfulSubstances.
+  ///
+  /// In en, this message translates to:
+  /// **'Harmful Substances'**
+  String get harmfulSubstances;
+
+  /// No description provided for @allergenWarnings.
+  ///
+  /// In en, this message translates to:
+  /// **'Allergen Warnings'**
+  String get allergenWarnings;
+
+  /// No description provided for @noHarmfulSubstances.
+  ///
+  /// In en, this message translates to:
+  /// **'No harmful substances detected'**
+  String get noHarmfulSubstances;
+
+  /// No description provided for @noAllergenWarnings.
+  ///
+  /// In en, this message translates to:
+  /// **'No allergen warnings'**
+  String get noAllergenWarnings;
+
+  /// No description provided for @lowLevel.
+  ///
+  /// In en, this message translates to:
+  /// **'Low'**
+  String get lowLevel;
+
+  /// No description provided for @mediumLevel.
+  ///
+  /// In en, this message translates to:
+  /// **'Medium'**
+  String get mediumLevel;
+
+  /// No description provided for @highLevel.
+  ///
+  /// In en, this message translates to:
+  /// **'High'**
+  String get highLevel;
+
+  /// No description provided for @nutriScoreExplanation.
+  ///
+  /// In en, this message translates to:
+  /// **'NutriScore rates nutritional quality from A (best) to E (least favorable)'**
+  String get nutriScoreExplanation;
+
+  /// No description provided for @nutritionDataIncomplete.
+  ///
+  /// In en, this message translates to:
+  /// **'Nutrition data is incomplete for this product'**
+  String get nutritionDataIncomplete;
+
+  /// No description provided for @compareProducts.
+  ///
+  /// In en, this message translates to:
+  /// **'Compare Products'**
+  String get compareProducts;
+
+  /// No description provided for @similarProducts.
+  ///
+  /// In en, this message translates to:
+  /// **'Similar Products'**
+  String get similarProducts;
+
+  /// No description provided for @noSimilarProducts.
+  ///
+  /// In en, this message translates to:
+  /// **'No similar products found'**
+  String get noSimilarProducts;
+
+  /// No description provided for @selectToCompare.
+  ///
+  /// In en, this message translates to:
+  /// **'Select to compare'**
+  String get selectToCompare;
+
+  /// No description provided for @nutritionComparison.
+  ///
+  /// In en, this message translates to:
+  /// **'Nutrition Comparison'**
+  String get nutritionComparison;
+
+  /// No description provided for @allergenComparison.
+  ///
+  /// In en, this message translates to:
+  /// **'Allergen Comparison'**
+  String get allergenComparison;
+
+  /// No description provided for @recommendation.
+  ///
+  /// In en, this message translates to:
+  /// **'Recommendation'**
+  String get recommendation;
+
+  /// No description provided for @betterChoice.
+  ///
+  /// In en, this message translates to:
+  /// **'Better Choice'**
+  String get betterChoice;
+
+  /// No description provided for @tieResult.
+  ///
+  /// In en, this message translates to:
+  /// **'Tie'**
+  String get tieResult;
+
+  /// No description provided for @onlyInA.
+  ///
+  /// In en, this message translates to:
+  /// **'Only in Product A'**
+  String get onlyInA;
+
+  /// No description provided for @onlyInB.
+  ///
+  /// In en, this message translates to:
+  /// **'Only in Product B'**
+  String get onlyInB;
+
+  /// No description provided for @shared.
+  ///
+  /// In en, this message translates to:
+  /// **'Shared'**
+  String get shared;
+
+  /// No description provided for @vsLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'VS'**
+  String get vsLabel;
+
+  /// No description provided for @lower.
+  ///
+  /// In en, this message translates to:
+  /// **'Lower'**
+  String get lower;
+
+  /// No description provided for @higher.
+  ///
+  /// In en, this message translates to:
+  /// **'Higher'**
+  String get higher;
+
+  /// No description provided for @equal.
+  ///
+  /// In en, this message translates to:
+  /// **'Equal'**
+  String get equal;
+
+  /// No description provided for @unknown.
+  ///
+  /// In en, this message translates to:
+  /// **'Unknown'**
+  String get unknown;
 }
 
 class _AppLocalizationsDelegate

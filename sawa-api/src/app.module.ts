@@ -15,6 +15,8 @@ import { ScanModule } from './scan/scan.module';
 import { UsersModule } from './users/users.module';
 import { IngestionModule } from './ingestion/ingestion.module';
 import { StoresModule } from './stores/stores.module';
+import { NutritionModule } from './nutrition/nutrition.module';
+import { ComparisonModule } from './comparison/comparison.module';
 
 import { getRedisOptions } from './config/redis.config';
 import { validate } from './config/env.validation';
@@ -56,6 +58,8 @@ import { validate } from './config/env.validation';
     UsersModule,
     IngestionModule,
     StoresModule,
+    NutritionModule,
+    ComparisonModule,
     ServeStaticModule.forRoot({
       rootPath: join(__dirname, '..', '..', 'uploads'),
       serveRoot: '/uploads',

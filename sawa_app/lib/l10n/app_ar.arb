@@ -205,5 +205,55 @@
   "fallbackConfigurationDescription": "حدث خطأ في إعدادات التطبيق (User-Agent مفقود). يرجى التواصل مع الدعم.",
   "apiConfiguration": "قاعدة بيانات ساوا غير مهيأة",
   "apiConfigurationDescription": "رابط الخادم الأساسي مفقود. يجب البناء باستخدام --dart-define=API_BASE_URL=...",
-  "scanOrSearchPrompt": "امسح باركود أو ابحث عن منتج"
+  "scanOrSearchPrompt": "امسح باركود أو ابحث عن منتج",
+
+  "nearbyStores": "المتاجر القريبة",
+  "nearbyStoresSubtitle": "أسعار المتاجر القريبة منك",
+  "storeDistance": "{distance} كم",
+  "@storeDistance": {
+    "placeholders": {
+      "distance": { "type": "String" }
+    }
+  },
+  "promoPrice": "عرض",
+  "unitPrice": "سعر الوحدة",
+  "perUnit": "لكل {unit}",
+  "@perUnit": {
+    "placeholders": {
+      "unit": { "type": "String" }
+    }
+  },
+  "locationPermissionRequired": "يلزم إذن الموقع لعرض المتاجر القريبة",
+  "enableLocation": "تفعيل الموقع",
+  "noNearbyStores": "لم يتم العثور على متاجر قريبة لهذا المنتج",
+
+  "nutritionIntelligence": "الذكاء الغذائي",
+  "healthSummary": "ملخص صحي",
+  "harmfulSubstances": "مواد ضارة",
+  "allergenWarnings": "تحذيرات الحساسية",
+  "noHarmfulSubstances": "لم يتم اكتشاف مواد ضارة",
+  "noAllergenWarnings": "لا توجد تحذيرات حساسية",
+  "lowLevel": "منخفض",
+  "mediumLevel": "متوسط",
+  "highLevel": "مرتفع",
+  "nutriScoreExplanation": "يقيّم NutriScore الجودة الغذائية من A (الأفضل) إلى E (الأقل ملاءمة)",
+  "nutritionDataIncomplete": "البيانات الغذائية غير مكتملة لهذا المنتج",
+
+  "compareProducts": "مقارنة المنتجات",
+  "similarProducts": "منتجات مشابهة",
+  "noSimilarProducts": "لم يتم العثور على منتجات مشابهة",
+  "selectToCompare": "اختر للمقارنة",
+  "nutritionComparison": "مقارنة التغذية",
+  "allergenComparison": "مقارنة الحساسية",
+  "recommendation": "التوصية",
+  "betterChoice": "الخيار الأفضل",
+  "tieResult": "تعادل",
+  "onlyInA": "في المنتج الأول فقط",
+  "onlyInB": "في المنتج الثاني فقط",
+  "shared": "مشترك",
+  "vsLabel": "مقابل",
+  "lower": "أقل",
+  "higher": "أعلى",
+  "equal": "متساوٍ",
+  "unknown": "غير معروف"
 }

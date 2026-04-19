@@ -19,6 +19,7 @@ export class ProductsService {
       relations: [
         'nutritionFact',
         'ingredients',
+        'allergens',
         'prices',
         'prices.merchant',
         'images',
