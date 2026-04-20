@@ -25,6 +25,7 @@ import { OthaimPriceScraper } from './scraper/othaim-price-scraper';
 import { TamimiPriceScraper } from './scraper/tamimi-price-scraper';
 import { ProductClusteringService } from './product-clustering.service';
 import { StoresService } from '../stores/stores.service';
+import { OpenFoodFactsService } from './open-food-facts.service';
 import {
   HUNGERSTATION_ALLOWED_VERTICALS,
   HUNGERSTATION_REJECTED_VERTICALS,
@@ -85,6 +86,7 @@ export class IngestionProcessor extends WorkerHost {
     private readonly merchantRepo: Repository<Merchant>,
     private readonly pricesService: PricesService,
     private readonly storesService: StoresService,
+    private readonly openFoodFactsService: OpenFoodFactsService,
   ) {
     super();
     this.logger.log(
@@ -749,9 +751,11 @@ export class IngestionProcessor extends WorkerHost {
 
     // 1. Image Processing & AI Extraction (Best Effort)
     let structuredLabel: StructuredLabelDto | null = null;
+    let offAllergens: string[] = [];
+    const enableAi = process.env.ENABLE_AI_EXTRACTION === 'true';
 
     // We only attempt OCR if we have both a valid image and an active browser page context
-    if (page && data.imageUrls.length > 0) {
+    if (enableAi && page && data.imageUrls.length > 0) {
       for (const imageUrl of data.imageUrls) {
         try {
           const base64 = await (scraper as any).downloadImageAsBase64(
@@ -770,10 +774,36 @@ export class IngestionProcessor extends WorkerHost {
           );
         }
       }
+    } else if (!enableAi) {
+      this.logger.debug(
+        `Skipping AI extraction for ${data.name} - ENABLE_AI_EXTRACTION is false or disabled.`,
+      );
     } else {
       this.logger.debug(
         `Skipping AI extraction for ${data.name} - no page context or images.`,
       );
+    }
+
+    // Fallback 1: OpenFoodFacts via Text Search
+    if (!structuredLabel && data.name) {
+      this.logger.debug(`Attempting Free OpenFoodFacts Name Lookup for: ${data.name}`);
+      const offMatch = await this.openFoodFactsService.searchProductByName(data.name);
+      if (offMatch.label) {
+        structuredLabel = offMatch.label;
+        offAllergens = offMatch.allergens;
+        this.logger.debug(`Found suitable OFF match for ${data.name}`);
+      }
+    }
+
+    // Fallback 2: Fallback to structured items using scraped tags directly
+    if (!structuredLabel && ((data.ingredient_tags?.length ?? 0) > 0 || (data.allergen_tags?.length ?? 0) > 0)) {
+       structuredLabel = {
+         name_ar: data.name_ar || '',
+         name_en: data.name || '',
+         brand: data.brand || '',
+         nutrition: {} as any,
+         ingredients: (data.ingredient_tags || []).map(t => ({ name_en: t, name_ar: '' }))
+       };
     }
 
     // 2. Find or Create Product (Robust Fallback Identity)
@@ -883,6 +913,7 @@ export class IngestionProcessor extends WorkerHost {
 
       // Detect allergens from ingredient tags and upsert ProductAllergen rows
       const allergenSources: string[] = [
+        ...offAllergens,
         ...(data.allergen_tags || []),
         ...(data.ingredient_tags || []),
       ];

@@ -9,6 +9,7 @@ import { ProductImage } from './entities/product-image.entity';
 import { SfdaProhibitedIngredient } from './entities/sfda-prohibited-ingredient.entity';
 import { ProductReport } from './entities/product-report.entity';
 import { Store } from './entities/store.entity';
+import { ProductAllergen } from './entities/product-allergen.entity';
 
 config();
 
@@ -33,6 +34,7 @@ export const AppDataSource = new DataSource({
     SfdaProhibitedIngredient,
     ProductReport,
     Store,
+    ProductAllergen,
   ],
   migrations: [__dirname + '/migrations/*{.ts,.js}'],
   subscribers: [],

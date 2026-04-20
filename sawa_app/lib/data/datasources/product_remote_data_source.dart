@@ -211,6 +211,8 @@ class ProductRemoteDataSource {
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);
         return data.cast<Map<String, dynamic>>();
+      } else if (response.statusCode == 404) {
+        return [];
       } else {
         throw ServerException(
             'Failed to fetch store prices: ${response.statusCode}');
@@ -243,6 +245,8 @@ class ProductRemoteDataSource {
 
       if (response.statusCode == 200) {
         return json.decode(response.body) as Map<String, dynamic>;
+      } else if (response.statusCode == 404) {
+        throw ProductNotFoundException();
       } else {
         throw ServerException(
             'Failed to fetch nutrition: ${response.statusCode}');
@@ -271,6 +275,8 @@ class ProductRemoteDataSource {
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);
         return data.cast<Map<String, dynamic>>();
+      } else if (response.statusCode == 404) {
+        return [];
       } else {
         throw ServerException(
             'Failed to fetch similar products: ${response.statusCode}');
@@ -299,6 +305,8 @@ class ProductRemoteDataSource {
 
       if (response.statusCode == 200) {
         return json.decode(response.body) as Map<String, dynamic>;
+      } else if (response.statusCode == 404) {
+        throw ProductNotFoundException();
       } else {
         throw ServerException(
             'Failed to fetch comparison: ${response.statusCode}');

@@ -33,6 +33,10 @@ Sawa Scanner is a bilingual (AR/EN) product scanning system designed for the Sau
   - Mode-guarded scanner logic (Barcode vs. Label modes).
 
 - [x] **OCR Quality Guard**: Unified quality gate via `LabelCoreService` enforcing both nutrition and ingredient presence.
+- [x] **Semantic Label Lookups (GTIN-less Bridging ✅)**: 
+  - Implemented **Sørensen–Dice coefficient** fuzzy matching to bridge physical scans to GTIN-less scraped products (e.g., `ninja-XXXX`).
+  - **Strict Weight Adherence**: Enforces mass/volume matching (e.g., 1L vs 2L) to prevent mismatched product merging during lookups.
+  - Automatic database enrichment: Physical label scans now patch missing nutritional metadata in existing e-commerce records.
 
 ### Phase 4: Environment Setup & Smoke Test (Completed ✅)
 - [x] **SDK Provisioning**: Flutter SDK installed and path initialized.
@@ -404,6 +408,7 @@ Sawa Scanner is a bilingual (AR/EN) product scanning system designed for the Sau
 | **Base Scraper** | [`src/ingestion/scraper/base-scraper.ts`](file:///c:/Users/Design_Bench_12/Documents/sawa-scanner/sawa-api/src/ingestion/scraper/base-scraper.ts) | Playwright wrapper with stealth & cookie handling. |
 | **Seeding Logic** | [`src/scripts/seed-hypermarkets.ts`](file:///c:/Users/Design_Bench_12/Documents/sawa-scanner/sawa-api/src/scripts/seed-hypermarkets.ts) | Standalone script for merchant registration. |
 | **Trigger Logic** | [`src/scripts/trigger-ingestion.ts`](file:///c:/Users/Design_Bench_12/Documents/sawa-scanner/sawa-api/src/scripts/trigger-ingestion.ts) | Script to launch mass ingestion jobs. |
+| **String Similarity** | [`src/utils/string-similarity.ts`](file:///c:/Users/Design_Bench_12/Documents/sawa-scanner/sawa-api/src/utils/string-similarity.ts) | Fuzzy matching for semantic brand/product resolution. |
 
 ### Frontend (`sawa_app`)
 | Responsibility | File Path | Description |

@@ -4,6 +4,7 @@ import 'package:sawa_app/l10n/app_localizations.dart';
 import '../../providers/nutrition_comparison_provider.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
+import '../../../core/exceptions.dart';
 
 /// Deep-dive nutrition intelligence screen showing NutriScore,
 /// traffic-light health summary, harmful substances, and allergen warnings.
@@ -46,12 +47,22 @@ class NutritionIntelligenceScreen extends ConsumerWidget {
         loading: () => const Center(
           child: CircularProgressIndicator(color: AppColors.primary),
         ),
-        error: (err, _) => Center(
-          child: Text(
-            err.toString(),
-            style: AppTypography.body(locale).copyWith(color: AppColors.error),
-          ),
-        ),
+        error: (err, _) {
+          final isNotFound = err is ProductNotFoundException ||
+              err.toString().contains('ProductNotFoundException');
+          final message = isNotFound ? l10n.productNotFound : err.toString();
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(32),
+              child: Text(
+                message,
+                textAlign: TextAlign.center,
+                style: AppTypography.body(locale)
+                    .copyWith(color: AppColors.error),
+              ),
+            ),
+          );
+        },
       ),
     );
   }

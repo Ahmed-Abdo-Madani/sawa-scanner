@@ -4,6 +4,7 @@ import 'package:sawa_app/l10n/app_localizations.dart';
 import '../../providers/nutrition_comparison_provider.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
+import '../../../core/exceptions.dart';
 
 /// Side-by-side product comparison screen showing nutrition deltas,
 /// allergen diff, and the rule-based recommendation.
@@ -51,17 +52,22 @@ class ComparisonScreen extends ConsumerWidget {
         loading: () => const Center(
           child: CircularProgressIndicator(color: AppColors.primary),
         ),
-        error: (err, _) => Center(
-          child: Padding(
-            padding: const EdgeInsets.all(32),
-            child: Text(
-              err.toString(),
-              textAlign: TextAlign.center,
-              style:
-                  AppTypography.body(locale).copyWith(color: AppColors.error),
+        error: (err, _) {
+          final isNotFound = err is ProductNotFoundException ||
+              err.toString().contains('ProductNotFoundException');
+          final message = isNotFound ? l10n.productNotFound : err.toString();
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(32),
+              child: Text(
+                message,
+                textAlign: TextAlign.center,
+                style: AppTypography.body(locale)
+                    .copyWith(color: AppColors.error),
+              ),
             ),
-          ),
-        ),
+          );
+        },
       ),
     );
   }

@@ -15,6 +15,7 @@ import { Product } from '../entities/product.entity';
 import { NutritionFact } from '../entities/nutrition-fact.entity';
 import { Ingredient } from '../entities/ingredient.entity';
 import { LabelCoreService } from './label-core.service';
+import { diceCoefficient, doWeightsMatchStrictly } from '../utils/string-similarity';
 
 @Injectable()
 export class ScanService {
@@ -45,10 +46,83 @@ export class ScanService {
     // 5. Build/Upsert Product
     return await this.dataSource.transaction(async (manager) => {
       let gtin = dto.gtin;
+
       if (!gtin) {
-        // Generate a deterministic identifier for products withoutGTIN based on unique properties
-        const payload = `${structuredData.brand}-${structuredData.name_en}-${structuredData.net_weight}`;
-        gtin = `SCAN-${createHash('md5').update(payload).digest('hex').substring(0, 8).toUpperCase()}`;
+        // SEMANTIC LABEL LOOKUP: Match OCR text to scraped database candidates
+        const hasBrandOrName =
+          structuredData.brand ||
+          structuredData.name_en ||
+          structuredData.name_ar;
+
+        if (hasBrandOrName) {
+          const qb = manager.createQueryBuilder(Product, 'p');
+          const conditions: string[] = [];
+          const params: Record<string, any> = {};
+
+          if (structuredData.brand && structuredData.brand.length > 2) {
+            conditions.push('p.brand ILIKE :brand');
+            params.brand = `%${structuredData.brand}%`;
+          }
+          if (structuredData.name_en && structuredData.name_en.length > 2) {
+            conditions.push('p.name_en ILIKE :nameEn');
+            const words = structuredData.name_en.split(' ');
+            params.nameEn = `%${words[0]}%`;
+          }
+          if (structuredData.name_ar && structuredData.name_ar.length > 2) {
+            conditions.push('p.name_ar ILIKE :nameAr');
+            const words = structuredData.name_ar.split(' ');
+            params.nameAr = `%${words[0]}%`;
+          }
+
+          if (conditions.length > 0) {
+            qb.where(conditions.join(' OR '), params);
+            qb.limit(100);
+            
+            const candidates = await qb.getMany();
+            let bestMatch: Product | null = null;
+            let bestScore = 0;
+
+            const targetNameEn = structuredData.name_en || '';
+            const targetNameAr = structuredData.name_ar || '';
+            const targetBrand = structuredData.brand || '';
+
+            for (const cand of candidates) {
+              const scoreEn = diceCoefficient(targetNameEn, cand.name_en || '');
+              const scoreAr = diceCoefficient(targetNameAr, cand.name_ar || '');
+              const scoreBrand = diceCoefficient(targetBrand, cand.brand || '');
+
+              const combinedScore = Math.max(scoreEn, scoreAr) * 0.7 + scoreBrand * 0.3;
+
+              if (combinedScore > bestScore && combinedScore > 0.65) {
+                // Strict weight validation requested by user
+                if (
+                  doWeightsMatchStrictly(
+                    cand.net_weight_value,
+                    cand.net_unit,
+                    structuredData.net_weight ?? null,
+                  )
+                ) {
+                  bestMatch = cand;
+                  bestScore = combinedScore;
+                }
+              }
+            }
+
+            if (bestMatch) {
+              gtin = bestMatch.gtin;
+            }
+          }
+        }
+
+        if (!gtin) {
+          // Generate a deterministic identifier for products without GTIN based on unique properties
+          const payload = `${structuredData.brand}-${structuredData.name_en}-${structuredData.net_weight}`;
+          gtin = `SCAN-${createHash('md5')
+            .update(payload)
+            .digest('hex')
+            .substring(0, 8)
+            .toUpperCase()}`;
+        }
       }
 
       // Upsert Product

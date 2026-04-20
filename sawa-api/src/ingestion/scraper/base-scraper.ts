@@ -64,6 +64,24 @@ export abstract class BaseScraper {
         hasTouch: isMobile,
       });
     }
+
+    // Block unnecessary resources to massively speed up page loads
+    if (this.context && this.config.headless) {
+      await this.context.route('**/*', (route) => {
+        const type = route.request().resourceType();
+        const url = route.request().url();
+        if (
+          ['font', 'media', 'stylesheet', 'image'].includes(type) ||
+          url.includes('google-analytics') ||
+          url.includes('hotjar') ||
+          url.includes('segment.com')
+        ) {
+          route.abort();
+        } else {
+          route.continue();
+        }
+      });
+    }
   }
 
   protected async navigateWithEvasion(

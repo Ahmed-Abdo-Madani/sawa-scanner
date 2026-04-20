@@ -27,6 +27,8 @@ import { ProductAllergen } from '../entities/product-allergen.entity';
 import { Merchant } from '../entities/merchant.entity';
 import { Store } from '../entities/store.entity';
 
+import { OpenFoodFactsService } from './open-food-facts.service';
+
 @Module({
   imports: [
     TypeOrmModule.forFeature([
@@ -56,6 +58,7 @@ import { Store } from '../entities/store.entity';
     PriceScrapingProcessor,
     ProductClusteringService,
     RobotsTxtService,
+    OpenFoodFactsService,
   ],
   exports: [IngestionService],
 })
