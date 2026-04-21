@@ -27,7 +27,16 @@ export const SFDA_ALLERGENS: SfdaAllergenDefinition[] = [
     key: 'milk',
     name_en: 'Milk',
     name_ar: 'الحليب',
-    aliases_en: ['milk', 'dairy', 'lactose', 'casein', 'whey', 'cream', 'butter', 'cheese'],
+    aliases_en: [
+      'milk',
+      'dairy',
+      'lactose',
+      'casein',
+      'whey',
+      'cream',
+      'butter',
+      'cheese',
+    ],
     aliases_ar: ['حليب', 'لبن', 'لاكتوز', 'كازين', 'جبن', 'قشطة', 'زبدة'],
   },
   {
@@ -48,7 +57,14 @@ export const SFDA_ALLERGENS: SfdaAllergenDefinition[] = [
     key: 'crustaceans',
     name_en: 'Crustaceans',
     name_ar: 'القشريات',
-    aliases_en: ['crustacean', 'shrimp', 'prawn', 'crab', 'lobster', 'crayfish'],
+    aliases_en: [
+      'crustacean',
+      'shrimp',
+      'prawn',
+      'crab',
+      'lobster',
+      'crayfish',
+    ],
     aliases_ar: ['قشريات', 'روبيان', 'جمبري', 'سلطعون', 'كابوريا'],
   },
   {
@@ -62,7 +78,17 @@ export const SFDA_ALLERGENS: SfdaAllergenDefinition[] = [
     key: 'tree_nuts',
     name_en: 'Tree Nuts',
     name_ar: 'المكسرات',
-    aliases_en: ['almond', 'cashew', 'walnut', 'pistachio', 'hazelnut', 'pecan', 'macadamia', 'brazil nut', 'tree nut'],
+    aliases_en: [
+      'almond',
+      'cashew',
+      'walnut',
+      'pistachio',
+      'hazelnut',
+      'pecan',
+      'macadamia',
+      'brazil nut',
+      'tree nut',
+    ],
     aliases_ar: ['لوز', 'كاجو', 'جوز', 'فستق', 'بندق', 'مكسرات'],
   },
   {
@@ -97,7 +123,13 @@ export const SFDA_ALLERGENS: SfdaAllergenDefinition[] = [
     key: 'sulfites',
     name_en: 'Sulfites',
     name_ar: 'الكبريتيت',
-    aliases_en: ['sulfite', 'sulphite', 'sulfur dioxide', 'so2', 'metabisulfite'],
+    aliases_en: [
+      'sulfite',
+      'sulphite',
+      'sulfur dioxide',
+      'so2',
+      'metabisulfite',
+    ],
     aliases_ar: ['كبريتيت', 'ثاني أكسيد الكبريت'],
   },
   {
@@ -111,7 +143,16 @@ export const SFDA_ALLERGENS: SfdaAllergenDefinition[] = [
     key: 'molluscs',
     name_en: 'Molluscs',
     name_ar: 'الرخويات',
-    aliases_en: ['mollusc', 'mollusk', 'squid', 'octopus', 'mussel', 'clam', 'oyster', 'snail'],
+    aliases_en: [
+      'mollusc',
+      'mollusk',
+      'squid',
+      'octopus',
+      'mussel',
+      'clam',
+      'oyster',
+      'snail',
+    ],
     aliases_ar: ['رخويات', 'حبار', 'أخطبوط', 'بلح البحر', 'محار'],
   },
 ];
@@ -120,9 +161,7 @@ export const SFDA_ALLERGENS: SfdaAllergenDefinition[] = [
  * Detect allergens from a list of ingredient texts (mixed AR/EN).
  * Returns an array of matched allergen keys.
  */
-export function detectAllergensFromText(
-  ingredientTexts: string[],
-): string[] {
+export function detectAllergensFromText(ingredientTexts: string[]): string[] {
   const combined = ingredientTexts.join(' ').toLowerCase();
   const matched = new Set<string>();
 
@@ -149,6 +188,8 @@ export function detectAllergensFromText(
 /**
  * Look up the full allergen definition by key.
  */
-export function getAllergenByKey(key: string): SfdaAllergenDefinition | undefined {
+export function getAllergenByKey(
+  key: string,
+): SfdaAllergenDefinition | undefined {
   return SFDA_ALLERGENS.find((a) => a.key === key);
 }

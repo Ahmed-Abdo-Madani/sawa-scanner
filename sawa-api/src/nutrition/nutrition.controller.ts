@@ -1,9 +1,4 @@
-import {
-  Controller,
-  Get,
-  Param,
-  Query,
-} from '@nestjs/common';
+import { Controller, Get, Param, Query } from '@nestjs/common';
 import { NutritionService } from './nutrition.service';
 import { Public } from '../auth/public.decorator';
 
@@ -40,7 +35,10 @@ export class NutritionController {
       : undefined;
 
     // We need product ID first
-    const analysis = await this.nutritionService.getFullAnalysis(gtin, userAllergens);
+    const analysis = await this.nutritionService.getFullAnalysis(
+      gtin,
+      userAllergens,
+    );
     return {
       allergen_warnings: analysis.allergen_warnings,
       total: analysis.allergen_warnings.length,

@@ -78,9 +78,8 @@ export class PriceScrapingProcessor extends WorkerHost {
 
         if (source_url) {
           try {
-            const { price, inStock } = await scraper.scrapeProductPrice(
-              source_url,
-            );
+            const { price, inStock } =
+              await scraper.scrapeProductPrice(source_url);
 
             // Insert new historical record
             const newPrice = this.priceRepo.create({

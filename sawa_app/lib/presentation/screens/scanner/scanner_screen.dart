@@ -16,6 +16,7 @@ import '../../../core/theme/app_typography.dart';
 import '../../providers/search_provider.dart';
 import '../search/search_screen.dart';
 import '../../widgets/nutri_score_badge.dart';
+import '../../../core/exceptions.dart';
 
 
 
@@ -284,13 +285,49 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
                           Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 16),
                             child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
                                 if (widget.showBackButton)
                                   IconButton(
                                     icon: const Icon(Icons.close, color: Colors.white),
                                     onPressed: () => Navigator.pop(context),
+                                  )
+                                else
+                                  const SizedBox(width: 48),
+                                Expanded(
+                                  child: SingleChildScrollView(
+                                    scrollDirection: Axis.horizontal,
+                                    child: Row(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        ModePill(
+                                          label: l10n.barcodeMode,
+                                          isActive: mode == ScannerMode.barcode,
+                                          onTap: () {
+                                            ref.read(scannerModeProvider.notifier).state = ScannerMode.barcode;
+                                            setState(() => _lastScannedGtin = null);
+                                          },
+                                        ),
+                                        const SizedBox(width: 8),
+                                        ModePill(
+                                          label: l10n.labelMode,
+                                          isActive: mode == ScannerMode.label,
+                                          onTap: () {
+                                            ref.read(scannerModeProvider.notifier).state = ScannerMode.label;
+                                          },
+                                        ),
+                                        const SizedBox(width: 8),
+                                        ModePill(
+                                          label: l10n.manualMode,
+                                          isActive: mode == ScannerMode.manual,
+                                          onTap: () {
+                                            ref.read(scannerModeProvider.notifier).state = ScannerMode.manual;
+                                          },
+                                        ),
+                                      ],
+                                    ),
                                   ),
+                                ),
+                                const SizedBox(width: 48),
                               ],
                             ),
                           ),
@@ -437,9 +474,18 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
                         ),
                         error: (error, _) {
                           WidgetsBinding.instance.addPostFrameCallback((_) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text(error.toString())),
-                            );
+                            if (error is PartialScanException) {
+                              showModalBottomSheet(
+                                context: context,
+                                builder: (context) => _PartialScanSheet(error: error),
+                                isScrollControlled: true,
+                                backgroundColor: Colors.transparent,
+                              );
+                            } else {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text(error.toString())),
+                              );
+                            }
                             ref.read(labelScanProvider.notifier).reset();
                           });
                           return const SizedBox.shrink();
@@ -762,30 +808,98 @@ class _ScannedProductCard extends StatelessWidget {
                 const SizedBox(height: 16),
                 Text(
                   product.brand,
-                  style: AppTypography.caption(locale).copyWith(
-                    color: theme.colorScheme.secondary,
-                    fontWeight: FontWeight.bold,
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    color: AppColors.onSurface.withOpacity(0.7),
                   ),
                   textAlign: TextAlign.center,
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 8),
                 Text(
                   locale.languageCode == 'ar' ? product.nameAr : product.nameEn,
-                  style: AppTypography.headline(locale).copyWith(
-                    color: AppColors.onBackground,
+                  style: theme.textTheme.headlineSmall?.copyWith(
                     fontWeight: FontWeight.bold,
                   ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 16),
                 if (product.nutriScoreGrade != null)
-                  NutriScoreBadge(grade: product.nutriScoreGrade!, isMini: true),
+                  NutriScoreBadge(score: product.nutriScoreGrade!),
               ],
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _PartialScanSheet extends StatelessWidget {
+  final PartialScanException error;
+
+  const _PartialScanSheet({required this.error});
+
+  @override
+  Widget build(BuildContext context) {
+    final locale = Localizations.localeOf(context);
+    final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context)!;
+    
+    return Container(
+      padding: EdgeInsets.fromLTRB(24, 24, 24, MediaQuery.of(context).padding.bottom + 24),
+      decoration: const BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            l10n.scanPartialTitle,
+            style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            error.message,
+            style: theme.textTheme.bodyMedium?.copyWith(color: AppColors.error),
+          ),
+          if (error.rawOcrText != null && error.rawOcrText!.isNotEmpty) ...[
+            const SizedBox(height: 24),
+            Text(
+              l10n.extractedText,
+              style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            Container(
+              height: 150,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppColors.background,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppColors.onSurface.withOpacity(0.1)),
+              ),
+              child: SingleChildScrollView(
+                child: Text(
+                  error.rawOcrText!,
+                  style: theme.textTheme.bodySmall?.copyWith(fontFamily: 'monospace'),
+                ),
+              ),
+            ),
+          ],
+          const SizedBox(height: 24),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            child: Text(
+              l10n.close,
+              style: theme.textTheme.titleMedium?.copyWith(color: Colors.white, fontWeight: FontWeight.bold),
+            ),
+          ),
+        ],
       ),
     );
   }

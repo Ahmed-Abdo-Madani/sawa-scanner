@@ -120,4 +120,3 @@ export interface ScrapedProductData {
   ingredient_tags?: string[];
   subcategory?: string;
 }
-

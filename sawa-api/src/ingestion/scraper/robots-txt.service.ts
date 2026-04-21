@@ -5,7 +5,10 @@ import robotsParser from 'robots-parser';
 @Injectable()
 export class RobotsTxtService {
   private readonly logger = new Logger(RobotsTxtService.name);
-  private readonly cache = new Map<string, { parser: any; fetchedAt: number }>();
+  private readonly cache = new Map<
+    string,
+    { parser: any; fetchedAt: number }
+  >();
   private readonly TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 
   async isAllowed(url: string): Promise<boolean> {

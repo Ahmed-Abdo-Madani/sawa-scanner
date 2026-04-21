@@ -1321,6 +1321,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Unknown'**
   String get unknown;
+
+  /// No description provided for @scanPartialTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Partial Scan'**
+  String get scanPartialTitle;
+
+  /// No description provided for @extractedText.
+  ///
+  /// In en, this message translates to:
+  /// **'Extracted Text:'**
+  String get extractedText;
+
+  /// No description provided for @close.
+  ///
+  /// In en, this message translates to:
+  /// **'Close'**
+  String get close;
 }
 
 class _AppLocalizationsDelegate

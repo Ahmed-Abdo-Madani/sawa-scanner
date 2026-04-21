@@ -104,4 +104,3 @@ export class Product {
   @OneToMany(() => ProductImage, (image) => image.product)
   images: ProductImage[];
 }
-

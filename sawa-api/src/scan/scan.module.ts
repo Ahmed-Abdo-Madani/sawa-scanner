@@ -12,6 +12,8 @@ import { Product } from '../entities/product.entity';
 import { NutritionFact } from '../entities/nutrition-fact.entity';
 import { Ingredient } from '../entities/ingredient.entity';
 import { SfdaProhibitedIngredient } from '../entities/sfda-prohibited-ingredient.entity';
+import { GoogleAiGeminiProvider } from './llm/google-ai-gemini.provider';
+import { VertexGeminiProvider } from './llm/vertex-gemini.provider';
 
 @Module({
   imports: [
@@ -33,6 +35,8 @@ import { SfdaProhibitedIngredient } from '../entities/sfda-prohibited-ingredient
     LabelValidationService,
     SfdaMatcherService,
     LabelCoreService,
+    GoogleAiGeminiProvider,
+    VertexGeminiProvider,
   ],
   exports: [
     OcrService,

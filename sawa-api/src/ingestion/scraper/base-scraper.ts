@@ -26,7 +26,7 @@ export abstract class BaseScraper {
       cookieSessionPath?: string;
       deviceProfile?: 'mobile' | 'desktop';
     },
-  ) { }
+  ) {}
 
   async launch(): Promise<void> {
     this.logger.log('Launching browser...');

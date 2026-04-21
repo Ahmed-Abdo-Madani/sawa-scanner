@@ -1,6 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
 import axios from 'axios';
-import { StructuredLabelDto, StructuredIngredientDto, StructuredNutritionDto } from '../scan/dto/structured-label.dto';
+import {
+  StructuredLabelDto,
+  StructuredIngredientDto,
+  StructuredNutritionDto,
+} from '../scan/dto/structured-label.dto';
 
 interface OffSearchResult {
   count: number;
@@ -15,12 +19,15 @@ export class OpenFoodFactsService {
   /**
    * Search OFF by product name. Uses the first match if found.
    */
-  async searchProductByName(productName: string): Promise<{ label: StructuredLabelDto | null, allergens: string[] }> {
-    if (!productName || productName.trim().length < 3) return { label: null, allergens: [] };
-    
+  async searchProductByName(
+    productName: string,
+  ): Promise<{ label: StructuredLabelDto | null; allergens: string[] }> {
+    if (!productName || productName.trim().length < 3)
+      return { label: null, allergens: [] };
+
     // Cleanup name for better search (e.g., removing weights, special chars)
     const cleanName = productName
-      .replace(/[0-9]+(ml|g|kg|l|oz)\b/ig, '')
+      .replace(/[0-9]+(ml|g|kg|l|oz)\b/gi, '')
       .replace(/[^a-zA-Z0-9\s]/g, '')
       .trim();
 
@@ -29,22 +36,33 @@ export class OpenFoodFactsService {
     try {
       const url = `${this.baseUrl}/cgi/search.pl?search_terms=${encodeURIComponent(cleanName)}&search_simple=1&action=process&json=1&page_size=1`;
       this.logger.debug(`Searching OpenFoodFacts for: ${cleanName}`);
-      const response = await axios.get<OffSearchResult>(url, { timeout: 10000 });
+      const response = await axios.get<OffSearchResult>(url, {
+        timeout: 10000,
+      });
 
-      if (response.data && response.data.products && response.data.products.length > 0) {
+      if (
+        response.data &&
+        response.data.products &&
+        response.data.products.length > 0
+      ) {
         const product = response.data.products[0];
         return this.mapOffProduct(product);
       }
     } catch (err) {
-      this.logger.warn(`OpenFoodFacts search failed for "${productName}": ${err.message}`);
+      this.logger.warn(
+        `OpenFoodFacts search failed for "${productName}": ${err.message}`,
+      );
     }
 
     return { label: null, allergens: [] };
   }
 
-  private mapOffProduct(product: any): { label: StructuredLabelDto | null, allergens: string[] } {
+  private mapOffProduct(product: any): {
+    label: StructuredLabelDto | null;
+    allergens: string[];
+  } {
     const nutriments = product.nutriments || {};
-    
+
     // Map Nutrition
     // OFF supplies data per 100g/100ml usually.
     const nutrition: StructuredNutritionDto = {
@@ -60,7 +78,10 @@ export class OpenFoodFactsService {
     };
 
     // Keep only if we have at least calories or fat
-    const hasNutrition = nutrition.energy_kcal !== undefined || nutrition.fat_g !== undefined || nutrition.protein_g !== undefined;
+    const hasNutrition =
+      nutrition.energy_kcal !== undefined ||
+      nutrition.fat_g !== undefined ||
+      nutrition.protein_g !== undefined;
 
     // Map Ingredients
     const structuredIngredients: StructuredIngredientDto[] = [];
@@ -92,7 +113,9 @@ export class OpenFoodFactsService {
     // Extract Allergens
     let allergens: string[] = [];
     if (Array.isArray(product.allergens_tags)) {
-      allergens = product.allergens_tags.map((a: string) => a.replace(/^en:/, ''));
+      allergens = product.allergens_tags.map((a: string) =>
+        a.replace(/^en:/, ''),
+      );
     }
 
     return { label, allergens };

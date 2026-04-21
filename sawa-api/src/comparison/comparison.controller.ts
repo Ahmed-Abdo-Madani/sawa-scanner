@@ -34,7 +34,9 @@ export class ComparisonController {
     @Query('gtinB') gtinB: string,
   ) {
     if (!gtinA || !gtinB) {
-      throw new BadRequestException('Both gtinA and gtinB query params are required');
+      throw new BadRequestException(
+        'Both gtinA and gtinB query params are required',
+      );
     }
     return this.comparisonService.compareProducts(gtinA, gtinB);
   }
@@ -48,7 +50,9 @@ export class ComparisonController {
     @Query('gtinB') gtinB: string,
   ) {
     if (!gtinA || !gtinB) {
-      throw new BadRequestException('Both gtinA and gtinB query params are required');
+      throw new BadRequestException(
+        'Both gtinA and gtinB query params are required',
+      );
     }
     const result = await this.comparisonService.compareProducts(gtinA, gtinB);
     return result.recommendation;

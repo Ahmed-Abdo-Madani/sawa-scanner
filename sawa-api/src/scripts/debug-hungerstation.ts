@@ -38,7 +38,10 @@ async function main() {
     const contentType = response.headers()['content-type'] || '';
     networkLog.push({ url, status: response.status(), contentType });
 
-    if (contentType.includes('application/json') && (url.includes('graphql') || url.includes('/api/'))) {
+    if (
+      contentType.includes('application/json') &&
+      (url.includes('graphql') || url.includes('/api/'))
+    ) {
       try {
         const json = await response.json();
         gqlPayloads.push({ url, payload: json });
@@ -56,20 +59,25 @@ async function main() {
   console.log(`📌 Title: ${await page.title()}`);
 
   // ── Dump all city links found in DOM ──
-  const cityLinks = await page.evaluate(({ base, index }: { base: string; index: string }) => {
-    const anchors = Array.from(
-      document.querySelectorAll<HTMLAnchorElement>(
-        `a[href*="supermarkets/"], a[href*="/qc/supermarkets"]`,
-      ),
-    );
-    return anchors.map((a) => ({
-      href: a.getAttribute('href'),
-      text: a.textContent?.trim(),
-    }));
-  }, { base: HS_BASE_URL, index: HS_SUPERMARKETS_INDEX });
+  const cityLinks = await page.evaluate(
+    ({ base, index }: { base: string; index: string }) => {
+      const anchors = Array.from(
+        document.querySelectorAll<HTMLAnchorElement>(
+          `a[href*="supermarkets/"], a[href*="/qc/supermarkets"]`,
+        ),
+      );
+      return anchors.map((a) => ({
+        href: a.getAttribute('href'),
+        text: a.textContent?.trim(),
+      }));
+    },
+    { base: HS_BASE_URL, index: HS_SUPERMARKETS_INDEX },
+  );
 
   console.log(`\n🏙  City links in DOM (${cityLinks.length}):`);
-  cityLinks.slice(0, 20).forEach((l) => console.log(`  ${l.text} -> ${l.href}`));
+  cityLinks
+    .slice(0, 20)
+    .forEach((l) => console.log(`  ${l.text} -> ${l.href}`));
 
   // ── Dump script tags (check for __NEXT_DATA__) ──
   const scriptSummary = await page.evaluate(() => {
@@ -89,7 +97,9 @@ async function main() {
   }
 
   // Dump RSC indicators
-  const rscScripts = scriptSummary.filter((s) => s.preview.includes('self.__next_f.push'));
+  const rscScripts = scriptSummary.filter((s) =>
+    s.preview.includes('self.__next_f.push'),
+  );
   console.log(`\n🔄 RSC (next_f) script blocks: ${rscScripts.length}`);
 
   // ── Check for city/location data in __NEXT_DATA__ ──
@@ -108,13 +118,16 @@ async function main() {
         if (depth > 6 || !obj || typeof obj !== 'object') return;
         for (const [k, v] of Object.entries(obj)) {
           if (cityKeys.some((key) => k.toLowerCase().includes(key))) {
-            cityData[k] = Array.isArray(v) ? `Array(${(v as any[]).length})` : v;
+            cityData[k] = Array.isArray(v) ? `Array(${v.length})` : v;
           }
           recurse(v, depth + 1);
         }
       };
       recurse(json);
-      console.log('\n🗺  City-related keys in __NEXT_DATA__:', JSON.stringify(cityData, null, 2));
+      console.log(
+        '\n🗺  City-related keys in __NEXT_DATA__:',
+        JSON.stringify(cityData, null, 2),
+      );
     } catch (_) {
       console.log('\n⚠️  Could not parse __NEXT_DATA__ JSON');
     }
@@ -135,7 +148,9 @@ async function main() {
       n.url.includes('/api/'),
   );
   console.log(`\n📊 Total API/JSON requests: ${apiCalls.length}`);
-  apiCalls.slice(0, 15).forEach((n) => console.log(`  [${n.status}] ${n.url.slice(0, 120)}`));
+  apiCalls
+    .slice(0, 15)
+    .forEach((n) => console.log(`  [${n.status}] ${n.url.slice(0, 120)}`));
 
   // ── Save full HTML for manual inspection ──
   const html = await page.content();

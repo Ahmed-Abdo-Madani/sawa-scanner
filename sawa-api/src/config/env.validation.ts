@@ -89,6 +89,26 @@ class EnvironmentVariables {
   GEMINI_API_KEY: string;
 
   @IsOptional()
+  @IsString()
+  GEMINI_MODEL?: string;
+
+  @IsOptional()
+  @IsString()
+  GEMINI_FALLBACK_MODEL?: string;
+
+  @IsOptional()
+  @IsString()
+  LLM_PROVIDER?: string;
+
+  @IsOptional()
+  @IsString()
+  VERTEX_PROJECT_ID?: string;
+
+  @IsOptional()
+  @IsString()
+  VERTEX_LOCATION?: string;
+
+  @IsOptional()
   @IsNumber()
   @Min(1)
   INGESTION_WORKER_CONCURRENCY?: number;

@@ -71,7 +71,8 @@ export function findJSONObjects(text: string, marker: string): any[] {
  */
 export function decodeRscStream(text: string): any[] {
   const chunks: string[] = [];
-  const regexNextF = /self\.__next_f\.push\(\[\d+,\s*"(?<content>(?:[^"\\]|\\.)*)"\]\)/gs;
+  const regexNextF =
+    /self\.__next_f\.push\(\[\d+,\s*"(?<content>(?:[^"\\]|\\.)*)"\]\)/gs;
   let match: RegExpExecArray | null;
 
   while ((match = regexNextF.exec(text)) !== null) {
@@ -112,7 +113,7 @@ export function normalizeHsMerchantName(rawName: string): string {
   //    CamelCase-split: insert a space before an uppercase letter that follows a lowercase letter,
   //    then deduplicate adjacent identical words (case-insensitive).
   name = name.replace(/([a-z])([A-Z])/g, '$1 $2'); // "BakeryBakery" → "Bakery Bakery"
-  name = name.replace(/\b(\w+)\s+\1\b/gi, '$1');  // "Bakery Bakery" → "Bakery"
+  name = name.replace(/\b(\w+)\s+\1\b/gi, '$1'); // "Bakery Bakery" → "Bakery"
   name = name.replace(/\s{2,}/g, ' ').trim();
 
   // 3. Strip "Al " prefix common in Saudi chain names if present

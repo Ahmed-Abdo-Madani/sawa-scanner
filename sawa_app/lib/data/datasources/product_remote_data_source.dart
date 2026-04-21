@@ -52,10 +52,30 @@ class ProductRemoteDataSource {
 
       if (response.statusCode == 201 || response.statusCode == 200) {
         return ProductModel.fromJson(json.decode(response.body));
-      } else if (response.statusCode == 400) {
-        throw ServerException('Invalid label data: ${response.body}');
       } else {
-        throw ServerException('Failed to scan label: ${response.statusCode}');
+        String message = response.body;
+        Map<String, dynamic> decoded = {};
+        try {
+          decoded = json.decode(response.body);
+          if (decoded['message'] != null) {
+            message = decoded['message'].toString();
+          }
+        } catch (_) {}
+        
+        if (response.statusCode == 422) {
+          throw PartialScanException(
+            message: message,
+            rawOcrText: decoded['rawOcrText']?.toString(),
+            failedStage: decoded['failedStage']?.toString(),
+            retryable: decoded['retryable'] as bool? ?? true,
+          );
+        } else if (response.statusCode == 400) {
+          throw ServerException('Invalid label data: $message');
+        } else if (response.statusCode == 503) {
+          throw ServerException(message);
+        } else {
+          throw ServerException('Failed to scan label: $message');
+        }
       }
     } catch (e) {
       if (e is ServerException) rethrow;

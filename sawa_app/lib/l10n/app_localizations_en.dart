@@ -662,4 +662,13 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get unknown => 'Unknown';
+
+  @override
+  String get scanPartialTitle => 'Partial Scan';
+
+  @override
+  String get extractedText => 'Extracted Text:';
+
+  @override
+  String get close => 'Close';
 }

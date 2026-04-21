@@ -49,3 +49,20 @@ class ApiConfigurationException implements Exception {
   String toString() => 'ApiConfigurationException: $message';
 }
 
+/// Thrown when OCR succeeds but label structuring fails (HTTP 422).
+class PartialScanException implements Exception {
+  final String message;
+  final String? rawOcrText;
+  final String? failedStage;
+  final bool retryable;
+
+  PartialScanException({
+    this.message = 'Failed to structure the label data',
+    this.rawOcrText,
+    this.failedStage,
+    this.retryable = true,
+  });
+
+  @override
+  String toString() => 'PartialScanException: $message';
+}

@@ -255,5 +255,8 @@
   "lower": "أقل",
   "higher": "أعلى",
   "equal": "متساوٍ",
-  "unknown": "غير معروف"
+  "unknown": "غير معروف",
+  "scanPartialTitle": "مسح جزئي",
+  "extractedText": "النص المستخرج:",
+  "close": "إغلاق"
 }

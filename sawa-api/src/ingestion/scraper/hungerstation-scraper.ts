@@ -68,12 +68,18 @@ export class HungerStationScraper extends BaseScraper {
               mapped.productPageUrl ||
               mapped.name;
             if (!key) continue;
-            if (!capturedProductsMap.has(key)) capturedProductsMap.set(key, mapped);
+            if (!capturedProductsMap.has(key))
+              capturedProductsMap.set(key, mapped);
           }
         },
       );
 
-      const navigationResponse = await this.navigateWithEvasion(page, url, 'commit', 30000);
+      const navigationResponse = await this.navigateWithEvasion(
+        page,
+        url,
+        'commit',
+        30000,
+      );
       await page.waitForTimeout(1500);
       await this.detectCloudflareChallenge(page, navigationResponse);
 
@@ -99,17 +105,22 @@ export class HungerStationScraper extends BaseScraper {
 
       const domProducts = await page.evaluate(() => {
         const links = Array.from(
-          document.querySelectorAll<HTMLAnchorElement>('a[href*="/items/"], a[href*="/item/"]'),
+          document.querySelectorAll<HTMLAnchorElement>(
+            'a[href*="/items/"], a[href*="/item/"]',
+          ),
         );
         return links
           .map((a) => {
             const href = a.getAttribute('href') || a.href || '';
             const title =
-              a.querySelector('h1,h2,h3,[class*="name"],[class*="title"]')?.textContent?.trim() ||
+              a
+                .querySelector('h1,h2,h3,[class*="name"],[class*="title"]')
+                ?.textContent?.trim() ||
               a.textContent?.trim() ||
               '';
             const priceText =
-              a.querySelector('[class*="price"],[data-testid*="price"]')?.textContent || '';
+              a.querySelector('[class*="price"],[data-testid*="price"]')
+                ?.textContent || '';
             const img = a.querySelector('img')?.getAttribute('src') || '';
             return { href, title, priceText, img };
           })
@@ -117,7 +128,9 @@ export class HungerStationScraper extends BaseScraper {
       });
 
       for (const item of domProducts) {
-        const price = parseFloat((item.priceText || '').replace(/[^0-9.]/g, '') || '0');
+        const price = parseFloat(
+          (item.priceText || '').replace(/[^0-9.]/g, '') || '0',
+        );
         if (!Number.isFinite(price) || price <= 0) continue;
         const productPageUrl = new URL(item.href, HS_BASE_URL).toString();
         const key = productPageUrl;
@@ -126,13 +139,17 @@ export class HungerStationScraper extends BaseScraper {
           name: item.title,
           price,
           productPageUrl,
-          imageUrls: item.img ? [new URL(item.img, HS_BASE_URL).toString()] : [],
+          imageUrls: item.img
+            ? [new URL(item.img, HS_BASE_URL).toString()]
+            : [],
         });
       }
 
       teardown();
       const products = Array.from(capturedProductsMap.values());
-      this.logger.log(`[HS] scrapeListingPage(page=${pageNum}): found ${products.length} products (dom + intercept)`);
+      this.logger.log(
+        `[HS] scrapeListingPage(page=${pageNum}): found ${products.length} products (dom + intercept)`,
+      );
       return products;
     } finally {
       await page.close();
@@ -147,17 +164,26 @@ export class HungerStationScraper extends BaseScraper {
     const page = await this.context.newPage();
     try {
       const captured = new Map<string, ScrapedProductData>();
-      const teardown = this.interceptGraphQL(page, /MenuItem|Product|Item/i, (json) => {
-        for (const raw of this.extractHsProductNodes(json)) {
-          const mapped = this.mapHsProduct(raw, storeContext);
-          if (!mapped) continue;
-          const key = mapped.gtin || mapped.productPageUrl || mapped.name;
-          if (!key) continue;
-          captured.set(key, mapped);
-        }
-      });
+      const teardown = this.interceptGraphQL(
+        page,
+        /MenuItem|Product|Item/i,
+        (json) => {
+          for (const raw of this.extractHsProductNodes(json)) {
+            const mapped = this.mapHsProduct(raw, storeContext);
+            if (!mapped) continue;
+            const key = mapped.gtin || mapped.productPageUrl || mapped.name;
+            if (!key) continue;
+            captured.set(key, mapped);
+          }
+        },
+      );
 
-      const navigationResponse = await this.navigateWithEvasion(page, productUrl, 'commit', 30000);
+      const navigationResponse = await this.navigateWithEvasion(
+        page,
+        productUrl,
+        'commit',
+        30000,
+      );
       await page.waitForTimeout(1000);
       await this.detectCloudflareChallenge(page, navigationResponse);
 
@@ -176,19 +202,25 @@ export class HungerStationScraper extends BaseScraper {
         const key = p.gtin || p.productPageUrl || p.name;
         if (key) captured.set(key, p);
       }
-      this.logger.debug(`[HS] scrapeDetailPage: captured ${captured.size} candidates (intercept=${captured.size - hydrated.length}, hydrated=${hydrated.length})`);
+      this.logger.debug(
+        `[HS] scrapeDetailPage: captured ${captured.size} candidates (intercept=${captured.size - hydrated.length}, hydrated=${hydrated.length})`,
+      );
 
       if (captured.size === 0) {
         const domData = await page.evaluate((url) => {
           const name = document.querySelector('h1')?.textContent?.trim() || '';
           const priceText =
-            document.querySelector('[class*="price"],[data-testid*="price"]')?.textContent || '';
+            document.querySelector('[class*="price"],[data-testid*="price"]')
+              ?.textContent || '';
           const imageUrls = Array.from(document.querySelectorAll('img'))
             .map((img) => img.getAttribute('src') || '')
             .filter(Boolean)
             .slice(0, 6);
           const description =
-            document.querySelector('[class*="description"],[data-testid*="description"]')
+            document
+              .querySelector(
+                '[class*="description"],[data-testid*="description"]',
+              )
               ?.textContent?.trim() || '';
           const ldJsonScripts = Array.from(
             document.querySelectorAll('script[type="application/ld+json"]'),
@@ -234,7 +266,9 @@ export class HungerStationScraper extends BaseScraper {
       teardown();
 
       if (captured.size === 0) {
-        throw new Error(`Could not capture HungerStation product detail for ${productUrl}`);
+        throw new Error(
+          `Could not capture HungerStation product detail for ${productUrl}`,
+        );
       }
 
       const best = Array.from(captured.values()).sort(
@@ -253,7 +287,10 @@ export class HungerStationScraper extends BaseScraper {
     if (!this.context) throw new Error('Browser context not initialized');
     const page = await this.context.newPage();
 
-    const categoryMap = new Map<string, { id: string; name: string; url: string }>();
+    const categoryMap = new Map<
+      string,
+      { id: string; name: string; url: string }
+    >();
     const isDenied = (name: string, url: string) => {
       const slug = (() => {
         try {
@@ -268,7 +305,9 @@ export class HungerStationScraper extends BaseScraper {
     const ingest = (raw: any) => {
       if (!raw || typeof raw !== 'object') return;
       const id = String(raw.id || raw.categoryId || raw.slug || '').trim();
-      const name = String(raw.name || raw.nameEn || raw.name_en || raw.title || '').trim();
+      const name = String(
+        raw.name || raw.nameEn || raw.name_en || raw.title || '',
+      ).trim();
       const href = String(raw.url || raw.link || raw.href || '').trim();
       if (!name) return;
       const resolvedUrl = href ? new URL(href, HS_BASE_URL).toString() : '';
@@ -281,31 +320,42 @@ export class HungerStationScraper extends BaseScraper {
     };
 
     try {
-      const teardown = this.interceptGraphQL(page, /categor(y|ies)|menu|catalog/i, (json, op) => {
-        this.logger.debug(`[HS] Intercepted GraphQL operation: ${op}`);
-        const stack: any[] = [json];
-        while (stack.length) {
-          const cur = stack.pop();
-          if (!cur || typeof cur !== 'object') continue;
-          if (Array.isArray(cur)) {
-            for (const v of cur) stack.push(v);
-            continue;
-          }
-          for (const [k, v] of Object.entries(cur)) {
-            if (/categories|menuCategories/i.test(k) && Array.isArray(v)) {
-              for (const entry of v) ingest(entry);
+      const teardown = this.interceptGraphQL(
+        page,
+        /categor(y|ies)|menu|catalog/i,
+        (json, op) => {
+          this.logger.debug(`[HS] Intercepted GraphQL operation: ${op}`);
+          const stack: any[] = [json];
+          while (stack.length) {
+            const cur = stack.pop();
+            if (!cur || typeof cur !== 'object') continue;
+            if (Array.isArray(cur)) {
+              for (const v of cur) stack.push(v);
+              continue;
             }
-            stack.push(v);
+            for (const [k, v] of Object.entries(cur)) {
+              if (/categories|menuCategories/i.test(k) && Array.isArray(v)) {
+                for (const entry of v) ingest(entry);
+              }
+              stack.push(v);
+            }
           }
-        }
-      });
+        },
+      );
 
-      const navigationResponse = await this.navigateWithEvasion(page, branch.source_url, 'domcontentloaded', 45000);
+      const navigationResponse = await this.navigateWithEvasion(
+        page,
+        branch.source_url,
+        'domcontentloaded',
+        45000,
+      );
       // Wait for JS to hydrate categories — poll for any category anchor
-      await page.waitForSelector(
-        'a[href*="/category/"], a[href*="/cat/"], [data-testid*="category"] a',
-        { timeout: 10000 },
-      ).catch(() => undefined); // don't fail if no category links found via selector
+      await page
+        .waitForSelector(
+          'a[href*="/category/"], a[href*="/cat/"], [data-testid*="category"] a',
+          { timeout: 10000 },
+        )
+        .catch(() => undefined); // don't fail if no category links found via selector
       await this.detectCloudflareChallenge(page, navigationResponse);
       await this.dismissConsentModals(page).catch(() => undefined);
 
@@ -313,7 +363,9 @@ export class HungerStationScraper extends BaseScraper {
       await this.autoScroll(page);
       await page.waitForTimeout(1500);
 
-      this.logger.debug(`[HS] discoverCategories: page loaded and scrolled, sweeping hydration...`);
+      this.logger.debug(
+        `[HS] discoverCategories: page loaded and scrolled, sweeping hydration...`,
+      );
 
       const hydrated = await this.sweepHydrationData(page, (json) => {
         const categories: Array<{ id: string; name: string; url: string }> = [];
@@ -328,12 +380,12 @@ export class HungerStationScraper extends BaseScraper {
           for (const [k, v] of Object.entries(cur)) {
             if (/categories|menuCategories/i.test(k) && Array.isArray(v)) {
               for (const entry of v) {
-                const id = String((entry as any)?.id || (entry as any)?.slug || '').trim();
+                const id = String(entry?.id || entry?.slug || '').trim();
                 const name = String(
-                  (entry as any)?.name || (entry as any)?.nameEn || (entry as any)?.name_en || '',
+                  entry?.name || entry?.nameEn || entry?.name_en || '',
                 ).trim();
                 const href = String(
-                  (entry as any)?.url || (entry as any)?.link || (entry as any)?.href || '',
+                  entry?.url || entry?.link || entry?.href || '',
                 ).trim();
                 if (!name || !href) continue;
                 const url = new URL(href, HS_BASE_URL).toString();
@@ -371,18 +423,26 @@ export class HungerStationScraper extends BaseScraper {
               url: href,
             };
           })
-          .filter((x) => x.name && x.url && (x.url.includes('/category/') || x.url.includes('/cat/')));
+          .filter(
+            (x) =>
+              x.name &&
+              x.url &&
+              (x.url.includes('/category/') || x.url.includes('/cat/')),
+          );
       });
 
       for (const item of domCategories) {
         const url = new URL(item.url, HS_BASE_URL).toString();
         if (isDenied(item.name, url)) continue;
         const id = item.id || url;
-        if (!categoryMap.has(id)) categoryMap.set(id, { id, name: item.name, url });
+        if (!categoryMap.has(id))
+          categoryMap.set(id, { id, name: item.name, url });
       }
 
       teardown();
-      this.logger.log(`[HS] discoverCategories: found ${categoryMap.size} categories total.`);
+      this.logger.log(
+        `[HS] discoverCategories: found ${categoryMap.size} categories total.`,
+      );
       return [...categoryMap.values()];
     } finally {
       await page.close();
@@ -402,7 +462,10 @@ export class HungerStationScraper extends BaseScraper {
       const looksLikeProduct =
         (cur.id || cur.productId || cur.menuItemId || cur.sku) &&
         (cur.name || cur.nameEn || cur.name_ar || cur.nameAr || cur.title) &&
-        (cur.price !== undefined || cur.pricing || cur.prices || cur.offerPrice !== undefined);
+        (cur.price !== undefined ||
+          cur.pricing ||
+          cur.prices ||
+          cur.offerPrice !== undefined);
       if (looksLikeProduct) {
         out.push(cur);
         continue;
@@ -417,9 +480,14 @@ export class HungerStationScraper extends BaseScraper {
     return id !== undefined && id !== null ? String(id) : '';
   }
 
-  private mapHsProduct(raw: any, storeContext?: HsBranch): ScrapedProductData | null {
+  private mapHsProduct(
+    raw: any,
+    storeContext?: HsBranch,
+  ): ScrapedProductData | null {
     if (!raw || typeof raw !== 'object') return null;
-    const name = String(raw.name || raw.nameEn || raw.name_en || raw.title || '').trim();
+    const name = String(
+      raw.name || raw.nameEn || raw.name_en || raw.title || '',
+    ).trim();
     if (!name) return null;
 
     const priceCandidates = [
@@ -434,7 +502,11 @@ export class HungerStationScraper extends BaseScraper {
       raw.prices?.offerPrice,
     ];
     const price = priceCandidates
-      .map((v) => (typeof v === 'number' ? v : parseFloat(String(v ?? '').replace(/[^0-9.]/g, ''))))
+      .map((v) =>
+        typeof v === 'number'
+          ? v
+          : parseFloat(String(v ?? '').replace(/[^0-9.]/g, '')),
+      )
       .find((v) => Number.isFinite(v) && v > 0);
     if (!price) return null;
 
@@ -458,17 +530,30 @@ export class HungerStationScraper extends BaseScraper {
     ];
     let promo_price: number | undefined = undefined;
     const originalPrice = originalPriceCandidates
-      .map((v) => (typeof v === 'number' ? v : parseFloat(String(v ?? '').replace(/[^0-9.]/g, ''))))
+      .map((v) =>
+        typeof v === 'number'
+          ? v
+          : parseFloat(String(v ?? '').replace(/[^0-9.]/g, '')),
+      )
       .find((v) => Number.isFinite(v) && v > 0);
     const offerPrice = offerPriceCandidates
-      .map((v) => (typeof v === 'number' ? v : parseFloat(String(v ?? '').replace(/[^0-9.]/g, ''))))
+      .map((v) =>
+        typeof v === 'number'
+          ? v
+          : parseFloat(String(v ?? '').replace(/[^0-9.]/g, '')),
+      )
       .find((v) => Number.isFinite(v) && v > 0);
     // If original > offer → offer is a promo
     if (originalPrice && offerPrice && originalPrice > offerPrice) {
       promo_price = offerPrice;
     }
     // If the resolved "price" is the original price and there's an offerPrice
-    if (!promo_price && offerPrice && price !== offerPrice && offerPrice < price) {
+    if (
+      !promo_price &&
+      offerPrice &&
+      price !== offerPrice &&
+      offerPrice < price
+    ) {
       promo_price = offerPrice;
     }
 
@@ -505,9 +590,13 @@ export class HungerStationScraper extends BaseScraper {
     const name_ar = (raw.nameAr || raw.name_ar || '').trim() || undefined;
 
     // ──── Arabic description ────
-    const description_ar = (
-      raw.descriptionAr || raw.description_ar || raw.shortDescriptionAr || ''
-    ).trim() || undefined;
+    const description_ar =
+      (
+        raw.descriptionAr ||
+        raw.description_ar ||
+        raw.shortDescriptionAr ||
+        ''
+      ).trim() || undefined;
 
     // ──── Allergens ────
     const allergen_tags = this.extractAllergenTags(raw);
@@ -574,7 +663,8 @@ export class HungerStationScraper extends BaseScraper {
     for (const field of arrayFields) {
       if (Array.isArray(field)) {
         for (const item of field) {
-          const val = typeof item === 'string' ? item : item?.name || item?.label;
+          const val =
+            typeof item === 'string' ? item : item?.name || item?.label;
           if (val && typeof val === 'string') {
             tags.add(val.trim().toLowerCase().replace(/^en:/, ''));
           }
@@ -599,12 +689,37 @@ export class HungerStationScraper extends BaseScraper {
 
     // Heuristic: check description for common allergen keywords
     if (tags.size === 0) {
-      const text = String(raw.description || raw.shortDescription || '').toLowerCase();
+      const text = String(
+        raw.description || raw.shortDescription || '',
+      ).toLowerCase();
       const allergenKeywords = [
-        'milk', 'dairy', 'lactose', 'gluten', 'wheat', 'soy', 'soya',
-        'peanut', 'tree nut', 'almond', 'cashew', 'walnut', 'hazelnut',
-        'egg', 'fish', 'shellfish', 'sesame', 'mustard', 'celery', 'sulphite',
-        'حليب', 'قمح', 'صويا', 'بيض', 'سمسم', 'فول سوداني', 'مكسرات',
+        'milk',
+        'dairy',
+        'lactose',
+        'gluten',
+        'wheat',
+        'soy',
+        'soya',
+        'peanut',
+        'tree nut',
+        'almond',
+        'cashew',
+        'walnut',
+        'hazelnut',
+        'egg',
+        'fish',
+        'shellfish',
+        'sesame',
+        'mustard',
+        'celery',
+        'sulphite',
+        'حليب',
+        'قمح',
+        'صويا',
+        'بيض',
+        'سمسم',
+        'فول سوداني',
+        'مكسرات',
       ];
       for (const kw of allergenKeywords) {
         if (text.includes(kw)) {
@@ -631,7 +746,8 @@ export class HungerStationScraper extends BaseScraper {
     for (const field of arrayFields) {
       if (Array.isArray(field)) {
         for (const item of field) {
-          const val = typeof item === 'string' ? item : item?.name || item?.text;
+          const val =
+            typeof item === 'string' ? item : item?.name || item?.text;
           if (val && typeof val === 'string') {
             tags.add(val.trim().toLowerCase().replace(/^en:/, ''));
           }
@@ -724,13 +840,11 @@ export class HungerStationScraper extends BaseScraper {
             postDataParsed.variables !== undefined);
 
         const shouldCaptureByHostAndPath =
-          pathLooksGraphApi && 
-          hostLooksExpected && 
-          responseLooksJson;
-          
+          pathLooksGraphApi && hostLooksExpected && responseLooksJson;
+
         const shouldCaptureByGraphQlShape =
           responseLooksJson && postDataLooksGraphQl && hostLooksExpected;
-          
+
         if (!shouldCaptureByHostAndPath && !shouldCaptureByGraphQlShape) return;
 
         // Log the first endpoint host we see
@@ -764,7 +878,7 @@ export class HungerStationScraper extends BaseScraper {
   ): Promise<void> {
     await page
       .waitForLoadState('domcontentloaded', { timeout: 5000 })
-      .catch(() => { });
+      .catch(() => {});
 
     const url = page.url();
     const title = await page.title();
@@ -807,7 +921,10 @@ export class HungerStationScraper extends BaseScraper {
       }
 
       for (const [key, value] of Object.entries(current)) {
-        if (/districts|areas|neighborhoods/i.test(key) && Array.isArray(value)) {
+        if (
+          /districts|areas|neighborhoods/i.test(key) &&
+          Array.isArray(value)
+        ) {
           return true;
         }
         stack.push(value);
@@ -989,14 +1106,22 @@ export class HungerStationScraper extends BaseScraper {
       branchMap.set(uuid, {
         platform_branch_id: String(hasId),
         platform_branch_uuid: uuid,
-        merchant_name_en: String(json.name || json.nameEn || json.name_en || json.title || json.nameAr || json.name_ar),
-        merchant_name_ar: json.nameAr || json.name_ar || String(json.name || json.nameEn || json.name_en || json.title || ''),
+        merchant_name_en: String(
+          json.name ||
+            json.nameEn ||
+            json.name_en ||
+            json.title ||
+            json.nameAr ||
+            json.name_ar,
+        ),
+        merchant_name_ar:
+          json.nameAr ||
+          json.name_ar ||
+          String(json.name || json.nameEn || json.name_en || json.title || ''),
         vertical,
         lat: json.lat ?? json.latitude,
         lng: json.lng ?? json.longitude,
-        source_url: rawLink
-          ? new URL(rawLink, HS_BASE_URL).toString()
-          : '',
+        source_url: rawLink ? new URL(rawLink, HS_BASE_URL).toString() : '',
         citySlug: district.citySlug,
         districtSlug: district.slug,
       });
@@ -1040,9 +1165,16 @@ export class HungerStationScraper extends BaseScraper {
         obj.country !== undefined || obj.countryCode !== undefined;
       const matchesCountry =
         !hasCountryFilter || obj.country === 'SA' || obj.countryCode === 'SA';
-      const inCityContainer = keyPath.some((key) => /cities|locations/i.test(key));
+      const inCityContainer = keyPath.some((key) =>
+        /cities|locations/i.test(key),
+      );
 
-      if (slug && nameEn && matchesCountry && (inCityContainer || slugLooksSane(slug))) {
+      if (
+        slug &&
+        nameEn &&
+        matchesCountry &&
+        (inCityContainer || slugLooksSane(slug))
+      ) {
         results.push({
           slug,
           name_en: nameEn,
@@ -1052,7 +1184,8 @@ export class HungerStationScraper extends BaseScraper {
         });
       }
 
-      for (const [key, val] of Object.entries(obj)) recurse(val, [...keyPath, key]);
+      for (const [key, val] of Object.entries(obj))
+        recurse(val, [...keyPath, key]);
     };
 
     recurse(json, []);
@@ -1171,9 +1304,7 @@ export class HungerStationScraper extends BaseScraper {
       const slug = this.normalizeForPilotMatch(city.slug);
       const nameEn = this.normalizeForPilotMatch(city.name_en);
       const nameAr = this.normalizeForPilotMatch(city.name_ar ?? '');
-      return allowed.some(
-        (a) => slug === a || nameEn === a || nameAr === a,
-      );
+      return allowed.some((a) => slug === a || nameEn === a || nameAr === a);
     });
   }
 
@@ -1184,8 +1315,10 @@ export class HungerStationScraper extends BaseScraper {
     const page = await this.context.newPage();
 
     const gqlPayloads: any[] = [];
-    const teardown = this.interceptGraphQL(page, /cities|areas|locations/i, (json) =>
-      gqlPayloads.push(json),
+    const teardown = this.interceptGraphQL(
+      page,
+      /cities|areas|locations/i,
+      (json) => gqlPayloads.push(json),
     );
 
     try {
@@ -1473,7 +1606,7 @@ export class HungerStationScraper extends BaseScraper {
         await this.detectCloudflareChallenge(page, navigationResponse);
         await page
           .waitForLoadState('networkidle', { timeout: 5000 })
-          .catch(() => { });
+          .catch(() => {});
 
         // Hydration sweep for this page
         await this.sweepHydrationData(page, (json) => {

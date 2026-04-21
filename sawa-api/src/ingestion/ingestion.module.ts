@@ -76,7 +76,7 @@ export class IngestionModule implements OnModuleInit {
     private readonly ingestionQueue: Queue,
     @InjectQueue('price-scraping-queue')
     private readonly priceScrapingQueue: Queue,
-  ) { }
+  ) {}
 
   async onModuleInit() {
     // Schedule Daily Price Scraping Cron Jobs

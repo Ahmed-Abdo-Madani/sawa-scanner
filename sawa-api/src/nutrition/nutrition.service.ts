@@ -5,7 +5,10 @@ import { Product } from '../entities/product.entity';
 import { NutritionFact } from '../entities/nutrition-fact.entity';
 import { Ingredient } from '../entities/ingredient.entity';
 import { ProductAllergen } from '../entities/product-allergen.entity';
-import { getAllergenByKey, SFDA_ALLERGENS } from '../ingestion/constants/sfda-allergens';
+import {
+  getAllergenByKey,
+  SFDA_ALLERGENS,
+} from '../ingestion/constants/sfda-allergens';
 
 // ─── NutriScore Thresholds (SFDA NPM / Ofcom-based, for solid foods) ─────────
 
@@ -19,12 +22,12 @@ interface NutriScoreThresholds {
 }
 
 const SOLID_THRESHOLDS: NutriScoreThresholds = {
-  energy:       [335, 670, 1005, 1340, 1675, 2010, 2345, 2680, 3015, 3350],
-  sugars:       [4.5, 9,   13.5, 18,   22.5, 27,   31,   36,   40,   45],
-  saturatedFat: [1,   2,   3,    4,    5,    6,    7,    8,    9,    10],
-  sodium:       [90,  180, 270,  360,  450,  540,  630,  720,  810,  900],
-  fiber:        [0.9, 1.9, 2.8,  3.7,  4.7],
-  protein:      [1.6, 3.2, 4.8,  6.4,  8.0],
+  energy: [335, 670, 1005, 1340, 1675, 2010, 2345, 2680, 3015, 3350],
+  sugars: [4.5, 9, 13.5, 18, 22.5, 27, 31, 36, 40, 45],
+  saturatedFat: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+  sodium: [90, 180, 270, 360, 450, 540, 630, 720, 810, 900],
+  fiber: [0.9, 1.9, 2.8, 3.7, 4.7],
+  protein: [1.6, 3.2, 4.8, 6.4, 8.0],
 };
 
 // ─── Traffic Light Thresholds (per 100g, UK FSA-style) ──────────────────────
@@ -35,19 +38,19 @@ interface TrafficThresholds {
 }
 
 const TRAFFIC_LIGHT: Record<string, TrafficThresholds> = {
-  fat_g:           { low: 3,    high: 17.5 },
-  saturated_fat_g: { low: 1.5,  high: 5 },
-  sugars_g:        { low: 5,    high: 22.5 },
-  sodium_mg:       { low: 300,  high: 600 },  // per 100g in mg
+  fat_g: { low: 3, high: 17.5 },
+  saturated_fat_g: { low: 1.5, high: 5 },
+  sugars_g: { low: 5, high: 22.5 },
+  sodium_mg: { low: 300, high: 600 }, // per 100g in mg
 };
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
 export interface HealthSummary {
-  fat:          { value: number | null; level: 'low' | 'medium' | 'high' };
+  fat: { value: number | null; level: 'low' | 'medium' | 'high' };
   saturatedFat: { value: number | null; level: 'low' | 'medium' | 'high' };
-  sugars:       { value: number | null; level: 'low' | 'medium' | 'high' };
-  sodium:       { value: number | null; level: 'low' | 'medium' | 'high' };
+  sugars: { value: number | null; level: 'low' | 'medium' | 'high' };
+  sodium: { value: number | null; level: 'low' | 'medium' | 'high' };
 }
 
 export interface HarmfulSubstanceWarning {
@@ -105,15 +108,30 @@ export class NutritionService {
 
   computeNutriScore(nf: NutritionFact): { grade: string; score: number } {
     // Negative points (0–10 each, total 0–40)
-    const negEnergy = this.scoreAgainst(nf.energy_kcal ?? 0, SOLID_THRESHOLDS.energy);
-    const negSugars = this.scoreAgainst(nf.sugars_g ?? 0, SOLID_THRESHOLDS.sugars);
-    const negSatFat = this.scoreAgainst(nf.saturated_fat_g ?? 0, SOLID_THRESHOLDS.saturatedFat);
-    const negSodium = this.scoreAgainst(nf.sodium_mg ?? 0, SOLID_THRESHOLDS.sodium);
+    const negEnergy = this.scoreAgainst(
+      nf.energy_kcal ?? 0,
+      SOLID_THRESHOLDS.energy,
+    );
+    const negSugars = this.scoreAgainst(
+      nf.sugars_g ?? 0,
+      SOLID_THRESHOLDS.sugars,
+    );
+    const negSatFat = this.scoreAgainst(
+      nf.saturated_fat_g ?? 0,
+      SOLID_THRESHOLDS.saturatedFat,
+    );
+    const negSodium = this.scoreAgainst(
+      nf.sodium_mg ?? 0,
+      SOLID_THRESHOLDS.sodium,
+    );
     const negativeTotal = negEnergy + negSugars + negSatFat + negSodium;
 
     // Positive points (0–5 each, total 0–15)
     const posFiber = this.scoreAgainst(nf.fiber_g ?? 0, SOLID_THRESHOLDS.fiber);
-    const posProtein = this.scoreAgainst(nf.protein_g ?? 0, SOLID_THRESHOLDS.protein);
+    const posProtein = this.scoreAgainst(
+      nf.protein_g ?? 0,
+      SOLID_THRESHOLDS.protein,
+    );
     // fruits/veg % not available from our data, assume 0
     const positiveTotal = posFiber + posProtein;
 
@@ -147,7 +165,10 @@ export class NutritionService {
   getHealthSummary(nf: NutritionFact): HealthSummary {
     return {
       fat: this.classifyLevel(nf.fat_g, TRAFFIC_LIGHT.fat_g),
-      saturatedFat: this.classifyLevel(nf.saturated_fat_g, TRAFFIC_LIGHT.saturated_fat_g),
+      saturatedFat: this.classifyLevel(
+        nf.saturated_fat_g,
+        TRAFFIC_LIGHT.saturated_fat_g,
+      ),
       sugars: this.classifyLevel(nf.sugars_g, TRAFFIC_LIGHT.sugars_g),
       sodium: this.classifyLevel(nf.sodium_mg, TRAFFIC_LIGHT.sodium_mg),
     };
@@ -165,7 +186,9 @@ export class NutritionService {
 
   // ─── Harmful Substances Check ────────────────────────────────────────────
 
-  async checkHarmfulSubstances(productId: string): Promise<HarmfulSubstanceWarning[]> {
+  async checkHarmfulSubstances(
+    productId: string,
+  ): Promise<HarmfulSubstanceWarning[]> {
     const ingredients = await this.ingredientRepo.find({
       where: { product: { id: productId } },
     });
@@ -256,8 +279,10 @@ export class NutritionService {
     );
 
     return {
-      nutri_score_grade: nutriScoreResult?.grade ?? product.nutri_score_grade ?? null,
-      nutri_score_numeric: nutriScoreResult?.score ?? product.sfda_npm_score ?? null,
+      nutri_score_grade:
+        nutriScoreResult?.grade ?? product.nutri_score_grade ?? null,
+      nutri_score_numeric:
+        nutriScoreResult?.score ?? product.sfda_npm_score ?? null,
       nova_group: product.nova_group,
       health_summary: healthSummary,
       harmful_substances: harmful,

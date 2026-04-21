@@ -255,5 +255,8 @@
   "lower": "Lower",
   "higher": "Higher",
   "equal": "Equal",
-  "unknown": "Unknown"
+  "unknown": "Unknown",
+  "scanPartialTitle": "Partial Scan",
+  "extractedText": "Extracted Text:",
+  "close": "Close"
 }

@@ -10,7 +10,6 @@ import { getQueueToken } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { Request, Response, NextFunction } from 'express';
 
-
 async function expressFirebaseAuth(
   req: Request,
   res: Response,

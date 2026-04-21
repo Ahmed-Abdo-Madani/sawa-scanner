@@ -20,7 +20,7 @@ export class IngestionService {
 
   constructor(
     @InjectQueue('ingestion-queue') private readonly ingestionQueue: Queue,
-  ) { }
+  ) {}
 
   async addIngestionJob(dto: IngestionJobDto) {
     this.logger.log(

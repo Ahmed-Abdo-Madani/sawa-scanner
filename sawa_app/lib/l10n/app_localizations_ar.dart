@@ -664,4 +664,13 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get unknown => 'غير معروف';
+
+  @override
+  String get scanPartialTitle => 'مسح جزئي';
+
+  @override
+  String get extractedText => 'النص المستخرج:';
+
+  @override
+  String get close => 'إغلاق';
 }

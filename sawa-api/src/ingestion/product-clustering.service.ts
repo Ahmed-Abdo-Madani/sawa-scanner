@@ -12,7 +12,7 @@ export class ProductClusteringService {
   constructor(
     @InjectRepository(Product)
     private readonly productRepository: Repository<Product>,
-  ) { }
+  ) {}
 
   async findOrCreateProduct(
     gtin: string | null,
@@ -69,7 +69,6 @@ export class ProductClusteringService {
           `Missing GTIN and non-empty brand for ${name}. Skipping fuzzy matching.`,
         );
       } else {
-
         // Find products by brand and weight to narrow down the search.
         // When GTIN is missing, require explicit brand match.
         const where = {

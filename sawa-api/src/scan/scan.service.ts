@@ -15,7 +15,10 @@ import { Product } from '../entities/product.entity';
 import { NutritionFact } from '../entities/nutrition-fact.entity';
 import { Ingredient } from '../entities/ingredient.entity';
 import { LabelCoreService } from './label-core.service';
-import { diceCoefficient, doWeightsMatchStrictly } from '../utils/string-similarity';
+import {
+  diceCoefficient,
+  doWeightsMatchStrictly,
+} from '../utils/string-similarity';
 
 @Injectable()
 export class ScanService {
@@ -77,7 +80,7 @@ export class ScanService {
           if (conditions.length > 0) {
             qb.where(conditions.join(' OR '), params);
             qb.limit(100);
-            
+
             const candidates = await qb.getMany();
             let bestMatch: Product | null = null;
             let bestScore = 0;
@@ -91,7 +94,8 @@ export class ScanService {
               const scoreAr = diceCoefficient(targetNameAr, cand.name_ar || '');
               const scoreBrand = diceCoefficient(targetBrand, cand.brand || '');
 
-              const combinedScore = Math.max(scoreEn, scoreAr) * 0.7 + scoreBrand * 0.3;
+              const combinedScore =
+                Math.max(scoreEn, scoreAr) * 0.7 + scoreBrand * 0.3;
 
               if (combinedScore > bestScore && combinedScore > 0.65) {
                 // Strict weight validation requested by user

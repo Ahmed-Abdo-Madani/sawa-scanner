@@ -30,7 +30,7 @@ function mapStore(store: Store) {
 
 @Controller('stores')
 export class StoresController {
-  constructor(private readonly storesService: StoresService) { }
+  constructor(private readonly storesService: StoresService) {}
 
   @Get()
   async getStores(
@@ -41,11 +41,11 @@ export class StoresController {
   ) {
     const stores = district
       ? await this.storesService.findByDistrict(
-        city,
-        district,
-        vertical,
-        platform,
-      )
+          city,
+          district,
+          vertical,
+          platform,
+        )
       : await this.storesService.findByCity(city, vertical, platform);
     return stores.map(mapStore);
   }

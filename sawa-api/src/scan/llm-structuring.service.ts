@@ -1,79 +1,63 @@
-import { Injectable } from '@nestjs/common';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { StructuredLabelDto } from './dto/structured-label.dto';
+import { LlmStructuringProvider } from './llm/llm-provider.interface';
+import { GoogleAiGeminiProvider } from './llm/google-ai-gemini.provider';
+import { VertexGeminiProvider } from './llm/vertex-gemini.provider';
+import { GeminiQuotaExceededException } from './exceptions/gemini-quota-exceeded.exception';
 
 @Injectable()
 export class LlmStructuringService {
-  private genAI: GoogleGenerativeAI;
-  private model: any;
+  private readonly logger = new Logger(LlmStructuringService.name);
+  private providers: LlmStructuringProvider[] = [];
 
-  constructor(private configService: ConfigService) {
-    const apiKey = this.configService.get<string>('GEMINI_API_KEY') || '';
-    this.genAI = new GoogleGenerativeAI(apiKey);
-    this.model = this.genAI.getGenerativeModel({
-      model: 'gemini-2.0-flash',
-      generationConfig: {
-        responseMimeType: 'application/json',
-      },
-    });
+  constructor(
+    private configService: ConfigService,
+    private googleAiProvider: GoogleAiGeminiProvider,
+    private vertexProvider: VertexGeminiProvider,
+  ) {
+    const selectedProvider =
+      this.configService.get<string>('LLM_PROVIDER') || 'vertex';
+
+    if (selectedProvider === 'vertex') {
+      this.providers.push(this.vertexProvider);
+      this.providers.push(this.googleAiProvider); // Fallback
+    } else {
+      this.providers.push(this.googleAiProvider);
+      // Can add more providers later, like Anthropic
+    }
   }
 
   async structureLabel(rawOcrText: string): Promise<StructuredLabelDto> {
-    const prompt = `
-      You are an expert nutrition label analyst specializing in Saudi Arabian food products.
-      Extract and structure information from the following OCR text from a nutrition label.
-      
-      OCR TEXT:
-      """
-      ${rawOcrText}
-      """
+    let lastError: any = null;
 
-      INSTRUCTIONS:
-      1. Return a JSON object matching the schema below.
-      2. Handle Arabic nutrient aliases: 
-         - 'دهون' -> fat_g
-         - 'دهون مشبعة' -> saturated_fat_g
-         - 'بروتين' -> protein_g
-         - 'سكريات' -> sugars_g
-         - 'ألياف' -> fiber_g
-         - 'صوديوم' -> sodium_mg
-         - 'سعرات حرارية' or 'طاقة' -> energy_kcal
-         - 'كربوهيدرات' -> carbs_g
-      3. All nutrient values should be numeric (float or int). If a range is given, use the average.
-      4. Ingredients should include Arabic names where possible. Extract E-numbers if visible.
-      5. If a field is missing, leave it as null or omit it.
+    for (const provider of this.providers) {
+      this.logger.log(`Attempting structuring with provider: ${provider.name}`);
+      try {
+        const result = await provider.structureLabel(rawOcrText);
+        return result;
+      } catch (error) {
+        lastError = error;
+        if (error instanceof GeminiQuotaExceededException) {
+          this.logger.warn(
+            `Provider ${provider.name} failed with Quota Exceeded. Trying next provider...`,
+          );
+          continue; // try next provider
+        }
 
-      SCHEMA:
-      {
-        "name_ar": "Arabic product name",
-        "name_en": "English product name",
-        "brand": "Brand name",
-        "net_weight": "e.g. 500g",
-        "nutrition": {
-          "energy_kcal": number,
-          "fat_g": number,
-          "saturated_fat_g": number,
-          "carbs_g": number,
-          "sugars_g": number,
-          "fiber_g": number,
-          "protein_g": number,
-          "sodium_mg": number,
-          "serving_size_g": number
-        },
-        "ingredients": [
-          { "name_ar": "string", "name_en": "string", "e_number": "string" }
-        ]
+        // If it's a standard error that isn't Quota Exceeded, we could optionally break or continue.
+        // Continuing for robustness in fallback.
+        this.logger.warn(
+          `Provider ${provider.name} failed. Error: ${error.message}. Trying next provider...`,
+        );
+        continue;
       }
-    `;
-
-    try {
-      const result = await this.model.generateContent(prompt);
-      const responseText = result.response.text();
-      return JSON.parse(responseText) as StructuredLabelDto;
-    } catch (error) {
-      console.error('Gemini structuring failed:', error);
-      throw new Error(`Failed to structure label data: ${error.message}`);
     }
+
+    this.logger.error('All LLM structuring providers failed.');
+    throw (
+      lastError ||
+      new Error('All LLM providers failed to structure label data.')
+    );
   }
 }

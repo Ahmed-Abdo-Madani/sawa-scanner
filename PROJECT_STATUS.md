@@ -306,7 +306,22 @@ Sawa Scanner is a bilingual (AR/EN) product scanning system designed for the Sau
     - Added `warn` level visibility for districts with zero branches.
     - Hardened `Merchant` entity with non-nullable `name_en` column.
 
-### Phase 33: Database Query & Scraper Logic Optimization (Completed ✅)
+### Phase 37: Scanner Pipeline Hardening & Dynamic OCR Fallback (Completed ✅)
+- [x] **Dynamic OCR Strategy**: 
+    - Implemented a multi-tier OCR pipeline: **Local Tesseract (Primary)** -> **Google Vision (Fallback)**.
+    - Integrated `tesseract.js`-compatible backend processing with pre-fetched `.traineddata` files.
+    - Multi-pass PSM scoring: Optimized extraction for both block-text (PSM 3) and sparse-text (PSM 11) nutritional tables.
+- [x] **LLM Infrastructure Hardening**:
+    - **Dual-Provider Failover**: Integrated **Vertex AI** as the primary structuring engine with **Google AI (Gemini API)** as a high-availability fallback.
+    - Environment-driven model selection (`LLM_PROVIDER`, `VERTEX_PROJECT_ID`, etc.).
+    - Implemented specialized error handling for Vertex quota limits (HTTP 429) and transient network failures.
+- [x] **Partial Scan Resilience**:
+    - **Degraded State Response**: The backend now returns partial results via `PartialScanException` if OCR succeeds but LLM structuring falls below confidence thresholds.
+    - **Client-Side Awareness**: Flutter app now displays a **Partial Scan Sheet** with raw extracted text when structured data is unavailable, providing immediate user feedback.
+- [x] **OCR Quality Guard**: Enhanced `LabelCoreService` with strict engine mode configuration and heuristic validation to minimize unnecessary API costs.
+- [x] **Resource Management**: Automated Tesseract data downloading script and git-ignored binary data files.
+
+### Phase 38: Ingestion Reliability & Architecture Hardening (In Progress 🚧)
 - [x] **N+1 Query Resolution**:
     - Refactored `PriceScrapingProcessor` to use `getRawMany()` for a single joined query, eliminating per-product price lookups.
     - Optimized `ProductImage` upserts in `IngestionProcessor` by pre-fetching all existing images for a product, reducing database roundtrips.

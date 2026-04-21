@@ -74,14 +74,54 @@ const NUTRITION_FIELDS: {
   label_ar: string;
   lower_is_better: boolean;
 }[] = [
-  { field: 'energy_kcal',     label_en: 'Calories',       label_ar: 'السعرات',         lower_is_better: true },
-  { field: 'fat_g',           label_en: 'Fat',            label_ar: 'الدهون',           lower_is_better: true },
-  { field: 'saturated_fat_g', label_en: 'Saturated Fat',  label_ar: 'الدهون المشبعة',   lower_is_better: true },
-  { field: 'carbs_g',         label_en: 'Carbohydrates',  label_ar: 'الكربوهيدرات',     lower_is_better: true },
-  { field: 'sugars_g',        label_en: 'Sugars',         label_ar: 'السكريات',         lower_is_better: true },
-  { field: 'fiber_g',         label_en: 'Fiber',          label_ar: 'الألياف',           lower_is_better: false },
-  { field: 'protein_g',       label_en: 'Protein',        label_ar: 'البروتين',         lower_is_better: false },
-  { field: 'sodium_mg',       label_en: 'Sodium',         label_ar: 'الصوديوم',         lower_is_better: true },
+  {
+    field: 'energy_kcal',
+    label_en: 'Calories',
+    label_ar: 'السعرات',
+    lower_is_better: true,
+  },
+  {
+    field: 'fat_g',
+    label_en: 'Fat',
+    label_ar: 'الدهون',
+    lower_is_better: true,
+  },
+  {
+    field: 'saturated_fat_g',
+    label_en: 'Saturated Fat',
+    label_ar: 'الدهون المشبعة',
+    lower_is_better: true,
+  },
+  {
+    field: 'carbs_g',
+    label_en: 'Carbohydrates',
+    label_ar: 'الكربوهيدرات',
+    lower_is_better: true,
+  },
+  {
+    field: 'sugars_g',
+    label_en: 'Sugars',
+    label_ar: 'السكريات',
+    lower_is_better: true,
+  },
+  {
+    field: 'fiber_g',
+    label_en: 'Fiber',
+    label_ar: 'الألياف',
+    lower_is_better: false,
+  },
+  {
+    field: 'protein_g',
+    label_en: 'Protein',
+    label_ar: 'البروتين',
+    lower_is_better: false,
+  },
+  {
+    field: 'sodium_mg',
+    label_en: 'Sodium',
+    label_ar: 'الصوديوم',
+    lower_is_better: true,
+  },
 ];
 
 // ─── Weighted scoring constants ──────────────────────────────────────────────
@@ -260,17 +300,15 @@ export class ComparisonService {
     // Price rank: normalize to 0–1 (lower=better)
     let priceRankA = 0.5;
     let priceRankB = 0.5;
-    if (priceA != null && priceB != null && (priceA + priceB) > 0) {
+    if (priceA != null && priceB != null && priceA + priceB > 0) {
       const total = priceA + priceB;
       priceRankA = priceA / total; // lower fraction = better
       priceRankB = priceB / total;
     }
 
     // Combined score (lower = better)
-    const scoreA =
-      NUTRI_WEIGHT * (nutriRankA / 5) + PRICE_WEIGHT * priceRankA;
-    const scoreB =
-      NUTRI_WEIGHT * (nutriRankB / 5) + PRICE_WEIGHT * priceRankB;
+    const scoreA = NUTRI_WEIGHT * (nutriRankA / 5) + PRICE_WEIGHT * priceRankA;
+    const scoreB = NUTRI_WEIGHT * (nutriRankB / 5) + PRICE_WEIGHT * priceRankB;
 
     const roundedA = Math.round(scoreA * 100) / 100;
     const roundedB = Math.round(scoreB * 100) / 100;
@@ -281,7 +319,8 @@ export class ComparisonService {
 
     if (Math.abs(roundedA - roundedB) < 0.02) {
       winner = 'tie';
-      reasonEn = 'Both products are very similar in nutritional quality and price.';
+      reasonEn =
+        'Both products are very similar in nutritional quality and price.';
       reasonAr = 'كلا المنتجين متقاربان جداً في القيمة الغذائية والسعر.';
     } else if (roundedA < roundedB) {
       winner = 'a';

@@ -43,7 +43,10 @@ import { Merchant } from '../entities/merchant.entity';
 import { NutritionFact } from '../entities/nutrition-fact.entity';
 import { Ingredient } from '../entities/ingredient.entity';
 import { ProductAllergen } from '../entities/product-allergen.entity';
-import { detectAllergensFromText, getAllergenByKey } from './constants/sfda-allergens';
+import {
+  detectAllergensFromText,
+  getAllergenByKey,
+} from './constants/sfda-allergens';
 
 const INGESTION_WORKER_CONCURRENCY = Number.parseInt(
   process.env.INGESTION_WORKER_CONCURRENCY ?? '2',
@@ -59,7 +62,7 @@ const HS_DAILY_STAGGER_MS = Number.parseInt(
   // GLOBAL queue concurrency (all platforms), kept low by default for HungerStation Cloudflare friendliness
   concurrency:
     Number.isFinite(INGESTION_WORKER_CONCURRENCY) &&
-      INGESTION_WORKER_CONCURRENCY > 0
+    INGESTION_WORKER_CONCURRENCY > 0
       ? INGESTION_WORKER_CONCURRENCY
       : 2,
 })
@@ -510,11 +513,12 @@ export class IngestionProcessor extends WorkerHost {
       throw err;
     }
     const branch = {
-      platform_branch_id: store.platform_branch_id || store.platform_branch_uuid,
+      platform_branch_id:
+        store.platform_branch_id || store.platform_branch_uuid,
       platform_branch_uuid: store.platform_branch_uuid,
       merchant_name_en: store.merchant?.name_en || '',
       merchant_name_ar: store.merchant?.name_ar || undefined,
-      vertical: (store.vertical as any) || 'other',
+      vertical: store.vertical || 'other',
       lat: store.lat ?? undefined,
       lng: store.lng ?? undefined,
       source_url: store.source_url || '',
@@ -637,10 +641,14 @@ export class IngestionProcessor extends WorkerHost {
         }
       }
 
-      this.logger.log(`[HS] products-for-store storeId=${storeId} finished: categoriesProcessed=${categoriesProcessed}, productsProcessed=${productsProcessed}`);
+      this.logger.log(
+        `[HS] products-for-store storeId=${storeId} finished: categoriesProcessed=${categoriesProcessed}, productsProcessed=${productsProcessed}`,
+      );
       return { categoriesProcessed, categoriesFailed, productsProcessed };
     } catch (err) {
-      this.logger.error(`[HS] products-for-store storeId=${storeId} CRITICAL failure: ${err.message}`);
+      this.logger.error(
+        `[HS] products-for-store storeId=${storeId} CRITICAL failure: ${err.message}`,
+      );
       throw err;
     } finally {
       await scraper.close();
@@ -786,8 +794,12 @@ export class IngestionProcessor extends WorkerHost {
 
     // Fallback 1: OpenFoodFacts via Text Search
     if (!structuredLabel && data.name) {
-      this.logger.debug(`Attempting Free OpenFoodFacts Name Lookup for: ${data.name}`);
-      const offMatch = await this.openFoodFactsService.searchProductByName(data.name);
+      this.logger.debug(
+        `Attempting Free OpenFoodFacts Name Lookup for: ${data.name}`,
+      );
+      const offMatch = await this.openFoodFactsService.searchProductByName(
+        data.name,
+      );
       if (offMatch.label) {
         structuredLabel = offMatch.label;
         offAllergens = offMatch.allergens;
@@ -796,14 +808,21 @@ export class IngestionProcessor extends WorkerHost {
     }
 
     // Fallback 2: Fallback to structured items using scraped tags directly
-    if (!structuredLabel && ((data.ingredient_tags?.length ?? 0) > 0 || (data.allergen_tags?.length ?? 0) > 0)) {
-       structuredLabel = {
-         name_ar: data.name_ar || '',
-         name_en: data.name || '',
-         brand: data.brand || '',
-         nutrition: {} as any,
-         ingredients: (data.ingredient_tags || []).map(t => ({ name_en: t, name_ar: '' }))
-       };
+    if (
+      !structuredLabel &&
+      ((data.ingredient_tags?.length ?? 0) > 0 ||
+        (data.allergen_tags?.length ?? 0) > 0)
+    ) {
+      structuredLabel = {
+        name_ar: data.name_ar || '',
+        name_en: data.name || '',
+        brand: data.brand || '',
+        nutrition: {} as any,
+        ingredients: (data.ingredient_tags || []).map((t) => ({
+          name_en: t,
+          name_ar: '',
+        })),
+      };
     }
 
     // 2. Find or Create Product (Robust Fallback Identity)
@@ -849,9 +868,14 @@ export class IngestionProcessor extends WorkerHost {
     // Set canonical image URLs from scraped data
     if (data.imageUrls.length > 0 && !product.image_front_url) {
       const frontIdx = data.imageTypes?.indexOf('front') ?? -1;
-      product.image_front_url = frontIdx >= 0 ? data.imageUrls[frontIdx] : data.imageUrls[0];
+      product.image_front_url =
+        frontIdx >= 0 ? data.imageUrls[frontIdx] : data.imageUrls[0];
     }
-    if (data.imageTypes && data.imageUrls.length > 0 && !product.image_nutrition_url) {
+    if (
+      data.imageTypes &&
+      data.imageUrls.length > 0 &&
+      !product.image_nutrition_url
+    ) {
       const nutritionIdx = data.imageTypes.indexOf('nutrition');
       if (nutritionIdx >= 0) {
         product.image_nutrition_url = data.imageUrls[nutritionIdx];
@@ -859,7 +883,11 @@ export class IngestionProcessor extends WorkerHost {
     }
 
     // Compute unit price if weight is known
-    const computedUnitPrice = this.computeUnitPrice(data.price, product.net_weight_value, product.net_unit);
+    const computedUnitPrice = this.computeUnitPrice(
+      data.price,
+      product.net_weight_value,
+      product.net_unit,
+    );
 
     // 4. Database Updates in Transaction
     await this.dataSource.transaction(async (manager) => {
@@ -1002,7 +1030,10 @@ export class IngestionProcessor extends WorkerHost {
           merchant_id: merchant.id,
           store_id: storeId ?? undefined,
           price_sar_incl_vat: data.price,
-          promo_price_sar: (data.promo_price && data.promo_price > 0) ? data.promo_price : undefined,
+          promo_price_sar:
+            data.promo_price && data.promo_price > 0
+              ? data.promo_price
+              : undefined,
           unit_price_sar: computedUnitPrice?.value ?? undefined,
           unit_price_unit: computedUnitPrice?.unit ?? undefined,
           currency: 'SAR',
@@ -1076,7 +1107,10 @@ export class IngestionProcessor extends WorkerHost {
     if (unit === 'g' || unit === 'kg') {
       const weightInKg = unit === 'g' ? weightValue / 1000 : weightValue;
       if (weightInKg <= 0) return null;
-      return { value: Math.round((price / weightInKg) * 100) / 100, unit: 'kg' };
+      return {
+        value: Math.round((price / weightInKg) * 100) / 100,
+        unit: 'kg',
+      };
     }
     if (unit === 'ml' || unit === 'l') {
       const volumeInL = unit === 'ml' ? weightValue / 1000 : weightValue;

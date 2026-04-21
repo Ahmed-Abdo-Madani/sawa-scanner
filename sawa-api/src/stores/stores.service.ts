@@ -31,7 +31,7 @@ export class StoresService {
     private readonly storeRepo: Repository<Store>,
     @InjectRepository(Merchant)
     private readonly merchantRepo: Repository<Merchant>,
-  ) { }
+  ) {}
 
   async upsertByPlatformUuid(dto: UpsertStoreDto): Promise<Store> {
     // 1. Look up the existing store first so we can detect merchant corrections
@@ -52,19 +52,28 @@ export class StoresService {
       merchant = this.merchantRepo.create({
         name_en: dto.merchant_name_en,
         name_ar: dto.merchant_name_ar,
-        base_url: dto.platform === 'hungerstation' ? 'https://hungerstation.com' : undefined,
+        base_url:
+          dto.platform === 'hungerstation'
+            ? 'https://hungerstation.com'
+            : undefined,
         data_source_type: 'scrape',
       });
       merchant = await this.merchantRepo.save(merchant);
-      this.logger.log(`Created NEW merchant: "${merchant.name_en}" (id=${merchant.id})`);
+      this.logger.log(
+        `Created NEW merchant: "${merchant.name_en}" (id=${merchant.id})`,
+      );
     }
 
     // 3. Log merchant correction if the store already had a different merchant
     if (existing && existing.merchant_id !== merchant.id) {
-       this.logger.log(`Correcting merchant for store ${dto.platform_branch_uuid}: ${existing.merchant_id} -> ${merchant.id} (${merchant.name_en})`);
+      this.logger.log(
+        `Correcting merchant for store ${dto.platform_branch_uuid}: ${existing.merchant_id} -> ${merchant.id} (${merchant.name_en})`,
+      );
     }
 
-    this.logger.log(`Upserting store ${dto.platform_branch_uuid} for merchant "${merchant.name_en}"`);
+    this.logger.log(
+      `Upserting store ${dto.platform_branch_uuid} for merchant "${merchant.name_en}"`,
+    );
 
     if (existing) {
       Object.assign(existing, {

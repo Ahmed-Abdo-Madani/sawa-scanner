@@ -8,7 +8,7 @@
  */
 export function diceCoefficient(str1: string, str2: string): number {
   if (!str1 || !str2) return 0;
-  
+
   // Normalize strings
   const s1 = str1.toLowerCase().trim().replace(/\s+/g, ' ');
   const s2 = str2.toLowerCase().trim().replace(/\s+/g, ' ');
@@ -46,9 +46,13 @@ export function diceCoefficient(str1: string, str2: string): number {
  * Example: "500ml" -> { value: 500, unit: "g" }
  * Example: "1.5 kg" -> { value: 1500, unit: "g" }
  */
-export function normalizeWeightToGrams(weightStr: string | null | undefined): number | null {
+export function normalizeWeightToGrams(
+  weightStr: string | null | undefined,
+): number | null {
   if (!weightStr) return null;
-  const match = weightStr.toLowerCase().match(/([\d.]+)\s*(g|kg|ml|l|liter|liters|mg)/);
+  const match = weightStr
+    .toLowerCase()
+    .match(/([\d.]+)\s*(g|kg|ml|l|liter|liters|mg)/);
   if (!match) return null;
 
   const value = parseFloat(match[1]);
@@ -78,7 +82,7 @@ export function doWeightsMatchStrictly(
   dbUnit: string | null,
   ocrWeightRaw: string | null,
 ): boolean {
-  // If OCR failed to extract a weight, we cannot strictly check it. 
+  // If OCR failed to extract a weight, we cannot strictly check it.
   // Should we reject? Based on the strict rule, yes, if both are missing we can accept, but if one has it and the other doesn't, we should handle carefully.
   // Actually, let's just parse both to grams.
   const ocrGrams = normalizeWeightToGrams(ocrWeightRaw);
@@ -88,6 +92,6 @@ export function doWeightsMatchStrictly(
   if (ocrGrams === null || dbGrams === null) return false; // One unknown -> Strict reject (avoid 1L matching 2L)
 
   // Allow a 10% tolerance for rounding issues (e.g. 330ml vs 350ml in some listings)
-  const margin = dbGrams * 0.10; 
+  const margin = dbGrams * 0.1;
   return Math.abs(ocrGrams - dbGrams) <= margin;
 }
