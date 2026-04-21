@@ -823,7 +823,7 @@ class _ScannedProductCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 16),
                 if (product.nutriScoreGrade != null)
-                  NutriScoreBadge(score: product.nutriScoreGrade!),
+                  NutriScoreBadge(grade: product.nutriScoreGrade!, isMini: true),
               ],
             ),
           ),
