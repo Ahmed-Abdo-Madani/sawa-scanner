@@ -258,5 +258,8 @@
   "unknown": "غير معروف",
   "scanPartialTitle": "مسح جزئي",
   "extractedText": "النص المستخرج:",
-  "close": "إغلاق"
+  "close": "إغلاق",
+  "recognizingWithAi": "جاري التعرف على المنتج محلياً...",
+  "recognizedByAiBadge": "تم التعرف عبر الذكاء الاصطناعي",
+  "aiRecognitionFailed": "تعذر التعرف على المنتج. حاول مرة أخرى."
 }

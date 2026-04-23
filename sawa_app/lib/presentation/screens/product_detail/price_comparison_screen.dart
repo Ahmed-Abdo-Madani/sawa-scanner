@@ -97,7 +97,11 @@ class PriceComparisonScreen extends ConsumerWidget {
                 child: price.logoUrl != null 
                   ? ClipRRect(
                       borderRadius: BorderRadius.circular(12),
-                      child: Image.network(price.logoUrl!, fit: BoxFit.cover),
+                      child: Image.network(
+                        price.logoUrl!,
+                        fit: BoxFit.cover,
+                        cacheWidth: 150,
+                      ),
                     )
                   : const Icon(Icons.store, color: AppColors.onSurface),
               ),

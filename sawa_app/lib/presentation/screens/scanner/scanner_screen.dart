@@ -22,13 +22,18 @@ import '../../../core/exceptions.dart';
 
 class ScannerScreen extends ConsumerStatefulWidget {
   final bool showBackButton;
-  const ScannerScreen({super.key, this.showBackButton = true});
+  final bool isActive;
+  const ScannerScreen({
+    super.key,
+    this.showBackButton = true,
+    this.isActive = true,
+  });
 
   @override
   ConsumerState<ScannerScreen> createState() => _ScannerScreenState();
 }
 
-class _ScannerScreenState extends ConsumerState<ScannerScreen> {
+class _ScannerScreenState extends ConsumerState<ScannerScreen> with WidgetsBindingObserver {
   final MobileScannerController _cameraController = MobileScannerController();
   final PageController _pageController = PageController();
   final List<Product> _scannedProducts = [];
@@ -38,12 +43,41 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     // Barcode mode is now the primary mode
     Future.microtask(() => ref.read(scannerModeProvider.notifier).state = ScannerMode.barcode);
+    
+    if (widget.isActive) {
+      _cameraController.start();
+    }
+  }
+
+  @override
+  void didUpdateWidget(ScannerScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.isActive != oldWidget.isActive) {
+      if (widget.isActive) {
+        _cameraController.start();
+      } else {
+        _cameraController.stop();
+      }
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (!widget.isActive) return;
+
+    if (state == AppLifecycleState.inactive || state == AppLifecycleState.paused) {
+      _cameraController.stop();
+    } else if (state == AppLifecycleState.resumed) {
+      _cameraController.start();
+    }
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _cameraController.dispose();
     _pageController.dispose();
     super.dispose();
@@ -135,6 +169,9 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
 
       if (!mounted) return;
 
+      // Stop camera before navigation to save resources and avoid surface churn
+      _cameraController.stop();
+
       Navigator.of(context).push(
         MaterialPageRoute(
           builder: (context) => ProductDetailScreen(
@@ -147,12 +184,19 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
       ).then((_) {
         if (mounted) {
           setState(() => _isProcessing = false);
+          // Resume camera if tab is still active
+          if (widget.isActive) {
+            _cameraController.start();
+          }
         }
       });
     } catch (e) {
       // Fallback navigation if pre-fetch fails (detail screen will show error)
       if (!mounted) return;
       
+      // Stop camera before navigation to save resources and avoid surface churn
+      _cameraController.stop();
+
       Navigator.of(context).push(
         MaterialPageRoute(
           builder: (context) => ProductDetailScreen(gtin: gtin),
@@ -160,6 +204,10 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
       ).then((_) {
         if (mounted) {
           setState(() => _isProcessing = false);
+          // Resume camera if tab is still active
+          if (widget.isActive) {
+            _cameraController.start();
+          }
         }
       });
     }
@@ -173,9 +221,6 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
   }) {
     setState(() => _isProcessing = true);
     final locale = Localizations.localeOf(context);
-
-    // Cache the scan-label result so it is available offline from history.
-    ref.read(productLocalDataSourceProvider).cacheProduct(product).ignore();
 
     // Record to history if requested.
     if (recordHistoryNow) {
@@ -191,6 +236,9 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
             ),
           );
     }
+
+    // Stop camera before navigation to save resources and avoid surface churn
+    _cameraController.stop();
 
     Navigator.of(context)
         .push(
@@ -209,6 +257,10 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
         if (resetLabelScan) {
           ref.read(labelScanProvider.notifier).reset();
         }
+        // Resume camera if tab is still active
+        if (widget.isActive) {
+          _cameraController.start();
+        }
       }
     });
   }
@@ -224,6 +276,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
     final XFile? photo = await picker.pickImage(
       source: ImageSource.camera,
       imageQuality: 85,
+      maxWidth: 1280,
     );
 
     if (photo != null) {
@@ -234,9 +287,39 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final mode = ref.watch(scannerModeProvider);
     final l10n = AppLocalizations.of(context)!;
     final locale = Localizations.localeOf(context);
+    final mode = ref.watch(scannerModeProvider);
+
+    // Handle Label Scan Success/Error via listener to avoid build-time navigation
+    ref.listen<AsyncValue<Product?>>(labelScanProvider, (previous, next) {
+      next.whenOrNull(
+        data: (product) {
+          if (product != null) {
+            _navigateToDetailWithProduct(product);
+          }
+        },
+        error: (error, stack) {
+          if (error is PartialScanException) {
+            showModalBottomSheet(
+              context: context,
+              builder: (context) => _PartialScanSheet(error: error),
+              isScrollControlled: true,
+              backgroundColor: Colors.transparent,
+            );
+          } else if (error is AiRecognitionException) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text(l10n.aiRecognitionFailed)),
+            );
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text(error.toString())),
+            );
+          }
+          ref.read(labelScanProvider.notifier).reset();
+        },
+      );
+    });
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -252,13 +335,26 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
                   // Black background for camera area (clipped)
                   Positioned.fill(child: Container(color: Colors.black)),
                   // Camera Preview or placeholder
-                  if (mode != ScannerMode.manual)
+                  // Only mount MobileScanner if the tab is active AND we are in barcode mode.
+                  // Label mode uses a separate ImagePicker camera, so no live preview is needed here.
+                  if (widget.isActive && mode == ScannerMode.barcode)
                     MobileScanner(
                       controller: _cameraController,
                       onDetect: _onDetect,
                     )
                   else
-                    Container(color: Colors.black),
+                    Container(
+                      color: Colors.black,
+                      child: Center(
+                        child: Icon(
+                          mode == ScannerMode.label
+                              ? Icons.add_a_photo_outlined
+                              : Icons.barcode_reader,
+                          size: 64,
+                          color: Colors.white12,
+                        ),
+                      ),
+                    ),
 
                   // Top Bar Overlay (Mode Pills)
                   Positioned(
@@ -438,19 +534,11 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
 
                   // Analysis Overlay (Consumer)
                   Consumer(
-                    builder: (context, ref, child) {
+                    builder: (context, ref, _) {
                       final labelScan = ref.watch(labelScanProvider);
                       
-                      return labelScan.when(
-                        data: (product) {
-                          if (product != null) {
-                            WidgetsBinding.instance.addPostFrameCallback((_) {
-                              _navigateToDetailWithProduct(product);
-                            });
-                          }
-                          return const SizedBox.shrink();
-                        },
-                        loading: () => Container(
+                      if (labelScan.isLoading) {
+                        return Container(
                           color: Colors.black54,
                           child: Center(
                             child: SurfaceCard(
@@ -471,26 +559,10 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
                               ),
                             ),
                           ),
-                        ),
-                        error: (error, _) {
-                          WidgetsBinding.instance.addPostFrameCallback((_) {
-                            if (error is PartialScanException) {
-                              showModalBottomSheet(
-                                context: context,
-                                builder: (context) => _PartialScanSheet(error: error),
-                                isScrollControlled: true,
-                                backgroundColor: Colors.transparent,
-                              );
-                            } else {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(content: Text(error.toString())),
-                              );
-                            }
-                            ref.read(labelScanProvider.notifier).reset();
-                          });
-                          return const SizedBox.shrink();
-                        },
-                      );
+                        );
+                      }
+                      
+                      return const SizedBox.shrink();
                     },
                   ),
 
@@ -801,7 +873,11 @@ class _ScannedProductCard extends StatelessWidget {
                   child: Padding(
                     padding: const EdgeInsets.all(12.0),
                     child: product.images.isNotEmpty
-                        ? Image.network(product.images.first.url, fit: BoxFit.contain)
+                        ? Image.network(
+                            product.images.first.url,
+                            fit: BoxFit.contain,
+                            cacheWidth: 300,
+                          )
                         : const Icon(Icons.inventory_2_outlined, size: 48, color: AppColors.onSurface),
                   ),
                 ),
@@ -821,6 +897,30 @@ class _ScannedProductCard extends StatelessWidget {
                   ),
                   textAlign: TextAlign.center,
                 ),
+                if (product.source == 'firebase_ai_vision' || product.source == 'firebase_ai_text') ...[
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.auto_awesome, size: 16, color: AppColors.primary),
+                        const SizedBox(width: 4),
+                        Text(
+                          AppLocalizations.of(context)!.recognizedByAiBadge,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: AppColors.primary,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 16),
                 if (product.nutriScoreGrade != null)
                   NutriScoreBadge(grade: product.nutriScoreGrade!, isMini: true),

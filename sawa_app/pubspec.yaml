@@ -1,10 +1,10 @@
 name: sawa_app
 description: "A new Flutter project."
-publish_to: 'none'
+publish_to: "none"
 version: 1.0.0+1
 
 environment:
-  sdk: '>=3.8.0 <4.0.0'
+  sdk: ">=3.8.0 <4.0.0"
 
 dependencies:
   flutter:
@@ -25,6 +25,8 @@ dependencies:
   openfoodfacts: ^3.30.2
   flutter_svg: ^2.0.10
   geolocator: ^13.0.2
+  firebase_core: ^4.4.0
+  firebase_ai: ^3.6.0
 
 dev_dependencies:
   flutter_test:
@@ -34,6 +36,6 @@ dev_dependencies:
 flutter:
   uses-material-design: true
   generate: true
-  
+
   assets:
     - assets/images/

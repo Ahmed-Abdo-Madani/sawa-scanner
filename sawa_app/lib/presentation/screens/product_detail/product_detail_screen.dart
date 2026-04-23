@@ -501,8 +501,11 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
             child: Padding(
               padding: const EdgeInsets.only(bottom: 120, top: 40),
               child: product.images.isNotEmpty
-                  ? Image.network(product.images.first.url,
-                      fit: BoxFit.contain)
+                  ? Image.network(
+                      product.images.first.url,
+                      fit: BoxFit.contain,
+                      cacheWidth: 800,
+                    )
                   : const Icon(Icons.inventory_2_outlined,
                       size: 100, color: AppColors.onSurface),
             ),
@@ -954,6 +957,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                                             width: 48,
                                             height: 48,
                                             fit: BoxFit.contain,
+                                            cacheWidth: 150,
                                             errorBuilder: (_, __, ___) =>
                                                 const Icon(
                                                     Icons.image_not_supported,

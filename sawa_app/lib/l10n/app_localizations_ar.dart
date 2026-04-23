@@ -673,4 +673,13 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get close => 'إغلاق';
+
+  @override
+  String get recognizingWithAi => 'جاري التعرف على المنتج محلياً...';
+
+  @override
+  String get recognizedByAiBadge => 'تم التعرف عبر الذكاء الاصطناعي';
+
+  @override
+  String get aiRecognitionFailed => 'تعذر التعرف على المنتج. حاول مرة أخرى.';
 }

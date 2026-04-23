@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
@@ -5,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../core/api_config.dart';
 import '../../core/exceptions.dart';
 import '../models/product_model.dart';
+import 'firebase_ai_data_source.dart';
 
 class ProductRemoteDataSource {
   final http.Client client;
@@ -22,7 +24,7 @@ class ProductRemoteDataSource {
       final response = await client.get(
         Uri.parse('$baseUrl/products/$gtin'),
         headers: {'Content-Type': 'application/json'},
-      );
+      ).timeout(const Duration(seconds: 10));
 
       if (response.statusCode == 200) {
         return ProductModel.fromJson(json.decode(response.body));
@@ -31,8 +33,10 @@ class ProductRemoteDataSource {
       } else {
         throw ServerException('Failed to fetch product: ${response.statusCode}');
       }
+    } on TimeoutException {
+      throw NetworkTimeoutException('Connection timed out. Please check your internet.');
     } catch (e) {
-      if (e is ProductNotFoundException || e is ServerException) rethrow;
+      if (e is ProductNotFoundException || e is ServerException || e is NetworkTimeoutException) rethrow;
       throw ServerException(e.toString());
     }
   }
@@ -48,7 +52,7 @@ class ProductRemoteDataSource {
           'image': base64Image,
           if (gtin != null) 'gtin': gtin,
         }),
-      );
+      ).timeout(const Duration(seconds: 20)); // Scanning might take longer due to OCR/AI processing
 
       if (response.statusCode == 201 || response.statusCode == 200) {
         return ProductModel.fromJson(json.decode(response.body));
@@ -77,8 +81,10 @@ class ProductRemoteDataSource {
           throw ServerException('Failed to scan label: $message');
         }
       }
+    } on TimeoutException {
+      throw NetworkTimeoutException('Connection timed out. Please check your internet.');
     } catch (e) {
-      if (e is ServerException) rethrow;
+      if (e is PartialScanException || e is ServerException || e is NetworkTimeoutException) rethrow;
       throw ServerException(e.toString());
     }
   }
@@ -90,7 +96,7 @@ class ProductRemoteDataSource {
       final response = await client.get(
         Uri.parse('$baseUrl/products/$gtin/prices'),
         headers: {'Content-Type': 'application/json'},
-      );
+      ).timeout(const Duration(seconds: 10));
 
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);
@@ -98,8 +104,10 @@ class ProductRemoteDataSource {
       } else {
         throw ServerException('Failed to fetch prices: ${response.statusCode}');
       }
+    } on TimeoutException {
+      throw NetworkTimeoutException('Connection timed out. Please check your internet.');
     } catch (e) {
-      if (e is ServerException) rethrow;
+      if (e is ServerException || e is NetworkTimeoutException) rethrow;
       throw ServerException(e.toString());
     }
   }
@@ -111,7 +119,7 @@ class ProductRemoteDataSource {
       final response = await client.get(
         Uri.parse('$baseUrl/products/$gtin/prices/history'),
         headers: {'Content-Type': 'application/json'},
-      );
+      ).timeout(const Duration(seconds: 10));
 
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);
@@ -119,8 +127,10 @@ class ProductRemoteDataSource {
       } else {
         throw ServerException('Failed to fetch price history: ${response.statusCode}');
       }
+    } on TimeoutException {
+      throw NetworkTimeoutException('Connection timed out. Please check your internet.');
     } catch (e) {
-      if (e is ServerException) rethrow;
+      if (e is ServerException || e is NetworkTimeoutException) rethrow;
       throw ServerException(e.toString());
     }
   }
@@ -154,7 +164,7 @@ class ProductRemoteDataSource {
         );
       }
 
-      final streamed = await request.send();
+      final streamed = await request.send().timeout(const Duration(seconds: 20));
       final response = await http.Response.fromStream(streamed);
 
       if (response.statusCode == 200 || response.statusCode == 201) {
@@ -164,8 +174,10 @@ class ProductRemoteDataSource {
       } else {
         throw ServerException('Failed to upload images: ${response.statusCode}');
       }
+    } on TimeoutException {
+      throw NetworkTimeoutException('Connection timed out. Please check your internet.');
     } catch (e) {
-      if (e is ServerException) rethrow;
+      if (e is ServerException || e is NetworkTimeoutException) rethrow;
       throw ServerException(e.toString());
     }
   }
@@ -194,15 +206,17 @@ class ProductRemoteDataSource {
         Uri.parse('$baseUrl/products/$gtin/reports'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode(body),
-      );
+      ).timeout(const Duration(seconds: 10));
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         return true;
       } else {
         throw ServerException('Failed to submit report: ${response.statusCode}');
       }
+    } on TimeoutException {
+      throw NetworkTimeoutException('Connection timed out. Please check your internet.');
     } catch (e) {
-      if (e is ServerException) rethrow;
+      if (e is ServerException || e is NetworkTimeoutException) rethrow;
       throw ServerException(e.toString());
     }
   }
@@ -226,7 +240,7 @@ class ProductRemoteDataSource {
       final response = await client.get(
         uri,
         headers: {'Content-Type': 'application/json'},
-      );
+      ).timeout(const Duration(seconds: 10));
 
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);
@@ -237,8 +251,10 @@ class ProductRemoteDataSource {
         throw ServerException(
             'Failed to fetch store prices: ${response.statusCode}');
       }
+    } on TimeoutException {
+      throw NetworkTimeoutException('Connection timed out. Please check your internet.');
     } catch (e) {
-      if (e is ServerException) rethrow;
+      if (e is ServerException || e is NetworkTimeoutException) rethrow;
       throw ServerException(e.toString());
     }
   }
@@ -261,7 +277,7 @@ class ProductRemoteDataSource {
       final response = await client.get(
         uri,
         headers: {'Content-Type': 'application/json'},
-      );
+      ).timeout(const Duration(seconds: 10));
 
       if (response.statusCode == 200) {
         return json.decode(response.body) as Map<String, dynamic>;
@@ -271,8 +287,10 @@ class ProductRemoteDataSource {
         throw ServerException(
             'Failed to fetch nutrition: ${response.statusCode}');
       }
+    } on TimeoutException {
+      throw NetworkTimeoutException('Connection timed out. Please check your internet.');
     } catch (e) {
-      if (e is ServerException) rethrow;
+      if (e is ProductNotFoundException || e is ServerException || e is NetworkTimeoutException) rethrow;
       throw ServerException(e.toString());
     }
   }
@@ -290,7 +308,7 @@ class ProductRemoteDataSource {
       final response = await client.get(
         uri,
         headers: {'Content-Type': 'application/json'},
-      );
+      ).timeout(const Duration(seconds: 10));
 
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);
@@ -301,8 +319,10 @@ class ProductRemoteDataSource {
         throw ServerException(
             'Failed to fetch similar products: ${response.statusCode}');
       }
+    } on TimeoutException {
+      throw NetworkTimeoutException('Connection timed out. Please check your internet.');
     } catch (e) {
-      if (e is ServerException) rethrow;
+      if (e is ServerException || e is NetworkTimeoutException) rethrow;
       throw ServerException(e.toString());
     }
   }
@@ -321,7 +341,7 @@ class ProductRemoteDataSource {
       final response = await client.get(
         uri,
         headers: {'Content-Type': 'application/json'},
-      );
+      ).timeout(const Duration(seconds: 10));
 
       if (response.statusCode == 200) {
         return json.decode(response.body) as Map<String, dynamic>;
@@ -331,8 +351,10 @@ class ProductRemoteDataSource {
         throw ServerException(
             'Failed to fetch comparison: ${response.statusCode}');
       }
+    } on TimeoutException {
+      throw NetworkTimeoutException('Connection timed out. Please check your internet.');
     } catch (e) {
-      if (e is ServerException) rethrow;
+      if (e is ProductNotFoundException || e is ServerException || e is NetworkTimeoutException) rethrow;
       throw ServerException(e.toString());
     }
   }

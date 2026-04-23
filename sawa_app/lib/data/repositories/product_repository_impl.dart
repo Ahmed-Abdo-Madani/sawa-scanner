@@ -1,3 +1,4 @@
+import 'dart:convert';
 import '../../domain/entities/product.dart';
 import '../../domain/entities/price_info.dart';
 import '../../domain/repositories/product_repository.dart';
@@ -5,6 +6,7 @@ import '../../core/exceptions.dart';
 import '../datasources/product_remote_data_source.dart';
 import '../datasources/openfoodfacts_data_source.dart';
 import '../datasources/product_local_data_source.dart';
+import '../datasources/firebase_ai_data_source.dart';
 import '../models/product_model.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -12,6 +14,7 @@ class ProductRepositoryImpl implements ProductRepository {
   final ProductRemoteDataSource remoteDataSource;
   final OpenFoodFactsDataSource openFoodFactsDataSource;
   final ProductLocalDataSource localDataSource;
+  final FirebaseAiDataSource firebaseAiDataSource;
 
   static const Duration _cacheTtl = Duration(hours: 24);
 
@@ -19,6 +22,7 @@ class ProductRepositoryImpl implements ProductRepository {
     required this.remoteDataSource,
     required this.openFoodFactsDataSource,
     required this.localDataSource,
+    required this.firebaseAiDataSource,
   });
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -56,6 +60,10 @@ class ProductRepositoryImpl implements ProductRepository {
       return entity;
     } on ProductNotFoundException {
       sawaNotFound = true;
+    } on NetworkTimeoutException {
+      // Fast-fail: if we timeout, immediately check if we have a stale cache
+      if (cached != null) return cached;
+      sawaError = NetworkTimeoutException('Sawa service timed out');
     } catch (e) {
       // Record the primary failure (likely a BackendUnavailableException-equivalent)
       sawaError = e;
@@ -113,12 +121,60 @@ class ProductRepositoryImpl implements ProductRepository {
   }
 
   @override
-  Future<Product> scanLabel(String base64Image, {String? gtin}) async {
-    final product = await remoteDataSource.scanLabel(base64Image, gtin: gtin);
-    // Cache the scan result so it is available offline later.
-    final entity = _toEntity(product);
-    await localDataSource.cacheProduct(entity);
-    return entity;
+  Future<Product> scanLabel(List<int> imageBytes, {String? gtin}) async {
+    try {
+      final base64Image = base64Encode(imageBytes);
+      final product = await remoteDataSource.scanLabel(base64Image, gtin: gtin);
+      final entity = _toEntity(product);
+      if (!entity.id.startsWith('SCAN-')) {
+        await localDataSource.cacheProduct(entity);
+      }
+      return entity;
+    } on PartialScanException catch (e) {
+      if (e.rawOcrText != null && e.rawOcrText!.isNotEmpty) {
+        try {
+          final jsonResult = await firebaseAiDataSource.structureLabel(
+            e.rawOcrText!,
+            gtin: gtin,
+          );
+          final product = ProductModel.fromJson(jsonResult);
+          final entity = _toEntity(product);
+          if (!entity.id.startsWith('SCAN-')) {
+            await localDataSource.cacheProduct(entity);
+          }
+          return entity;
+        } catch (_) {
+          return await _fallbackToVision(imageBytes, gtin, originalError: e);
+        }
+      } else {
+        return await _fallbackToVision(imageBytes, gtin, originalError: e);
+      }
+    } on NetworkTimeoutException catch (e) {
+      return await _fallbackToVision(imageBytes, gtin, originalError: e);
+    } on BackendUnavailableException catch (e) {
+      return await _fallbackToVision(imageBytes, gtin, originalError: e);
+    } on ServerException catch (e) {
+      return await _fallbackToVision(imageBytes, gtin, originalError: e);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<Product> _fallbackToVision(List<int> imageBytes, String? gtin, {Exception? originalError}) async {
+    try {
+      final jsonResult = await firebaseAiDataSource.recognizeProductFromImage(imageBytes, gtin: gtin);
+      final product = ProductModel.fromJson(jsonResult);
+      final entity = _toEntity(product);
+      if (!entity.id.startsWith('SCAN-')) {
+        await localDataSource.cacheProduct(entity);
+      }
+      return entity;
+    } catch (_) {
+      if (originalError != null) {
+        throw originalError;
+      }
+      rethrow;
+    }
   }
 
   @override

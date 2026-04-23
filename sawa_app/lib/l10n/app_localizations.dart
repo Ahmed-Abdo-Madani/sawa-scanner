@@ -1339,6 +1339,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Close'**
   String get close;
+
+  /// No description provided for @recognizingWithAi.
+  ///
+  /// In en, this message translates to:
+  /// **'Recognizing product on-device...'**
+  String get recognizingWithAi;
+
+  /// No description provided for @recognizedByAiBadge.
+  ///
+  /// In en, this message translates to:
+  /// **'AI Recognized'**
+  String get recognizedByAiBadge;
+
+  /// No description provided for @aiRecognitionFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not recognize product. Please try again.'**
+  String get aiRecognitionFailed;
 }
 
 class _AppLocalizationsDelegate

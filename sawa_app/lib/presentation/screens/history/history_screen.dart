@@ -153,7 +153,11 @@ class _HistoryCard extends StatelessWidget {
               child: Padding(
                 padding: const EdgeInsets.all(8.0),
                 child: entry.imageUrl != null
-                    ? Image.network(entry.imageUrl!, fit: BoxFit.contain)
+                    ? Image.network(
+                        entry.imageUrl!,
+                        fit: BoxFit.contain,
+                        cacheWidth: 200,
+                      )
                     : const Icon(Icons.inventory_2_outlined, color: AppColors.onSurface),
               ),
             ),

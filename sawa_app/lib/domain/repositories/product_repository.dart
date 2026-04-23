@@ -4,7 +4,7 @@ import 'package:image_picker/image_picker.dart';
 
 abstract class ProductRepository {
   Future<Product> getProductByGtin(String gtin);
-  Future<Product> scanLabel(String base64Image, {String? gtin});
+  Future<Product> scanLabel(List<int> imageBytes, {String? gtin});
   Future<List<PriceInfo>> getLatestPrices(String gtin);
   Future<List<PriceInfo>> getPriceHistory(String gtin);
   Future<List<Product>> searchProducts(String query);

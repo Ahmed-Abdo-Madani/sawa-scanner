@@ -671,4 +671,14 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get close => 'Close';
+
+  @override
+  String get recognizingWithAi => 'Recognizing product on-device...';
+
+  @override
+  String get recognizedByAiBadge => 'AI Recognized';
+
+  @override
+  String get aiRecognitionFailed =>
+      'Could not recognize product. Please try again.';
 }

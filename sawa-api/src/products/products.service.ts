@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Product } from '../entities/product.entity';
+import { ProductPrice } from '../entities/product-price.entity';
 import { ProductReport } from '../entities/product-report.entity';
 
 @Injectable()
@@ -9,6 +10,8 @@ export class ProductsService {
   constructor(
     @InjectRepository(Product)
     private readonly productRepository: Repository<Product>,
+    @InjectRepository(ProductPrice)
+    private readonly productPriceRepository: Repository<ProductPrice>,
     @InjectRepository(ProductReport)
     private readonly productReportRepository: Repository<ProductReport>,
   ) {}
@@ -20,8 +23,6 @@ export class ProductsService {
         'nutritionFact',
         'ingredients',
         'allergens',
-        'prices',
-        'prices.merchant',
         'images',
       ],
     });
@@ -30,17 +31,20 @@ export class ProductsService {
       throw new NotFoundException(`Product with GTIN ${gtin} not found`);
     }
 
+    // Optimized: Only fetch the latest price per merchant for this product
+    // Uses PostgreSQL "DISTINCT ON" to avoid loading full history rows
+    product.prices = await this.productPriceRepository
+      .createQueryBuilder('pp')
+      .leftJoinAndSelect('pp.merchant', 'merchant')
+      .where('pp.product_id = :productId', { productId: product.id })
+      .distinctOn(['pp.merchant_id'])
+      .orderBy('pp.merchant_id')
+      .addOrderBy('pp.scraped_at', 'DESC')
+      .getMany();
+
+    // Secondary sort: lowest price first for the UI carousel
     if (product.prices && product.prices.length > 0) {
-      const latestPricesMap = new Map<string, (typeof product.prices)[0]>();
-      for (const p of product.prices) {
-        const existing = latestPricesMap.get(p.merchant_id);
-        if (!existing || p.scraped_at > existing.scraped_at) {
-          latestPricesMap.set(p.merchant_id, p);
-        }
-      }
-      product.prices = Array.from(latestPricesMap.values()).sort(
-        (a, b) => a.price_sar_incl_vat - b.price_sar_incl_vat,
-      );
+      product.prices.sort((a, b) => a.price_sar_incl_vat - b.price_sar_incl_vat);
     }
 
     return product;

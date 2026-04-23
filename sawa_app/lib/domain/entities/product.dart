@@ -48,6 +48,7 @@ class Product {
   final String? imageFrontUrl;
   final String? imageNutritionUrl;
   final bool nutritionDataComplete;
+  final String? source;
 
   const Product({
     required this.id,
@@ -80,6 +81,7 @@ class Product {
     this.imageFrontUrl,
     this.imageNutritionUrl,
     this.nutritionDataComplete = false,
+    this.source,
   });
 }
 

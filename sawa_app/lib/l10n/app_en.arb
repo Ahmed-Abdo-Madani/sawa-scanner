@@ -258,5 +258,8 @@
   "unknown": "Unknown",
   "scanPartialTitle": "Partial Scan",
   "extractedText": "Extracted Text:",
-  "close": "Close"
+  "close": "Close",
+  "recognizingWithAi": "Recognizing product on-device...",
+  "recognizedByAiBadge": "AI Recognized",
+  "aiRecognitionFailed": "Could not recognize product. Please try again."
 }

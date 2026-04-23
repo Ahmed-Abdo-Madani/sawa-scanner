@@ -147,6 +147,7 @@ class ComparisonScreen extends ConsumerWidget {
                     height: 80,
                     width: 80,
                     fit: BoxFit.contain,
+                    cacheWidth: 240,
                     errorBuilder: (_, __, ___) =>
                         const Icon(Icons.image_not_supported, size: 40),
                   ),

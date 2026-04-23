@@ -15,21 +15,21 @@ class NavigationShell extends ConsumerStatefulWidget {
 }
 
 class _NavigationShellState extends ConsumerState<NavigationShell> {
-  final List<Widget> _screens = [
-    const ScannerScreen(showBackButton: false),
-    const HistoryScreen(),
-    const ProfileScreen(),
-  ];
-
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final currentIndex = ref.watch(navigationProvider);
 
+    final List<Widget> screens = [
+      ScannerScreen(showBackButton: false, isActive: currentIndex == 0),
+      const HistoryScreen(),
+      const ProfileScreen(),
+    ];
+
     return Scaffold(
       body: IndexedStack(
         index: currentIndex,
-        children: _screens,
+        children: screens,
       ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: currentIndex,

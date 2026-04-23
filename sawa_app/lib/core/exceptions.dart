@@ -6,6 +6,14 @@ class ServerException implements Exception {
   String toString() => 'ServerException: $message';
 }
 
+class NetworkTimeoutException implements Exception {
+  final String message;
+  NetworkTimeoutException([this.message = 'Request timed out']);
+
+  @override
+  String toString() => 'NetworkTimeoutException: $message';
+}
+
 class ProductNotFoundException implements Exception {
   final String message;
   ProductNotFoundException([this.message = 'Product not found']);
@@ -65,4 +73,13 @@ class PartialScanException implements Exception {
 
   @override
   String toString() => 'PartialScanException: $message';
+}
+
+/// Thrown when AI recognition from image fails.
+class AiRecognitionException implements Exception {
+  final String message;
+  AiRecognitionException([this.message = 'AI recognition failed']);
+
+  @override
+  String toString() => 'AiRecognitionException: $message';
 }

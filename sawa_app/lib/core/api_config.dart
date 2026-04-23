@@ -10,6 +10,12 @@ class ApiConfig {
     // No default value here; forces explicit configuration for development
   );
 
+  /// AI model to use for client-side recognition.
+  static const String aiModel = String.fromEnvironment(
+    'AI_MODEL',
+    defaultValue: 'gemini-2.5-flash',
+  );
+
   /// Validates that the API base URL is non-empty.
   /// Throws [ApiConfigurationException] if validation fails.
   static void validate() {

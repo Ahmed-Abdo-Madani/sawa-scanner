@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/entities/product.dart';
 import './product_provider.dart';
@@ -21,9 +20,8 @@ class LabelScanNotifier extends StateNotifier<AsyncValue<Product?>> {
   Future<void> scanLabel(List<int> imageBytes, {String? gtin}) async {
     state = const AsyncValue.loading();
     try {
-      final base64Image = base64Encode(imageBytes);
       final product = await ref.read(productRepositoryProvider).scanLabel(
-        base64Image,
+        imageBytes,
         gtin: gtin,
       );
       state = AsyncValue.data(product);

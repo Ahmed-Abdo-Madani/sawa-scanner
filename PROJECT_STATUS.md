@@ -320,6 +320,7 @@ Sawa Scanner is a bilingual (AR/EN) product scanning system designed for the Sau
     - **Client-Side Awareness**: Flutter app now displays a **Partial Scan Sheet** with raw extracted text when structured data is unavailable, providing immediate user feedback.
 - [x] **OCR Quality Guard**: Enhanced `LabelCoreService` with strict engine mode configuration and heuristic validation to minimize unnecessary API costs.
 - [x] **Resource Management**: Automated Tesseract data downloading script and git-ignored binary data files.
+- [x] **Firebase AI Mapping**: Implemented a dedicated mapper in the client-side data source to convert raw AI output into the canonical `ProductModel` JSON contract.
 
 ### Phase 38: Ingestion Reliability & Architecture Hardening (In Progress 🚧)
 - [x] **N+1 Query Resolution**:
@@ -399,6 +400,39 @@ Sawa Scanner is a bilingual (AR/EN) product scanning system designed for the Sau
 - [x] **Localization**: Full AR/EN coverage with 30+ new keys for all new features.
 - [x] **Static Analysis**: `flutter analyze` passed with 0 new errors. `tsc --noEmit` passed for backend.
 
+### Phase 39: Client-Side AI Resilience & Fallback Integration (Completed ✅)
+- [x] **Model Mapping**: Implemented `_mapToProductJson` in `FirebaseAiDataSource` to transform unstructured AI schema into a full `ProductModel`-compatible JSON structure.
+- [x] **Safe Defaults**: Added robust default values for required fields (`id`, `gtin`, `ingredients`, `nutrition`) to ensure local structuring never breaks the UI/scanner contract.
+- [x] **Repository Fallback**: Refactored `ProductRepositoryImpl` to catch `PartialScanException` and trigger local Firebase AI structuring as a zero-cost recovery path.
+- [x] **Provider Wiring**: Fully integrated `FirebaseAiDataSource` into the Riverpod dependency graph.
+
+### Phase 40: Firebase AI Multimodal Product Recognition (Completed ✅)
+- [x] **Multimodal Vision Fallback**: Added `recognizeProductFromImage` to `FirebaseAiDataSource` utilizing Gemini 2.0 Flash's multimodal capabilities to directly analyze product packaging and nutrition tables from raw image bytes.
+- [x] **Broadened Fallback Ladder**: Refactored `ProductRepositoryImpl` into a multi-tier fallback system: Backend (OCR + LLM) → Client-Side NLP (`structureLabel`) → Client-Side Vision (`recognizeProductFromImage`).
+- [x] **Source Transparency**: Added a `source` flag to `Product` entities, allowing downstream layers to distinguish between backend, `firebase_ai_text`, and `firebase_ai_vision` derivations.
+- [x] **UI & Localization Hooks**: Updated `ScannerScreen` with a new "AI Recognized" badge and unified AR/EN localization keys (`recognizingWithAi`, `recognizedByAiBadge`, `aiRecognitionFailed`).
+
+### Phase 41: Scanner Lifecycle Hardening & Navigation Stability (Completed ✅)
+- [x] **Camera Lifecycle Management**: Implemented `WidgetsBindingObserver` in `ScannerScreen` to automatically stop the camera when the app is paused or when the scanner tab is hidden.
+- [x] **Active-Tab Awareness**: Updated `NavigationShell` to pass visibility state to `ScannerScreen`, ensuring the camera is only active when the tab is foregrounded.
+- [x] **Resource Optimization**: Gated `MobileScanner` mounting to only barcode mode and active tab state, replacing the heavy camera surface with lightweight placeholders in other states.
+- [x] **One-Time Listener Navigation**: Migrated success/error navigation from the `build()` method to a `ref.listen` pattern, preventing duplicate navigation triggers and UI jank.
+- [x] **Controller Gating**: Explicitly stop the camera before pushing sub-routes (e.g., Product Detail) and resume it only upon return, reducing surface churn and battery consumption.
+
+### Phase 42: Performance & Resilience Hardening (Completed ✅)
+- [x] **Backend Price Optimization**:
+    - Refactored `ProductsService.findByGtin` to use PostgreSQL `DISTINCT ON`.
+    - Optimized the query to fetch only the **latest price per merchant** for the requested GTIN, eliminating thousands of redundant historical rows from the main product payload.
+- [x] **UI Image Decoding Optimization**:
+    - Implemented `cacheWidth` and `cacheHeight` in `Image.network` across all high-traffic screens (`Scanner`, `ProductDetail`, `History`, `Comparison`, `PriceComparison`).
+    - Reduced memory pressure and raster thread workloads by ensuring large remote images are decoded to exact display sizes.
+- [x] **Network Request Timeouts**:
+    - Introduced `NetworkTimeoutException` in core exceptions.
+    - Added explicit 10s/20s timeouts to all primary `ProductRemoteDataSource` calls (`fetchProductByGtin`, `scanLabel`).
+- [x] **Fast-Fail Repository Patterns**:
+    - Refactored `ProductRepositoryImpl` to catch timeouts and immediately return stale cache (if available) or trigger AI fallbacks.
+    - Ensures users see data within a 10-second window even on slow 3G/unstable connections.
+
 ---
 
 ## 📂 Key Architecture & File References
@@ -453,6 +487,8 @@ The following are now **fully configured** in the local environment:
 - **Cookie Resilience**: Centralized overlay dismissal logic reduces navigation failure rates by 30%.
 - **Clustering Consistency**: Prioritized GTIN extraction from backend JSON-LD scripts over fragile DOM paths.
 - **Session Layer**: Minimized bot detection profiles by persisting browser contexts across sync iterations.
+- **Scanner Build Stability**: Fixed duplicate closing braces in `ScannerScreen`'s analysis overlay `Consumer` that caused compilation failures.
+- **Multi-method Timeout Coverage**: Extended `NetworkTimeoutException` mapping to all remote endpoints (History, Prices, Comparison, Nutrition) to ensure consistent fast-fail across the app.
 
 ---
 

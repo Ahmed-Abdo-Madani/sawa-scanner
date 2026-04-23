@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'app.dart';
 import 'package:openfoodfacts/openfoodfacts.dart' show OpenFoodAPIConfiguration, UserAgent;
+import 'firebase_options.dart';
 
 
 
@@ -13,6 +15,9 @@ import 'presentation/providers/user_preferences_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  // Initialize Firebase
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   
   // Configure OpenFoodFacts globally
   OpenFoodAPIConfiguration.userAgent = UserAgent(

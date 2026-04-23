@@ -36,6 +36,7 @@ class ProductModel extends Product {
     super.imageFrontUrl,
     super.imageNutritionUrl,
     super.nutritionDataComplete = false,
+    super.source,
   });
 
   factory ProductModel.fromJson(Map<String, dynamic> json) {
@@ -98,6 +99,7 @@ class ProductModel extends Product {
       imageFrontUrl: json['image_front_url']?.toString(),
       imageNutritionUrl: json['image_nutrition_url']?.toString(),
       nutritionDataComplete: json['nutrition_data_complete'] as bool? ?? false,
+      source: json['source']?.toString(),
     );
   }
 
@@ -144,6 +146,7 @@ class ProductModel extends Product {
       imageFrontUrl: imageFrontUrl,
       imageNutritionUrl: imageNutritionUrl,
       nutritionDataComplete: nutritionDataComplete,
+      source: source,
     );
   }
 }
