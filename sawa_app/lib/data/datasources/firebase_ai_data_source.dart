@@ -105,7 +105,7 @@ SCHEMA:
           .replaceAll(RegExp(r'\s*```$', multiLine: true), '')
           .trim();
       
-      final aiResult = json.decode(cleanedResponse) as Map<String, dynamic>;
+      final aiResult = Map<String, dynamic>.from(json.decode(cleanedResponse) as Map);
       return _mapToProductJson(aiResult, gtin: gtin, source: 'firebase_ai_text');
     } catch (e) {
       throw Exception('Failed to parse Firebase AI response as JSON: $e\nResponse: $responseText');
@@ -186,7 +186,7 @@ SCHEMA:
           .replaceAll(RegExp(r'\s*```$', multiLine: true), '')
           .trim();
       
-      final aiResult = json.decode(cleanedResponse) as Map<String, dynamic>;
+      final aiResult = Map<String, dynamic>.from(json.decode(cleanedResponse) as Map);
       final recognizedGtin = (gtin != null && gtin.isNotEmpty) ? gtin : aiResult['gtin']?.toString();
       return _mapToProductJson(aiResult, gtin: recognizedGtin, source: 'firebase_ai_vision');
     } catch (e) {

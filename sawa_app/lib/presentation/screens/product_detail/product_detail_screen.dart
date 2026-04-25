@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:typed_data';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sawa_app/l10n/app_localizations.dart';
 import '../../providers/product_provider.dart';
@@ -29,12 +30,15 @@ class ProductDetailScreen extends ConsumerStatefulWidget {
   /// product (e.g. the label-scan path in [ScannerScreen]).  The detail screen
   /// skips its own history write to prevent duplicate entries.
   final bool historyAlreadyRecorded;
+  /// Captured image bytes from label scan, used as fallback image in hero.
+  final Uint8List? capturedImageBytes;
 
   const ProductDetailScreen({
     super.key,
     required this.gtin,
     this.initialProduct,
     this.historyAlreadyRecorded = false,
+    this.capturedImageBytes,
   });
 
   @override
@@ -277,198 +281,200 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                 ),
 
               // 8. Nutrition Intelligence deep-dive button
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 16, vertical: 6),
-                child: Material(
-                  color: AppColors.surface,
-                  borderRadius: BorderRadius.circular(14),
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(14),
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => NutritionIntelligenceScreen(
-                          gtin: product.gtin,
-                          productName: locale.languageCode == 'ar'
-                              ? product.nameAr
-                              : product.nameEn,
-                        ),
-                      ),
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Row(
-                        children: [
-                          Container(
-                            width: 40,
-                            height: 40,
-                            decoration: BoxDecoration(
-                              color: AppColors.primary.withValues(alpha: 0.12),
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: Icon(Icons.insights,
-                                color: AppColors.primary, size: 22),
-                          ),
-                          const SizedBox(width: 14),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  l10n.nutritionIntelligence,
-                                  style: AppTypography.body(locale).copyWith(
-                                    color: AppColors.onBackground,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                                Text(
-                                  l10n.healthSummary,
-                                  style: AppTypography.caption(locale)
-                                      .copyWith(color: AppColors.onSurface),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const Icon(Icons.chevron_right,
-                              color: AppColors.onSurface),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-
-              // 9. Compare Products button
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 16, vertical: 6),
-                child: Material(
-                  color: AppColors.surface,
-                  borderRadius: BorderRadius.circular(14),
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(14),
-                    onTap: () => _showSimilarProductsSheet(context, product, l10n, locale),
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Row(
-                        children: [
-                          Container(
-                            width: 40,
-                            height: 40,
-                            decoration: BoxDecoration(
-                              color: AppColors.secondary.withValues(alpha: 0.12),
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: Icon(Icons.compare_arrows,
-                                color: AppColors.secondary, size: 22),
-                          ),
-                          const SizedBox(width: 14),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  l10n.compareProducts,
-                                  style: AppTypography.body(locale).copyWith(
-                                    color: AppColors.onBackground,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                                Text(
-                                  l10n.similarProducts,
-                                  style: AppTypography.caption(locale)
-                                      .copyWith(color: AppColors.onSurface),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const Icon(Icons.chevron_right,
-                              color: AppColors.onSurface),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-
-              // 10. Nearby Stores button
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 16, vertical: 6),
-                child: Material(
-                  color: AppColors.surface,
-                  borderRadius: BorderRadius.circular(14),
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(14),
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => NearbyPricesScreen(
-                          gtin: product.gtin,
-                          productName: locale.languageCode == 'ar'
-                              ? product.nameAr
-                              : product.nameEn,
-                        ),
-                      ),
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Row(
-                        children: [
-                          Container(
-                            width: 40,
-                            height: 40,
-                            decoration: BoxDecoration(
-                              color: AppColors.warning.withValues(alpha: 0.12),
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: Icon(Icons.location_on,
-                                color: AppColors.warning, size: 22),
-                          ),
-                          const SizedBox(width: 14),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  l10n.nearbyStores,
-                                  style: AppTypography.body(locale).copyWith(
-                                    color: AppColors.onBackground,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                                Text(
-                                  l10n.nearbyStoresSubtitle,
-                                  style: AppTypography.caption(locale)
-                                      .copyWith(color: AppColors.onSurface),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const Icon(Icons.chevron_right,
-                              color: AppColors.onSurface),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-
-              // 11. Price Comparison
-              if (product.prices.isNotEmpty)
+              if (product.sawaDbAvailable) ...[
                 Padding(
                   padding: const EdgeInsets.symmetric(
-                      horizontal: 16, vertical: 12),
-                  child: PricePreviewStrip(
-                    gtin: product.gtin,
-                    productName: locale.languageCode == 'ar'
-                        ? product.nameAr
-                        : product.nameEn,
-                    merchantName: product.prices.first.merchant,
-                    price: product.prices.first.priceSarInclVat,
+                      horizontal: 16, vertical: 6),
+                  child: Material(
+                    color: AppColors.surface,
+                    borderRadius: BorderRadius.circular(14),
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(14),
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => NutritionIntelligenceScreen(
+                            gtin: product.gtin,
+                            productName: locale.languageCode == 'ar'
+                                ? product.nameAr
+                                : product.nameEn,
+                          ),
+                        ),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 40,
+                              height: 40,
+                              decoration: BoxDecoration(
+                                color: AppColors.primary.withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Icon(Icons.insights,
+                                  color: AppColors.primary, size: 22),
+                            ),
+                            const SizedBox(width: 14),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    l10n.nutritionIntelligence,
+                                    style: AppTypography.body(locale).copyWith(
+                                      color: AppColors.onBackground,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  Text(
+                                    l10n.healthSummary,
+                                    style: AppTypography.caption(locale)
+                                        .copyWith(color: AppColors.onSurface),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const Icon(Icons.chevron_right,
+                                color: AppColors.onSurface),
+                          ],
+                        ),
+                      ),
+                    ),
                   ),
                 ),
+
+                // 9. Compare Products button
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 16, vertical: 6),
+                  child: Material(
+                    color: AppColors.surface,
+                    borderRadius: BorderRadius.circular(14),
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(14),
+                      onTap: () => _showSimilarProductsSheet(context, product, l10n, locale),
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 40,
+                              height: 40,
+                              decoration: BoxDecoration(
+                                color: AppColors.secondary.withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Icon(Icons.compare_arrows,
+                                  color: AppColors.secondary, size: 22),
+                            ),
+                            const SizedBox(width: 14),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    l10n.compareProducts,
+                                    style: AppTypography.body(locale).copyWith(
+                                      color: AppColors.onBackground,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  Text(
+                                    l10n.similarProducts,
+                                    style: AppTypography.caption(locale)
+                                        .copyWith(color: AppColors.onSurface),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const Icon(Icons.chevron_right,
+                                color: AppColors.onSurface),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+
+                // 10. Nearby Stores button
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 16, vertical: 6),
+                  child: Material(
+                    color: AppColors.surface,
+                    borderRadius: BorderRadius.circular(14),
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(14),
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => NearbyPricesScreen(
+                            gtin: product.gtin,
+                            productName: locale.languageCode == 'ar'
+                                ? product.nameAr
+                                : product.nameEn,
+                          ),
+                        ),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 40,
+                              height: 40,
+                              decoration: BoxDecoration(
+                                color: AppColors.warning.withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Icon(Icons.location_on,
+                                  color: AppColors.warning, size: 22),
+                            ),
+                            const SizedBox(width: 14),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    l10n.nearbyStores,
+                                    style: AppTypography.body(locale).copyWith(
+                                      color: AppColors.onBackground,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  Text(
+                                    l10n.nearbyStoresSubtitle,
+                                    style: AppTypography.caption(locale)
+                                        .copyWith(color: AppColors.onSurface),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const Icon(Icons.chevron_right,
+                                color: AppColors.onSurface),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+
+                // 11. Price Comparison
+                if (product.prices.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 12),
+                    child: PricePreviewStrip(
+                      gtin: product.gtin,
+                      productName: locale.languageCode == 'ar'
+                          ? product.nameAr
+                          : product.nameEn,
+                      merchantName: product.prices.first.merchant,
+                      price: product.prices.first.priceSarInclVat,
+                    ),
+                  ),
+              ],
 
               const SizedBox(height: 24),
               _buildDisclaimer(l10n, locale),
@@ -506,8 +512,13 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                       fit: BoxFit.contain,
                       cacheWidth: 800,
                     )
-                  : const Icon(Icons.inventory_2_outlined,
-                      size: 100, color: AppColors.onSurface),
+                  : widget.capturedImageBytes != null
+                      ? Image.memory(
+                          widget.capturedImageBytes!,
+                          fit: BoxFit.contain,
+                        )
+                      : const Icon(Icons.inventory_2_outlined,
+                          size: 100, color: AppColors.onSurface),
             ),
           ),
           Positioned(

@@ -216,13 +216,14 @@ class ProductAdapter extends TypeAdapter<Product> {
       categories: (fields[16] as List).cast<String>(),
       ingredientsText: fields[17] as String?,
       source: fields[18] as String?,
+      sawaDbAvailable: fields[19] as bool? ?? false,
     );
   }
 
   @override
   void write(BinaryWriter writer, Product obj) {
     writer
-      ..writeByte(19)
+      ..writeByte(20)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -260,7 +261,9 @@ class ProductAdapter extends TypeAdapter<Product> {
       ..writeByte(17)
       ..write(obj.ingredientsText)
       ..writeByte(18)
-      ..write(obj.source);
+      ..write(obj.source)
+      ..writeByte(19)
+      ..write(obj.sawaDbAvailable);
   }
 }
 
@@ -270,9 +273,27 @@ class ProductAdapter extends TypeAdapter<Product> {
 class ProductLocalDataSource {
   static const String productsBoxName = 'productsBox';
   static const String timestampsBoxName = 'productTimestampsBox';
+  static const String cacheVersionBoxName = 'productCacheVersionBox';
+  /// Cache schema version. Increment when Hive adapter field layout changes
+  /// (e.g., adding sawaDbAvailable). Mismatch triggers cache invalidation.
+  static const int currentCacheVersion = 1;
+  static const String cacheVersionKey = 'schemaVersion';
 
   Box<Product> get _productsBox => Hive.box<Product>(productsBoxName);
   Box<DateTime> get _timestampsBox => Hive.box<DateTime>(timestampsBoxName);
+  Box<int> get _cacheVersionBox => Hive.box<int>(cacheVersionBoxName);
+
+  /// Initialize cache version tracking and invalidate cache if schema changed.
+  Future<void> initializeCacheVersion() async {
+    final storedVersion = _cacheVersionBox.get(cacheVersionKey, defaultValue: 0);
+    if (storedVersion != currentCacheVersion) {
+      // Schema mismatch: clear all cached products to prevent stale data
+      await _productsBox.clear();
+      await _timestampsBox.clear();
+      // Record the new schema version
+      await _cacheVersionBox.put(cacheVersionKey, currentCacheVersion);
+    }
+  }
 
   /// Returns the cached [Product] for [gtin], or `null` if not cached.
   Product? getCachedProduct(String gtin) {

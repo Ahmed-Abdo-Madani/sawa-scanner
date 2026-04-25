@@ -49,6 +49,7 @@ class Product {
   final String? imageNutritionUrl;
   final bool nutritionDataComplete;
   final String? source;
+  final bool sawaDbAvailable;
 
   const Product({
     required this.id,
@@ -82,6 +83,7 @@ class Product {
     this.imageNutritionUrl,
     this.nutritionDataComplete = false,
     this.source,
+    this.sawaDbAvailable = false,
   });
 }
 

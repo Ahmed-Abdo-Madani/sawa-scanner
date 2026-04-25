@@ -240,12 +240,15 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> with WidgetsBindi
     // Stop camera before navigation to save resources and avoid surface churn
     _cameraController.stop();
 
+    final capturedBytes = ref.read(labelScanProvider.notifier).capturedBytes;
+
     Navigator.of(context)
         .push(
           MaterialPageRoute(
             builder: (context) => ProductDetailScreen(
               gtin: product.gtin,
               initialProduct: product,
+              capturedImageBytes: capturedBytes,
               // Skip history in detail if it was recorded here OR if it already exists (e.g. carousel re-open)
               historyAlreadyRecorded: recordHistoryNow || historyAlreadyRecorded,
             ),
@@ -281,7 +284,10 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> with WidgetsBindi
 
     if (photo != null) {
       final bytes = await photo.readAsBytes();
-      await ref.read(labelScanProvider.notifier).scanLabel(bytes);
+      await ref.read(labelScanProvider.notifier).scanLabel(
+        bytes,
+        imagePath: photo.path,
+      );
     }
   }
 

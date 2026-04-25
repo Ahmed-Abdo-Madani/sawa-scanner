@@ -40,6 +40,7 @@ void main() async {
   await Hive.openBox('scanHistoryBox');
   await Hive.openBox<Product>(ProductLocalDataSource.productsBoxName);
   await Hive.openBox<DateTime>(ProductLocalDataSource.timestampsBoxName);
+  await Hive.openBox<int>(ProductLocalDataSource.cacheVersionBoxName);
   final prefBox = await Hive.openBox(UserPreferencesKeys.boxName);
   final settings = prefBox.get(UserPreferencesKeys.settingsRecord);
 

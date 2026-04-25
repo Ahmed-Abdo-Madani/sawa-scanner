@@ -37,6 +37,7 @@ class ProductModel extends Product {
     super.imageNutritionUrl,
     super.nutritionDataComplete = false,
     super.source,
+    super.sawaDbAvailable = false,
   });
 
   factory ProductModel.fromJson(Map<String, dynamic> json) {
@@ -73,20 +74,23 @@ class ProductModel extends Product {
       novaGroup: json['nova_group'] as int?,
       netWeightValue: (json['net_weight_value'] as num?)?.toDouble(),
       netUnit: json['net_unit']?.toString(),
-      nutritionFact: json['nutrition'] != null 
-          ? NutritionFactModel.fromJson(json['nutrition'] as Map<String, dynamic>)
+      nutritionFact: json['nutrition'] is Map
+          ? NutritionFactModel.fromJson(
+              Map<String, dynamic>.from(json['nutrition'] as Map),
+            )
           : null,
-      ingredients: (json['ingredients'] as List<dynamic>?)
-              ?.map((e) => IngredientModel.fromJson(e as Map<String, dynamic>))
-              .toList() ?? 
-          [],
+      ingredients: (json['ingredients'] as List? ?? const [])
+              .whereType<Map>()
+              .map((e) => IngredientModel.fromJson(Map<String, dynamic>.from(e)))
+              .toList(),
       allergenDetails: allergenDetailsList,
-      prices: (json['prices'] as List<dynamic>?)
-              ?.map((e) => PriceInfoModel.fromJson(e as Map<String, dynamic>))
-              .toList() ??
-          [],
-      images: (json['images'] as List<dynamic>?)
-              ?.map((e) => ProductImageModel.fromJson(e as Map<String, dynamic>))
+      prices: (json['prices'] as List? ?? const [])
+              .whereType<Map>()
+              .map((e) => PriceInfoModel.fromJson(Map<String, dynamic>.from(e)))
+              .toList(),
+      images: (json['images'] as List? ?? const [])
+              .whereType<Map>()
+              .map((e) => ProductImageModel.fromJson(Map<String, dynamic>.from(e)))
               .toList() ??
           [],
       ecoScore: json['eco_score']?.toString(),
@@ -100,12 +104,83 @@ class ProductModel extends Product {
       imageNutritionUrl: json['image_nutrition_url']?.toString(),
       nutritionDataComplete: json['nutrition_data_complete'] as bool? ?? false,
       source: json['source']?.toString(),
+      sawaDbAvailable: json['sawa_db_available'] as bool? ?? false,
     );
   }
 
   /// Returns a plain [Product] whose every nested field is also a plain base
   /// entity. Writing this to Hive instead of `this` ensures the registered
   /// adapters (which cover only the base types) can handle serialisation.
+  ProductModel copyWith({
+    String? id,
+    String? gtin,
+    String? nameAr,
+    String? nameEn,
+    String? brand,
+    String? category,
+    String? subcategory,
+    String? descriptionAr,
+    String? descriptionEn,
+    String? nutriScoreGrade,
+    int? novaGroup,
+    String? sfdaRegistrationStatus,
+    bool? halalCertified,
+    double? netWeightValue,
+    String? netUnit,
+    NutritionFact? nutritionFact,
+    List<Ingredient>? ingredients,
+    List<AllergenInfo>? allergenDetails,
+    List<PriceInfo>? prices,
+    List<ProductImage>? images,
+    String? ecoScore,
+    List<String>? allergens,
+    List<String>? allergenTags,
+    List<String>? ingredientTags,
+    bool? allergensDataAvailable,
+    List<String>? categories,
+    String? ingredientsText,
+    String? imageFrontUrl,
+    String? imageNutritionUrl,
+    bool? nutritionDataComplete,
+    String? source,
+    bool? sawaDbAvailable,
+  }) {
+    return ProductModel(
+      id: id ?? this.id,
+      gtin: gtin ?? this.gtin,
+      nameAr: nameAr ?? this.nameAr,
+      nameEn: nameEn ?? this.nameEn,
+      brand: brand ?? this.brand,
+      category: category ?? this.category,
+      subcategory: subcategory ?? this.subcategory,
+      descriptionAr: descriptionAr ?? this.descriptionAr,
+      descriptionEn: descriptionEn ?? this.descriptionEn,
+      nutriScoreGrade: nutriScoreGrade ?? this.nutriScoreGrade,
+      novaGroup: novaGroup ?? this.novaGroup,
+      sfdaRegistrationStatus: sfdaRegistrationStatus ?? this.sfdaRegistrationStatus,
+      halalCertified: halalCertified ?? this.halalCertified,
+      netWeightValue: netWeightValue ?? this.netWeightValue,
+      netUnit: netUnit ?? this.netUnit,
+      nutritionFact: nutritionFact ?? this.nutritionFact,
+      ingredients: ingredients ?? this.ingredients,
+      allergenDetails: allergenDetails ?? this.allergenDetails,
+      prices: prices ?? this.prices,
+      images: images ?? this.images,
+      ecoScore: ecoScore ?? this.ecoScore,
+      allergens: allergens ?? this.allergens,
+      allergenTags: allergenTags ?? this.allergenTags,
+      ingredientTags: ingredientTags ?? this.ingredientTags,
+      allergensDataAvailable: allergensDataAvailable ?? this.allergensDataAvailable,
+      categories: categories ?? this.categories,
+      ingredientsText: ingredientsText ?? this.ingredientsText,
+      imageFrontUrl: imageFrontUrl ?? this.imageFrontUrl,
+      imageNutritionUrl: imageNutritionUrl ?? this.imageNutritionUrl,
+      nutritionDataComplete: nutritionDataComplete ?? this.nutritionDataComplete,
+      source: source ?? this.source,
+      sawaDbAvailable: sawaDbAvailable ?? this.sawaDbAvailable,
+    );
+  }
+
   Product toEntity() {
     return Product(
       id: id,
@@ -147,6 +222,7 @@ class ProductModel extends Product {
       imageNutritionUrl: imageNutritionUrl,
       nutritionDataComplete: nutritionDataComplete,
       source: source,
+      sawaDbAvailable: sawaDbAvailable,
     );
   }
 }
