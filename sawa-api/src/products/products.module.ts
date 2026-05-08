@@ -8,6 +8,14 @@ import { Ingredient } from '../entities/ingredient.entity';
 import { ProductPrice } from '../entities/product-price.entity';
 import { ProductReport } from '../entities/product-report.entity';
 
+import { ProductImage } from '../entities/product-image.entity';
+import { ProductAllergen } from '../entities/product-allergen.entity';
+import { Merchant } from '../entities/merchant.entity';
+import { ProductMergeLog } from '../entities/product-merge-log.entity';
+import { AdminProductsController } from './admin-products.controller';
+import { AdminProductsService } from './admin-products.service';
+import { ProductMergeService } from './product-merge.service';
+
 @Module({
   imports: [
     TypeOrmModule.forFeature([
@@ -16,10 +24,15 @@ import { ProductReport } from '../entities/product-report.entity';
       Ingredient,
       ProductPrice,
       ProductReport,
+      ProductImage,
+      ProductAllergen,
+      Merchant,
+      ProductMergeLog,
     ]),
   ],
-  controllers: [ProductsController],
-  providers: [ProductsService],
-  exports: [ProductsService],
+  controllers: [ProductsController, AdminProductsController],
+  providers: [ProductsService, AdminProductsService, ProductMergeService],
+  exports: [ProductsService, AdminProductsService, ProductMergeService],
 })
 export class ProductsModule {}
+

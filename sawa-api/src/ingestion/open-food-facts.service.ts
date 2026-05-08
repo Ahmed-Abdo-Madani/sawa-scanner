@@ -1,20 +1,56 @@
 import { Injectable, Logger } from '@nestjs/common';
-import axios from 'axios';
+import axios, { AxiosInstance } from 'axios';
 import {
   StructuredLabelDto,
   StructuredIngredientDto,
   StructuredNutritionDto,
 } from '../scan/dto/structured-label.dto';
+import { normalizeBrandStrict } from '../utils/normalization';
+
+export interface OffCanonical {
+  gtin: string;
+  name_en: string;
+  name_ar: string;
+  brand: string;
+  weightRaw: string;
+  nutrition: StructuredNutritionDto;
+  ingredients: StructuredIngredientDto[];
+  ingredients_text: string;
+  allergens: string[];
+  image_front_url: string;
+  image_nutrition_url: string;
+}
 
 interface OffSearchResult {
   count: number;
   products: any[];
 }
 
+/**
+ * Converts a brand name to its OFF slugified format.
+ * E.g. "Kellogg's" → "kelloggs", "P&G" → "p-and-g"
+ * 
+ * @deprecated Use normalizeBrandStrict from utils/normalization.ts instead
+ */
+export function slugifyBrand(brand: string): string {
+  return normalizeBrandStrict(brand);
+}
+
 @Injectable()
 export class OpenFoodFactsService {
   private readonly logger = new Logger(OpenFoodFactsService.name);
   private readonly baseUrl = 'https://world.openfoodfacts.org';
+  private readonly axiosInstance: AxiosInstance;
+
+  constructor() {
+    this.axiosInstance = axios.create({
+      baseURL: this.baseUrl,
+      timeout: 15000,
+      headers: {
+        'User-Agent': process.env.OFF_BACKFILL_USER_AGENT ?? 'Sawa-Scanner/1.0',
+      },
+    });
+  }
 
   /**
    * Search OFF by product name. Uses the first match if found.
@@ -34,11 +70,9 @@ export class OpenFoodFactsService {
     if (!cleanName) return { label: null, allergens: [] };
 
     try {
-      const url = `${this.baseUrl}/cgi/search.pl?search_terms=${encodeURIComponent(cleanName)}&search_simple=1&action=process&json=1&page_size=1`;
+      const url = `/cgi/search.pl?search_terms=${encodeURIComponent(cleanName)}&search_simple=1&action=process&json=1&page_size=1`;
       this.logger.debug(`Searching OpenFoodFacts for: ${cleanName}`);
-      const response = await axios.get<OffSearchResult>(url, {
-        timeout: 10000,
-      });
+      const response = await this.axiosInstance.get<OffSearchResult>(url);
 
       if (
         response.data &&
@@ -57,6 +91,128 @@ export class OpenFoodFactsService {
     return { label: null, allergens: [] };
   }
 
+  /**
+   * Paginates through OFF products for a specific country.
+   */
+  async *streamCountryProducts(country: string): AsyncGenerator<any> {
+    let page = 1;
+    while (true) {
+      try {
+        const response = await this.axiosInstance.get<OffSearchResult>(
+          `/cgi/search.pl`,
+          {
+            params: {
+              countries_tags_en: country,
+              page_size: 100,
+              page,
+              json: 1,
+              fields:
+                'code,product_name,product_name_en,product_name_ar,brands,quantity,categories_tags,nutriments,ingredients_text,allergens_tags,image_front_url,image_nutrition_url',
+            },
+          },
+        );
+
+        if (
+          !response.data ||
+          !response.data.products ||
+          response.data.products.length === 0 ||
+          response.data.count === 0
+        ) {
+          break;
+        }
+
+        for (const product of response.data.products) {
+          yield product;
+        }
+
+        page++;
+        await this.sleep(600);
+      } catch (err) {
+        this.logger.error(
+          `Error streaming country ${country} products: ${err.message}`,
+        );
+        break;
+      }
+    }
+  }
+
+  /**
+   * Paginates through OFF products for a specific brand.
+   */
+  async *streamBrandProducts(brand: string): AsyncGenerator<any> {
+    const slug = slugifyBrand(brand);
+
+    let page = 1;
+    while (true) {
+      try {
+        const response = await this.axiosInstance.get<OffSearchResult>(
+          `/cgi/search.pl`,
+          {
+            params: {
+              brands_tags: slug,
+              page_size: 100,
+              page,
+              json: 1,
+              fields:
+                'code,product_name,product_name_en,product_name_ar,brands,quantity,categories_tags,nutriments,ingredients_text,allergens_tags,image_front_url,image_nutrition_url',
+            },
+          },
+        );
+
+        if (
+          !response.data ||
+          !response.data.products ||
+          response.data.products.length === 0 ||
+          response.data.count === 0
+        ) {
+          break;
+        }
+
+        for (const product of response.data.products) {
+          yield product;
+        }
+
+        page++;
+        await this.sleep(600);
+      } catch (err) {
+        this.logger.error(
+          `Error streaming brand ${brand} products: ${err.message}`,
+        );
+        break;
+      }
+    }
+  }
+
+  /**
+   * Extracts canonical data from an OFF product if it has a valid GTIN.
+   */
+  extractCanonical(product: any): OffCanonical | null {
+    const code = String(product.code || '');
+    if (!/^\d{8}$|^\d{12}$|^\d{13}$|^\d{14}$/.test(code)) {
+      return null;
+    }
+
+    const { label, allergens } = this.mapOffProduct(product);
+
+    return {
+      gtin: code,
+      name_en: label?.name_en || '',
+      name_ar: label?.name_ar || '',
+      brand: (label?.brand || '').split(',')[0].trim(),
+      weightRaw: product.quantity || '',
+      nutrition: label?.nutrition || ({} as any),
+      ingredients: label?.ingredients || [],
+      ingredients_text: product.ingredients_text || '',
+      allergens,
+      image_front_url: product.image_front_url || '',
+      image_nutrition_url: product.image_nutrition_url || '',
+    };
+  }
+
+  private sleep(ms: number): Promise<void> {
+    return new Promise((r) => setTimeout(r, ms));
+  }
+
   private mapOffProduct(product: any): {
     label: StructuredLabelDto | null;
     allergens: string[];
@@ -64,7 +220,6 @@ export class OpenFoodFactsService {
     const nutriments = product.nutriments || {};
 
     // Map Nutrition
-    // OFF supplies data per 100g/100ml usually.
     const nutrition: StructuredNutritionDto = {
       energy_kcal: this.parseNum(nutriments['energy-kcal_100g']),
       fat_g: this.parseNum(nutriments['fat_100g']),
@@ -90,7 +245,7 @@ export class OpenFoodFactsService {
         if (ing.text) {
           structuredIngredients.push({
             name_en: ing.text.trim(),
-            name_ar: '', // OFf rarely provides native Arabic ingredient names perfectly
+            name_ar: '',
           });
         }
       }
@@ -128,3 +283,4 @@ export class OpenFoodFactsService {
     return n;
   }
 }
+

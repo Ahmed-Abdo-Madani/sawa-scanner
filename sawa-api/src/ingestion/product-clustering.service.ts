@@ -3,11 +3,14 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Product } from '../entities/product.entity';
 import { distance } from 'fastest-levenshtein';
-import { v4 as uuid } from 'uuid';
+import { normalizeWeight } from '../utils/string-similarity';
+import { normalizeBrandStrict, normalizeProductName, gtinPrefix, isPlaceholderBrand, inferBrandAndWeightFromName } from '../utils/normalization';
+import { GLOBAL_BRANDS_FOR_POOL } from './constants/global-brands';
 
 @Injectable()
 export class ProductClusteringService {
   private readonly logger = new Logger(ProductClusteringService.name);
+  private knownBrandSlugs: Set<string> | null = null;
 
   constructor(
     @InjectRepository(Product)
@@ -30,8 +33,12 @@ export class ProductClusteringService {
         this.logger.log(`High confidence match found by GTIN: ${gtin}`);
         if (name_ar && !existingByGtin.name_ar) {
           existingByGtin.name_ar = name_ar;
-          await this.productRepository.save(existingByGtin);
         }
+        // Wire normalized fields
+        existingByGtin.brand_normalized = normalizeBrandStrict(existingByGtin.brand ?? '');
+        existingByGtin.name_normalized = normalizeProductName(existingByGtin.name_en ?? existingByGtin.name_ar ?? '');
+        existingByGtin.gtin_prefix = gtinPrefix(existingByGtin.gtin);
+        await this.productRepository.save(existingByGtin);
         return existingByGtin;
       }
     }
@@ -45,10 +52,7 @@ export class ProductClusteringService {
       return null;
     }
 
-    const isGenericBrand =
-      !brand ||
-      brand.toLowerCase() === 'generic' ||
-      brand.toLowerCase() === 'unnamed';
+    const isGenericBrand = isPlaceholderBrand(brand);
     const nw = this.normalizeWeight(weight);
     const hasUnknownWeight = nw.value === 0;
 
@@ -93,8 +97,12 @@ export class ProductClusteringService {
             );
             if (name_ar && !product.name_ar) {
               product.name_ar = name_ar;
-              await this.productRepository.save(product);
             }
+            // Wire normalized fields
+            product.brand_normalized = normalizeBrandStrict(product.brand ?? '');
+            product.name_normalized = normalizeProductName(product.name_en ?? product.name_ar ?? '');
+            product.gtin_prefix = gtinPrefix(product.gtin);
+            await this.productRepository.save(product);
             return product;
           }
         }
@@ -110,11 +118,37 @@ export class ProductClusteringService {
       gtin || `SCAN-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
     newProduct.name_en = name;
     if (name_ar) newProduct.name_ar = name_ar;
-    newProduct.brand = brand;
-    if (nw.value > 0) {
-      newProduct.net_weight_value = nw.value;
-      newProduct.net_unit = nw.unit;
+    
+    // Comment 2: Infer brand and weight from name when brand is placeholder
+    let resolvedBrand = brand;
+    let resolvedWeight = weight;
+    if (isPlaceholderBrand(brand) && name) {
+      // Build known-brand slug source: use GLOBAL_BRANDS_FOR_POOL as primary
+      await this.ensureKnownBrandSlugsLoaded();
+      const slugSource = Array.from(this.knownBrandSlugs || new Set<string>());
+      
+      const inference = inferBrandAndWeightFromName(name, slugSource);
+      if (inference.brand) {
+        resolvedBrand = inference.brand;
+      }
+      if (inference.weightRaw && !weight) {
+        resolvedWeight = inference.weightRaw;
+      }
     }
+    
+    newProduct.brand = resolvedBrand;
+    
+    // Parse weight with resolved value
+    const nwFinal = this.normalizeWeight(resolvedWeight);
+    if (nwFinal.value > 0) {
+      newProduct.net_weight_value = nwFinal.value;
+      newProduct.net_unit = nwFinal.unit;
+    }
+
+    // Wire normalized fields
+    newProduct.brand_normalized = normalizeBrandStrict(resolvedBrand ?? '');
+    newProduct.name_normalized = normalizeProductName(name ?? name_ar ?? '');
+    newProduct.gtin_prefix = gtinPrefix(newProduct.gtin);
 
     return this.productRepository.save(newProduct);
   }
@@ -143,37 +177,43 @@ export class ProductClusteringService {
       /special price/i,
       /discount/i,
       /^only .* for/i,
+      /pack/i,
     ];
     return offerPatterns.some((pattern) => pattern.test(lower));
   }
 
-  private normalizeWeight(weightRaw: any): { value: number; unit: string } {
-    if (!weightRaw) return { value: 0, unit: 'unknown' };
-    let raw = '';
-    if (typeof weightRaw === 'object') {
-      raw = `${weightRaw.value || ''}${weightRaw.unit || ''}`.trim();
-    } else {
-      raw = String(weightRaw).toLowerCase().trim();
+  private normalizeWeight(weightRaw: any): {
+    value: number;
+    unit: 'g' | 'ml' | 'unknown';
+  } {
+    return normalizeWeight(weightRaw);
+  }
+
+  /**
+   * Ensure knownBrandSlugs is loaded with GLOBAL_BRANDS_FOR_POOL mapped through normalizeBrandStrict.
+   * Call this once on service init or lazily before inference to populate the cache.
+   */
+  private async ensureKnownBrandSlugsLoaded(): Promise<void> {
+    if (this.knownBrandSlugs === null) {
+      // Initialize with GLOBAL_BRANDS_FOR_POOL as primary source
+      this.knownBrandSlugs = new Set(GLOBAL_BRANDS_FOR_POOL.map(normalizeBrandStrict));
+      
+      // Optionally union with repository-derived brands (avoid re-querying per call)
+      try {
+        const dbBrands = await this.productRepository
+          .createQueryBuilder('p')
+          .select('DISTINCT p.brand_normalized', 'slug')
+          .where("p.brand_normalized IS NOT NULL AND p.brand_normalized <> ''")
+          .getRawMany();
+        
+        for (const row of dbBrands) {
+          if (row.slug) {
+            this.knownBrandSlugs.add(row.slug);
+          }
+        }
+      } catch (err) {
+        this.logger.warn('Failed to load repository brands for inference, using GLOBAL_BRANDS_FOR_POOL only', err);
+      }
     }
-    const match = raw.match(/(\d+\.?\d*)\s*(g|kg|l|ml|cc|cl)/);
-
-    if (!match) return { value: 0, unit: 'unknown' };
-
-    let value = parseFloat(match[1]);
-    let unit = match[2];
-
-    // Standardize units
-    if (unit === 'kg') {
-      value *= 1000;
-      unit = 'g';
-    } else if (unit === 'l') {
-      value *= 1000;
-      unit = 'ml';
-    } else if (unit === 'cc' || unit === 'cl') {
-      if (unit === 'cl') value *= 10;
-      unit = 'ml';
-    }
-
-    return { value, unit };
   }
 }

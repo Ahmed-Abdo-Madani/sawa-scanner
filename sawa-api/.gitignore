@@ -58,6 +58,9 @@ report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 # Scraper sessions
 /scraper-sessions
 
+# Cached data from external sources
+/off-cache
+
 # Tesseract OCR Data
 *.traineddata
 /tessdata
@@ -65,3 +68,17 @@ report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 
 # Diagnostic/Output files
 eslint_output.txt
+gtin_backfill_residuals.csv
+*.csv
+*.txt
+*.json
+!package.json
+!package-lock.json
+!tsconfig.json
+!nest-cli.json
+!*sample.json
+
+# OFF Dump files (large, ~1 GB compressed)
+uploads/
+src/config/service-account.json
+debug_env.js

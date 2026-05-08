@@ -1357,6 +1357,114 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Could not recognize product. Please try again.'**
   String get aiRecognitionFailed;
+
+  /// No description provided for @adminSignIn.
+  ///
+  /// In en, this message translates to:
+  /// **'Admin Sign In'**
+  String get adminSignIn;
+
+  /// No description provided for @email.
+  ///
+  /// In en, this message translates to:
+  /// **'Email'**
+  String get email;
+
+  /// No description provided for @password.
+  ///
+  /// In en, this message translates to:
+  /// **'Password'**
+  String get password;
+
+  /// No description provided for @signIn.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign In'**
+  String get signIn;
+
+  /// No description provided for @adminTools.
+  ///
+  /// In en, this message translates to:
+  /// **'Admin Tools'**
+  String get adminTools;
+
+  /// No description provided for @quickEntry.
+  ///
+  /// In en, this message translates to:
+  /// **'Quick Entry'**
+  String get quickEntry;
+
+  /// No description provided for @missingGtinList.
+  ///
+  /// In en, this message translates to:
+  /// **'Missing GTIN List'**
+  String get missingGtinList;
+
+  /// No description provided for @submitAndNext.
+  ///
+  /// In en, this message translates to:
+  /// **'Submit & Next'**
+  String get submitAndNext;
+
+  /// No description provided for @scanningForQuickEntry.
+  ///
+  /// In en, this message translates to:
+  /// **'Scanning for Quick Entry...'**
+  String get scanningForQuickEntry;
+
+  /// No description provided for @fetchingProduct.
+  ///
+  /// In en, this message translates to:
+  /// **'Fetching product data...'**
+  String get fetchingProduct;
+
+  /// No description provided for @allergens_tab.
+  ///
+  /// In en, this message translates to:
+  /// **'Allergens'**
+  String get allergens_tab;
+
+  /// No description provided for @productExistsBanner.
+  ///
+  /// In en, this message translates to:
+  /// **'Product already exists in database'**
+  String get productExistsBanner;
+
+  /// No description provided for @productNewBanner.
+  ///
+  /// In en, this message translates to:
+  /// **'New product detected'**
+  String get productNewBanner;
+
+  /// No description provided for @gtinAssignedBanner.
+  ///
+  /// In en, this message translates to:
+  /// **'GTIN successfully assigned'**
+  String get gtinAssignedBanner;
+
+  /// No description provided for @submitAndStay.
+  ///
+  /// In en, this message translates to:
+  /// **'Submit & Stay'**
+  String get submitAndStay;
+
+  /// No description provided for @signOut.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign Out'**
+  String get signOut;
+
+  /// No description provided for @notAuthorized.
+  ///
+  /// In en, this message translates to:
+  /// **'You are not authorized to access admin tools.'**
+  String get notAuthorized;
+
+  /// No description provided for @reportsCount.
+  ///
+  /// In en, this message translates to:
+  /// **'Reports'**
+  String get reportsCount;
 }
 
 class _AppLocalizationsDelegate

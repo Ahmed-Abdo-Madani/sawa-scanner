@@ -15,6 +15,7 @@ import { ProductImage } from './product-image.entity';
 import { ProductAllergen } from './product-allergen.entity';
 
 @Entity()
+@Index(['brand_normalized', 'net_weight_value', 'net_unit'])
 export class Product {
   @PrimaryGeneratedColumn('uuid')
   id: string;
@@ -31,6 +32,17 @@ export class Product {
 
   @Column({ nullable: true })
   brand: string;
+
+  @Index()
+  @Column({ nullable: true })
+  brand_normalized: string;
+
+  @Column({ nullable: true })
+  name_normalized: string;
+
+  @Index()
+  @Column({ nullable: true, length: 4, type: 'varchar' })
+  gtin_prefix: string | null;
 
   @Column({ nullable: true })
   manufacturer: string;
@@ -82,6 +94,18 @@ export class Product {
 
   @Column({ type: 'boolean', default: false })
   nutrition_data_complete: boolean;
+
+  @Column({ default: 'off' })
+  data_source: string;
+
+  @Column({ type: 'float', default: 0 })
+  data_completeness_score: number;
+
+  @Column({ type: 'simple-array', nullable: true })
+  off_categories_tags: string[] | null;
+
+  @Column({ type: 'simple-array', nullable: true })
+  off_countries_tags: string[] | null;
 
   @CreateDateColumn()
   created_at: Date;

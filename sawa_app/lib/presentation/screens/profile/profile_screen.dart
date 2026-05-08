@@ -5,6 +5,10 @@ import '../../providers/locale_provider.dart';
 import '../../providers/user_preferences_provider.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
+import '../../providers/auth_provider.dart';
+import '../admin/admin_sign_in_screen.dart';
+import '../admin/quick_entry_screen.dart';
+import '../admin/missing_gtin_list_screen.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
@@ -13,6 +17,8 @@ class ProfileScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context)!;
     final locale = Localizations.localeOf(context);
+    final isAdmin = ref.watch(isAdminProvider).value ?? false;
+    final user = ref.watch(currentUserProvider).value;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -28,7 +34,7 @@ class ProfileScreen extends ConsumerWidget {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          _buildProfileHeader(context, locale),
+          _buildProfileHeader(context, locale, user),
           const SizedBox(height: 32),
           _buildSectionTitle(l10n.profile),
           const SizedBox(height: 8),
@@ -77,6 +83,35 @@ class ProfileScreen extends ConsumerWidget {
               ),
             ),
           ),
+          if (isAdmin || user == null) ...[
+            const SizedBox(height: 24),
+            _buildSectionTitle(l10n.adminTools),
+            const SizedBox(height: 8),
+            _buildSettingsTile(
+              context: context,
+              icon: Icons.edit_note,
+              title: l10n.quickEntry,
+              onTap: () {
+                if (ref.read(currentUserProvider).value != null) {
+                  Navigator.push(context, MaterialPageRoute(builder: (_) => const QuickEntryScreen()));
+                } else {
+                  Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminSignInScreen(targetScreen: AdminTargetScreen.quickEntry)));
+                }
+              },
+            ),
+            _buildSettingsTile(
+              context: context,
+              icon: Icons.list_alt,
+              title: l10n.missingGtinList,
+              onTap: () {
+                if (ref.read(currentUserProvider).value != null) {
+                  Navigator.push(context, MaterialPageRoute(builder: (_) => const MissingGtinListScreen()));
+                } else {
+                  Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminSignInScreen(targetScreen: AdminTargetScreen.missingGtinList)));
+                }
+              },
+            ),
+          ],
           const SizedBox(height: 24),
           _buildSectionTitle(l10n.yourPreferences),
           const SizedBox(height: 8),
@@ -106,8 +141,11 @@ class ProfileScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildProfileHeader(BuildContext context, Locale locale) {
+  Widget _buildProfileHeader(BuildContext context, Locale locale, dynamic user) {
     final l10n = AppLocalizations.of(context)!;
+    final email = user?.email ?? l10n.userName;
+    final displayName = user?.displayName ?? '';
+
     return Row(
       children: [
         Container(
@@ -124,16 +162,17 @@ class ProfileScreen extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              l10n.userName,
+              displayName.isNotEmpty ? displayName : email,
               style: AppTypography.body(locale).copyWith(
-                fontSize: 20,
+                fontSize: 18,
                 fontWeight: FontWeight.bold,
               ),
             ),
-            Text(
-              'user@example.com',
-              style: AppTypography.caption(locale).copyWith(color: AppColors.onSurface),
-            ),
+            if (displayName.isNotEmpty)
+              Text(
+                email,
+                style: AppTypography.caption(locale).copyWith(color: AppColors.onSurface),
+              ),
           ],
         ),
       ],

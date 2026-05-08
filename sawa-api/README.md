@@ -31,6 +31,30 @@
 $ npm install
 ```
 
+### Database Setup (Required)
+
+Before starting the server, you **must** run all pending database migrations. The application performs a schema compatibility check on startup and will fail to start if required migrations have not been applied.
+
+```bash
+# Run pending migrations
+$ npm run migration:run
+
+# Verify migrations were applied successfully
+$ npm run migration:show
+```
+
+The application expects the following columns to exist in the `product` table:
+- `brand_normalized`
+- `name_normalized`
+- `gtin_prefix`
+
+If the schema compatibility check fails, you will see an error like:
+```
+[FATAL] Schema compatibility check FAILED. Migration 1717000000000-AddProductNormalizedColumns has not been applied. Missing columns: brand_normalized, name_normalized, gtin_prefix. Please run migrations before starting the server: npm run migration:run
+```
+
+After pulling new changes, always run `npm run migration:run` to apply pending database migrations.
+
 ## Compile and run the project
 
 ```bash
@@ -56,6 +80,76 @@ $ npm run test:e2e
 # test coverage
 $ npm run test:cov
 ```
+
+## GTIN Backfill & OpenFoodFacts Integration
+
+### Setup
+
+The GTIN backfill process enriches product data by matching local scan products against OpenFoodFacts (OFF) records. Two sources are supported:
+
+1. **Local JSONL Dump** (Recommended) — Download the nightly OFF bulk dump and stream it locally
+2. **Live API** (Fallback) — Query the live OFF API (rate-limited, may be blocked for anonymous bots)
+
+#### Using the Local Dump (Recommended)
+
+1. Download the JSONL gzip dump from:
+   ```
+   https://static.openfoodfacts.org/data/openfoodfacts-products.jsonl.gz
+   ```
+   (~1 GB compressed, ~10 GB raw)
+
+2. Place it in your configured location (default: `./uploads/openfoodfacts-products.jsonl.gz`)
+
+3. Set the path in your `.env`:
+   ```
+   OFF_DUMP_PATH=./uploads/openfoodfacts-products.jsonl.gz
+   ```
+
+4. Trigger a backfill job with `useDump: true`:
+   ```bash
+   curl -X POST http://localhost:3000/api/ingestion/enqueue \
+     -H "Content-Type: application/json" \
+     -d '{
+       "name": "gtin-backfill-off",
+       "data": {
+         "mode": "gtin-backfill-off",
+         "useDump": true,
+         "maxProducts": 100000
+       }
+     }'
+   ```
+
+#### Using the Live API (Fallback)
+
+If `OFF_DUMP_PATH` is not set or the file is missing, the backfill falls back to the live API:
+```bash
+curl -X POST http://localhost:3000/api/ingestion/enqueue \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "gtin-backfill-off",
+    "data": {
+      "mode": "gtin-backfill-off",
+      "useDump": false,
+      "maxProducts": 100000
+    }
+  }'
+```
+
+### How It Works
+
+- **Country Filter** — Matches products tagged with `countries_tags: ["en:saudi-arabia", ...]`
+- **Brand Filter** — Matches products from the configured brand whitelist (see `OFF_BACKFILL_BRANDS` in `.env`)
+- **Single Pass** — When using the dump, both filters are applied in one stream pass over the file
+- **Matching Logic** — Fuzzy matches SCAN products to OFF records by brand + product name + weight
+- **Enrichment** — Overlays missing fields (description, nutrition, ingredients, allergens, images)
+
+### Configuration
+
+| Env Var | Default | Purpose |
+|---------|---------|---------|
+| `OFF_DUMP_PATH` | `./uploads/openfoodfacts-products.jsonl.gz` | Path to local JSONL gzip dump |
+| `OFF_BACKFILL_USER_AGENT` | `SawaScanner/1.0` | User-Agent header for OFF API requests |
+| `OFF_BACKFILL_BRANDS` | Global brand whitelist | Comma-separated brands to seed from OFF |
 
 ## Deployment
 

@@ -30,14 +30,15 @@ export class FirebaseAuthGuard implements CanActivate {
 
     const request = context.switchToHttp().getRequest();
 
-    // Dev admin bypass mechanism
+    // Dev admin bypass mechanism: only allow via signed x-dev-admin-secret header
+    // Do NOT accept raw cookie equality checks; the header is server-validated via ConfigService.
     const devSecret = request.headers['x-dev-admin-secret'];
     const DEV_ADMIN_SECRET = process.env.DEV_ADMIN_SECRET;
-    if (
-      process.env.NODE_ENV === 'development' &&
-      DEV_ADMIN_SECRET &&
-      devSecret === DEV_ADMIN_SECRET
-    ) {
+
+    const isDevAdmin =
+      process.env.NODE_ENV === 'development' && DEV_ADMIN_SECRET && devSecret === DEV_ADMIN_SECRET;
+
+    if (isDevAdmin) {
       request.user = { role: 'admin', admin: true, uid: 'dev-admin' };
       return true;
     }

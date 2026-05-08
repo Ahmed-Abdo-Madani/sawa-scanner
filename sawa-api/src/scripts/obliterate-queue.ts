@@ -1,12 +1,22 @@
 import { Queue } from 'bullmq';
 import IORedis from 'ioredis';
+import { QUEUE_NAMES } from '../config/queue.constants';
+import * as dotenv from 'dotenv';
 
-const connection = new IORedis(
-  'redis://:odOxk0Z4tiTnbDFLMTLpitlYlBiDMS1h@redis-15087.crce176.me-central-1-1.ec2.cloud.redislabs.com:15087',
-);
+dotenv.config();
+
+// Comment 3: Reuse connection parameters from environment
+const connection = new IORedis({
+  host: process.env.REDIS_HOST || 'localhost',
+  port: parseInt(process.env.REDIS_PORT || '15087', 10),
+  username: process.env.REDIS_USERNAME,
+  password: process.env.REDIS_PASSWORD,
+  tls: process.env.REDIS_TLS === 'true' ? {} : undefined,
+});
 
 async function obliterateQueue() {
-  const queue = new Queue('ingestion-queue', { connection });
+  // Comment 3: Use centralized queue name constant
+  const queue = new Queue(QUEUE_NAMES.INGESTION, { connection });
   console.log('🚀 Obliterating ingestion-queue...');
   await queue.obliterate({ force: true });
   console.log('✅ Queue obliterated.');

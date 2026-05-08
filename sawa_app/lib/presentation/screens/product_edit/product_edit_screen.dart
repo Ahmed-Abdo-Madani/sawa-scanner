@@ -8,6 +8,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../domain/entities/product.dart';
 import '../../providers/product_provider.dart';
+import '../_shared/product_form_widgets.dart';
 
 class ProductEditScreen extends ConsumerStatefulWidget {
   /// Existing product to pre-fill (edit flow).
@@ -321,17 +322,18 @@ class _ProductEditScreenState extends ConsumerState<ProductEditScreen> {
     return ListView(
       padding: const EdgeInsets.all(20),
       children: [
-        _buildLabel(l10n.nameAr, locale),
-        _buildTextField(_nameArCtrl, textDirection: TextDirection.rtl),
+        buildProductLabel(l10n.nameAr, locale),
+        buildProductTextField(context, _nameArCtrl, textDirection: TextDirection.rtl),
         const SizedBox(height: 20),
-        _buildLabel(l10n.nameEn, locale),
-        _buildTextField(_nameEnCtrl),
+        buildProductLabel(l10n.nameEn, locale),
+        buildProductTextField(context, _nameEnCtrl),
         const SizedBox(height: 20),
-        _buildLabel(l10n.brand, locale),
-        _buildTextField(_brandCtrl),
+        buildProductLabel(l10n.brand, locale),
+        buildProductTextField(context, _brandCtrl),
         const SizedBox(height: 20),
-        _buildLabel(l10n.gtinBarcode, locale),
-        _buildTextField(
+        buildProductLabel(l10n.gtinBarcode, locale),
+        buildProductTextField(
+          context,
           TextEditingController(text: _gtin),
           readOnly: true,
         ),
@@ -352,25 +354,7 @@ class _ProductEditScreenState extends ConsumerState<ProductEditScreen> {
       (l10n.sodium, _sodiumCtrl, 'mg'),
     ];
 
-    return ListView(
-      padding: const EdgeInsets.all(20),
-      children: fields.map((f) {
-        return Padding(
-          padding: const EdgeInsets.only(bottom: 16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildLabel('${f.$1} (${f.$3})', locale),
-              _buildTextField(
-                f.$2,
-                keyboardType:
-                    const TextInputType.numberWithOptions(decimal: true),
-              ),
-            ],
-          ),
-        );
-      }).toList(),
-    );
+    return buildNutritionFields(context, fields, locale);
   }
 
   // ── Tab 3: Ingredients ─────────────────────────────────────────────────────
@@ -378,7 +362,7 @@ class _ProductEditScreenState extends ConsumerState<ProductEditScreen> {
     return ListView(
       padding: const EdgeInsets.all(20),
       children: [
-        _buildLabel(l10n.ingredients_tab, locale),
+        buildProductLabel(l10n.ingredients_tab, locale),
         TextFormField(
           controller: _ingredientsTextCtrl,
           maxLines: 8,
@@ -406,106 +390,18 @@ class _ProductEditScreenState extends ConsumerState<ProductEditScreen> {
     return ListView(
       padding: const EdgeInsets.all(20),
       children: [
-        _buildPhotoSlot(
-            context, l10n.frontPhoto, 'front', _frontPhoto, _frontBytes, locale),
+        buildPhotoSlot(
+            context, l10n.frontPhoto, 'front', _frontPhoto, _frontBytes, locale, (s) => _showPhotoBottomSheet(context, s)),
         const SizedBox(height: 16),
-        _buildPhotoSlot(context, l10n.ingredientsPhoto, 'ingredients',
-            _ingredientsPhoto, _ingredientsBytes, locale),
+        buildPhotoSlot(context, l10n.ingredientsPhoto, 'ingredients',
+            _ingredientsPhoto, _ingredientsBytes, locale, (s) => _showPhotoBottomSheet(context, s)),
         const SizedBox(height: 16),
-        _buildPhotoSlot(context, l10n.nutritionPhoto, 'nutrition',
-            _nutritionPhoto, _nutritionBytes, locale),
+        buildPhotoSlot(context, l10n.nutritionPhoto, 'nutrition',
+            _nutritionPhoto, _nutritionBytes, locale, (s) => _showPhotoBottomSheet(context, s)),
       ],
     );
   }
 
-  /// Cross-platform photo slot: uses [Image.memory] with pre-read [bytes]
-  /// instead of [Image.file], so it compiles cleanly for web targets.
-  Widget _buildPhotoSlot(BuildContext context, String label, String slot,
-      XFile? file, Uint8List? bytes, Locale locale) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _buildLabel(label, locale),
-        const SizedBox(height: 8),
-        GestureDetector(
-          onTap: () => _showPhotoBottomSheet(context, slot),
-          child: Container(
-            height: 160,
-            width: double.infinity,
-            decoration: BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: file != null
-                    ? AppColors.primary
-                    : AppColors.onSurface.withOpacity(0.2),
-              ),
-            ),
-            child: file != null && bytes != null
-                ? ClipRRect(
-                    borderRadius: BorderRadius.circular(15),
-                    // Image.memory is cross-platform: works on web, iOS, Android.
-                    child: Image.memory(bytes, fit: BoxFit.cover),
-                  )
-                : Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.add_photo_alternate_outlined,
-                          size: 40, color: AppColors.primary),
-                      const SizedBox(height: 8),
-                      Text(label,
-                          style: AppTypography.caption(locale)
-                              .copyWith(color: AppColors.onSurface)),
-                    ],
-                  ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  // ── Shared helpers ─────────────────────────────────────────────────────────
-  Widget _buildLabel(String text, Locale locale) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Text(
-        text,
-        style: AppTypography.caption(locale).copyWith(
-          color: AppColors.onSurface,
-          fontWeight: FontWeight.bold,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildTextField(
-    TextEditingController ctrl, {
-    TextInputType keyboardType = TextInputType.text,
-    bool readOnly = false,
-    TextDirection? textDirection,
-  }) {
-    final locale = Localizations.localeOf(context);
-    return TextFormField(
-      controller: ctrl,
-      keyboardType: keyboardType,
-      readOnly: readOnly,
-      textDirection: textDirection,
-      style: AppTypography.body(locale).copyWith(
-        color: readOnly ? AppColors.onSurface : AppColors.onBackground,
-      ),
-      decoration: InputDecoration(
-        filled: true,
-        fillColor:
-            readOnly ? AppColors.surface.withOpacity(0.6) : AppColors.surface,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide.none,
-        ),
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      ),
-    );
-  }
 
   Widget _buildSubmitButton(AppLocalizations l10n, Locale locale) {
     return Padding(

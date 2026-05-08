@@ -80,13 +80,15 @@ class EnvironmentVariables {
   @IsNotEmpty()
   FIREBASE_PRIVATE_KEY: string;
 
+  // Required only when GTIN_AI_ENABLE_VERTEX=true or LLM_PROVIDER=vertex
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
-  GOOGLE_APPLICATION_CREDENTIALS: string;
+  GOOGLE_APPLICATION_CREDENTIALS?: string;
 
+  // Conditionally enforced in the post-validation block (mirrors GOOGLE_APPLICATION_CREDENTIALS pattern)
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
-  GEMINI_API_KEY: string;
+  GEMINI_API_KEY?: string;
 
   @IsOptional()
   @IsString()
@@ -102,8 +104,22 @@ class EnvironmentVariables {
 
   @IsOptional()
   @IsString()
+  GTIN_AI_MATCH_MODEL?: string;
+
+  @IsOptional()
+  @IsString()
+  GTIN_AI_MATCH_FALLBACK_MODEL?: string;
+
+  @IsOptional()
+  @IsIn(['true', 'false'])
+  GTIN_AI_ENABLE_VERTEX?: string;
+
+  // Required only when GTIN_AI_ENABLE_VERTEX=true or LLM_PROVIDER=vertex
+  @IsOptional()
+  @IsString()
   VERTEX_PROJECT_ID?: string;
 
+  // Required only when GTIN_AI_ENABLE_VERTEX=true or LLM_PROVIDER=vertex
   @IsOptional()
   @IsString()
   VERTEX_LOCATION?: string;
@@ -125,7 +141,116 @@ class EnvironmentVariables {
   @IsNumber()
   @Min(0)
   HUNGERSTATION_DAILY_STAGGER_MS?: number;
+
+  @IsOptional()
+  @IsString()
+  OFF_BACKFILL_USER_AGENT?: string;
+
+  @IsOptional()
+  @IsString()
+  OFF_BACKFILL_BRANDS?: string;
+
+  @IsOptional()
+  @IsString()
+  OFF_DUMP_PATH?: string;
+
+  @IsOptional()
+  @IsString()
+  DEV_ADMIN_SECRET?: string;
+
+  // ── GTIN Embedding Match (Pass G) Configuration ──
+  @IsOptional()
+  @IsIn(['true', 'false'])
+  GTIN_EMBEDDING_ENABLED?: string;
+
+  @IsOptional()
+  @IsString()
+  GTIN_EMBEDDING_MODEL?: string;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(1)
+  GTIN_EMBEDDING_DIM?: number;
+
+  @IsOptional()
+  @IsString()
+  GTIN_EMBEDDING_TASK_TYPE?: string;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(1)
+  GTIN_EMBEDDING_TOPK?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  GTIN_EMBEDDING_AUTO_APPLY_COSINE?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  GTIN_EMBEDDING_VERIFIER_FLOOR_COSINE?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(1)
+  GTIN_EMBEDDING_BATCH_SIZE?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(1)
+  GTIN_EMBEDDING_CONCURRENCY?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(1)
+  GTIN_EMBEDDING_DAILY_BUDGET?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(1)
+  GTIN_EMBEDDING_REQUEST_TIMEOUT_MS?: number;
+
+  // ── Ollama (Local LLM for GTIN Backfill) ──
+  @IsOptional()
+  @IsIn(['google', 'ollama'])
+  GTIN_AI_PROVIDER?: string;
+
+  @IsOptional()
+  @IsIn(['google', 'ollama'])
+  GTIN_EMBEDDING_PROVIDER?: string;
+
+  @IsOptional()
+  @IsString()
+  OLLAMA_BASE_URL?: string;
+
+  @IsOptional()
+  @IsString()
+  OLLAMA_GTIN_MATCH_MODEL?: string;
+
+  @IsOptional()
+  @IsString()
+  OLLAMA_GTIN_MATCH_FALLBACK_MODEL?: string;
+
+  @IsOptional()
+  @IsString()
+  OLLAMA_EMBEDDING_MODEL?: string;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(1)
+  OLLAMA_REQUEST_TIMEOUT_MS?: number;
+
+  @IsOptional()
+  @IsString()
+  OLLAMA_KEEP_ALIVE?: string;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  OLLAMA_MAX_RETRIES?: number;
 }
+
 
 export function validate(config: Record<string, any>) {
   const validatedConfig = plainToInstance(EnvironmentVariables, config, {
@@ -138,5 +263,36 @@ export function validate(config: Record<string, any>) {
   if (errors.length > 0) {
     throw new Error(`Configuration validation failed: ${errors.toString()}`);
   }
+
+  // Post-validation: check Vertex fields only if GTIN_AI_ENABLE_VERTEX=true or LLM_PROVIDER=vertex
+  if (config.GTIN_AI_ENABLE_VERTEX === 'true' || config.LLM_PROVIDER === 'vertex') {
+    if (!config.GOOGLE_APPLICATION_CREDENTIALS || config.GOOGLE_APPLICATION_CREDENTIALS.trim() === '') {
+      throw new Error(
+        'Vertex AI enabled (GTIN_AI_ENABLE_VERTEX=true or LLM_PROVIDER=vertex) requires GOOGLE_APPLICATION_CREDENTIALS to be set.',
+      );
+    }
+    if (!config.VERTEX_PROJECT_ID || config.VERTEX_PROJECT_ID.trim() === '') {
+      throw new Error(
+        'Vertex AI enabled (GTIN_AI_ENABLE_VERTEX=true or LLM_PROVIDER=vertex) requires VERTEX_PROJECT_ID to be set.',
+      );
+    }
+    if (!config.VERTEX_LOCATION || config.VERTEX_LOCATION.trim() === '') {
+      throw new Error(
+        'Vertex AI enabled (GTIN_AI_ENABLE_VERTEX=true or LLM_PROVIDER=vertex) requires VERTEX_LOCATION to be set.',
+      );
+    }
+  }
+
+  // Post-validation: GEMINI_API_KEY is required unless both providers are Ollama
+  const aiProvider = config.GTIN_AI_PROVIDER ?? 'google';
+  const embeddingProvider = config.GTIN_EMBEDDING_PROVIDER ?? 'google';
+  if (aiProvider !== 'ollama' || embeddingProvider !== 'ollama') {
+    if (!config.GEMINI_API_KEY || config.GEMINI_API_KEY.trim() === '') {
+      throw new Error(
+        'GEMINI_API_KEY is required unless both GTIN_AI_PROVIDER=ollama and GTIN_EMBEDDING_PROVIDER=ollama.',
+      );
+    }
+  }
+
   return validatedConfig;
 }

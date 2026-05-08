@@ -1,7 +1,9 @@
 import { NestFactory } from '@nestjs/core';
 import { ConfigService } from '@nestjs/config';
+import { ValidationPipe } from '@nestjs/common';
 import { AppModule } from './app.module';
 import * as admin from 'firebase-admin';
+import cookieParser from 'cookie-parser';
 
 import { createBullBoard } from '@bull-board/api';
 import { ExpressAdapter as BullBoardExpressAdapter } from '@bull-board/express';
@@ -61,8 +63,10 @@ async function bootstrap() {
   });
   const configService = app.get(ConfigService);
 
+
   // Increase the JSON body-size limit from the 100 KB default.
   app.use(require('express').json({ limit: '1mb' }));
+  app.use(cookieParser());
 
   const nodeEnv = configService.get<string>('NODE_ENV');
   const region = configService.get<string>('CLOUD_REGION');
@@ -79,14 +83,34 @@ async function bootstrap() {
     process.exit(1);
   }
 
-  // Comment 1.2: Startup check for dev admin secret
+  // Comment 1.2: Startup validation for dev admin secret
   const devAdminSecret = configService.get('DEV_ADMIN_SECRET');
+  
+  // Prevent DEV_ADMIN_SECRET from being set in non-development environments
   if (nodeEnv !== 'development' && devAdminSecret) {
     console.error(
       `FATAL: DEV_ADMIN_SECRET is set in "${nodeEnv}" environment. This bypass is ONLY permitted in "development" mode.`,
     );
     process.exit(1);
   }
+
+  // In development mode, DEV_ADMIN_SECRET is required and must be a valid, non-placeholder value
+  if (nodeEnv === 'development') {
+    if (!devAdminSecret || devAdminSecret.trim() === '') {
+      console.error(
+        `FATAL: DEV_ADMIN_SECRET is missing or empty in "development" mode. Set a valid secret in .env file.`,
+      );
+      process.exit(1);
+    }
+    const placeholderValue = 'your_new_secure_dev_secret_here';
+    if (devAdminSecret === placeholderValue) {
+      console.error(
+        `FATAL: DEV_ADMIN_SECRET is still set to placeholder value "${placeholderValue}" in "development" mode. Replace with a real secret in .env file.`,
+      );
+      process.exit(1);
+    }
+  }
+
 
   const bullBoardAdapter = new BullBoardExpressAdapter();
   bullBoardAdapter.setBasePath('/admin/queues');

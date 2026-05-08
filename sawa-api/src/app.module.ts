@@ -8,6 +8,7 @@ import { join } from 'path';
 
 import { AuthModule } from './auth/auth.module';
 import { FirebaseAuthGuard } from './auth/firebase-auth.guard';
+import { SchemaCompatibilityService } from './startup/schema-compatibility.service';
 
 import { ProductsModule } from './products/products.module';
 import { PricesModule } from './prices/prices.module';
@@ -17,6 +18,7 @@ import { IngestionModule } from './ingestion/ingestion.module';
 import { StoresModule } from './stores/stores.module';
 import { NutritionModule } from './nutrition/nutrition.module';
 import { ComparisonModule } from './comparison/comparison.module';
+import { OffExplorerModule } from './off-explorer/off-explorer.module';
 
 import { getRedisOptions } from './config/redis.config';
 import { validate } from './config/env.validation';
@@ -60,12 +62,14 @@ import { validate } from './config/env.validation';
     StoresModule,
     NutritionModule,
     ComparisonModule,
+    OffExplorerModule,
     ServeStaticModule.forRoot({
       rootPath: join(__dirname, '..', '..', 'uploads'),
       serveRoot: '/uploads',
     }),
   ],
   providers: [
+    SchemaCompatibilityService,
     {
       provide: APP_GUARD,
       useClass: FirebaseAuthGuard,

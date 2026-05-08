@@ -1,0 +1,1725 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OFF Dump Explorer</title>
+  <style>
+    :root {
+      --bg-primary: #ffffff;
+      --bg-secondary: #f5f5f5;
+      --bg-tertiary: #efefef;
+      --text-primary: #000000;
+      --text-secondary: #666666;
+      --text-tertiary: #999999;
+      --border-color: #e0e0e0;
+      --accent-color: #0066cc;
+      --accent-hover: #0052a3;
+      --error-bg: #fee;
+      --error-text: #c33;
+      --success-color: #28a745;
+      --warning-color: #ffc107;
+      --badge-a: #67b26f;
+      --badge-b: #a8d662;
+      --badge-c: #ffd700;
+      --badge-d: #ff9800;
+      --badge-e: #ff5252;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg-primary: #1e1e1e;
+        --bg-secondary: #2d2d2d;
+        --bg-tertiary: #3a3a3a;
+        --text-primary: #e0e0e0;
+        --text-secondary: #b0b0b0;
+        --text-tertiary: #808080;
+        --border-color: #404040;
+        --accent-color: #4a9eff;
+        --accent-hover: #3a8eef;
+        --error-bg: #3a1a1a;
+        --error-text: #ff8888;
+        --success-color: #4caf50;
+      }
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background-color: var(--bg-primary);
+      color: var(--text-primary);
+      height: 100%;
+    }
+
+    body {
+      display: flex;
+      flex-direction: column;
+    }
+
+    #error-banner {
+      background-color: var(--error-bg);
+      color: var(--error-text);
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 14px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    #error-banner button {
+      background: transparent;
+      border: none;
+      color: inherit;
+      cursor: pointer;
+      font-weight: 500;
+      text-decoration: underline;
+    }
+
+    #auth-prompt {
+      background-color: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 24px;
+      margin: 40px auto;
+      max-width: 400px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    #auth-prompt h2 {
+      margin: 0 0 16px 0;
+      font-size: 18px;
+    }
+
+    #auth-prompt p {
+      margin: 0 0 16px 0;
+      font-size: 14px;
+      color: var(--text-secondary);
+    }
+
+    #auth-prompt input {
+      width: 100%;
+      padding: 8px 12px;
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      font-size: 14px;
+      margin-bottom: 12px;
+      background-color: var(--bg-primary);
+      color: var(--text-primary);
+    }
+
+    #auth-prompt button {
+      width: 100%;
+      padding: 8px;
+      background-color: var(--accent-color);
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+    }
+
+    #auth-prompt button:hover {
+      background-color: var(--accent-hover);
+    }
+
+    #top-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 16px;
+      background-color: var(--bg-secondary);
+      border-bottom: 1px solid var(--border-color);
+      gap: 16px;
+    }
+
+    #app-title {
+      font-size: 18px;
+      font-weight: 600;
+      flex-shrink: 0;
+    }
+
+    #stats-text {
+      font-size: 13px;
+      color: var(--text-secondary);
+      flex: 1;
+      text-align: center;
+    }
+
+    #btn-rebuild {
+      flex-shrink: 0;
+      padding: 6px 12px;
+      background-color: var(--accent-color);
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 500;
+    }
+
+    #btn-rebuild:hover {
+      background-color: var(--accent-hover);
+    }
+
+    #btn-rebuild.rebuilding {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    #layout {
+      display: grid;
+      grid-template-columns: 260px 1fr;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    #sidebar {
+      background-color: var(--bg-secondary);
+      border-right: 1px solid var(--border-color);
+      overflow-y: auto;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    #sidebar hr {
+      border: none;
+      border-top: 1px solid var(--border-color);
+      margin: 8px 0;
+    }
+
+    #sidebar label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      margin: 12px 0 6px 0;
+    }
+
+    #sidebar input[type='text'],
+    #sidebar input[type='number'],
+    #sidebar select {
+      width: 100%;
+      padding: 6px 8px;
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      font-size: 12px;
+      background-color: var(--bg-primary);
+      color: var(--text-primary);
+      margin-bottom: 6px;
+    }
+
+    #sidebar input[type='checkbox'] {
+      margin-right: 4px;
+      cursor: pointer;
+    }
+
+    .filter-group {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .checkbox-item {
+      display: flex;
+      align-items: center;
+      font-size: 12px;
+      cursor: pointer;
+    }
+
+    .checkbox-item label {
+      margin: 0;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-weight: normal;
+      text-transform: none;
+    }
+
+    #brand-container {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    #brand-input {
+      width: 100%;
+      padding: 6px 8px;
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      font-size: 12px;
+      background-color: var(--bg-primary);
+      color: var(--text-primary);
+    }
+
+    #brand-suggestions {
+      display: none;
+    }
+
+    .tag-container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+    }
+
+    .tag-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      background-color: var(--accent-color);
+      color: white;
+      padding: 4px 8px;
+      border-radius: 16px;
+      font-size: 11px;
+    }
+
+    .tag-chip button {
+      background: none;
+      border: none;
+      color: white;
+      cursor: pointer;
+      font-size: 11px;
+      padding: 0;
+      line-height: 1;
+    }
+
+    #btn-apply,
+    #btn-reset {
+      width: 100%;
+      padding: 8px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 500;
+      margin-top: 8px;
+    }
+
+    #btn-apply {
+      background-color: var(--accent-color);
+      color: white;
+    }
+
+    #btn-apply:hover {
+      background-color: var(--accent-hover);
+    }
+
+    #btn-reset {
+      background-color: var(--bg-tertiary);
+      color: var(--text-primary);
+      border: 1px solid var(--border-color);
+    }
+
+    #btn-reset:hover {
+      background-color: var(--border-color);
+    }
+
+    #main-panel {
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    #search-bar-row {
+      display: flex;
+      gap: 8px;
+      padding: 12px;
+      background-color: var(--bg-secondary);
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    #search-input {
+      flex: 1;
+      padding: 8px 12px;
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      font-size: 13px;
+      background-color: var(--bg-primary);
+      color: var(--text-primary);
+    }
+
+    #btn-search {
+      padding: 8px 16px;
+      background-color: var(--accent-color);
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 500;
+    }
+
+    #btn-search:hover {
+      background-color: var(--accent-hover);
+    }
+
+    #no-index-cta {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 40px;
+      text-align: center;
+    }
+
+    .cta-card {
+      background-color: var(--bg-secondary);
+      border: 2px dashed var(--border-color);
+      border-radius: 8px;
+      padding: 40px;
+      max-width: 500px;
+    }
+
+    .cta-card h2 {
+      margin: 0 0 12px 0;
+      font-size: 20px;
+    }
+
+    .cta-card p {
+      margin: 0 0 20px 0;
+      font-size: 14px;
+      color: var(--text-secondary);
+    }
+
+    .cta-card button {
+      padding: 10px 20px;
+      background-color: var(--accent-color);
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+    }
+
+    .cta-card button:hover {
+      background-color: var(--accent-hover);
+    }
+
+    #results-area {
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    #results-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+      flex: 1;
+      overflow: auto;
+    }
+
+    #results-table thead {
+      background-color: var(--bg-secondary);
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+
+    #results-table th {
+      padding: 8px;
+      text-align: left;
+      border-bottom: 1px solid var(--border-color);
+      font-weight: 600;
+      color: var(--text-secondary);
+      user-select: none;
+      cursor: pointer;
+    }
+
+    #results-table th:hover {
+      background-color: var(--bg-tertiary);
+    }
+
+    #results-table td {
+      padding: 8px;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    #results-table tbody tr:hover {
+      background-color: var(--bg-secondary);
+      cursor: pointer;
+    }
+
+    #results-table tbody tr {
+      transition: background-color 0.1s;
+    }
+
+    .gtin-cell {
+      font-family: monospace;
+      font-size: 11px;
+      color: var(--text-secondary);
+    }
+
+    .name-cell {
+      max-width: 200px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .countries-cell {
+      font-size: 11px;
+      color: var(--text-secondary);
+    }
+
+    .check-icon {
+      color: var(--success-color);
+      font-weight: bold;
+    }
+
+    .cross-icon {
+      color: var(--text-tertiary);
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-size: 10px;
+      font-weight: 600;
+      color: white;
+    }
+
+    .badge-a {
+      background-color: var(--badge-a);
+    }
+
+    .badge-b {
+      background-color: var(--badge-b);
+      color: #333;
+    }
+
+    .badge-c {
+      background-color: var(--badge-c);
+      color: #333;
+    }
+
+    .badge-d {
+      background-color: var(--badge-d);
+      color: white;
+    }
+
+    .badge-e {
+      background-color: var(--badge-e);
+      color: white;
+    }
+
+    .nova-badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-size: 10px;
+      font-weight: 600;
+      background-color: #9c27b0;
+      color: white;
+    }
+
+    #pagination-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px;
+      background-color: var(--bg-secondary);
+      border-top: 1px solid var(--border-color);
+      font-size: 12px;
+    }
+
+    .pagination-controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .pagination-controls button {
+      padding: 4px 8px;
+      background-color: var(--accent-color);
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 12px;
+    }
+
+    .pagination-controls button:hover {
+      background-color: var(--accent-hover);
+    }
+
+    .pagination-controls button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    #page-size-select {
+      padding: 4px 8px;
+      background-color: var(--bg-primary);
+      color: var(--text-primary);
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 12px;
+    }
+
+    .slide-over {
+      position: fixed;
+      right: 0;
+      top: 0;
+      width: 500px;
+      height: 100vh;
+      background-color: var(--bg-primary);
+      border-left: 1px solid var(--border-color);
+      transform: translateX(100%);
+      transition: transform 0.3s ease;
+      z-index: 200;
+      display: flex;
+      flex-direction: column;
+      box-shadow: -2px 0 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .slide-over.open {
+      transform: translateX(0);
+    }
+
+    #slide-close {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      width: 32px;
+      height: 32px;
+      background: none;
+      border: none;
+      font-size: 20px;
+      cursor: pointer;
+      color: var(--text-secondary);
+      z-index: 10;
+    }
+
+    #slide-close:hover {
+      color: var(--text-primary);
+    }
+
+    #slide-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 40px 16px 16px 16px;
+    }
+
+    #slide-backdrop {
+      position: fixed;
+      inset: 0;
+      background-color: rgba(0, 0, 0, 0.3);
+      z-index: 150;
+      display: none;
+    }
+
+    #slide-backdrop.open {
+      display: block;
+    }
+
+    .slide-image {
+      width: 100%;
+      max-width: 100%;
+      height: auto;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      border: 1px solid var(--border-color);
+    }
+
+    .slide-section {
+      margin-bottom: 20px;
+    }
+
+    .slide-section h3 {
+      margin: 0 0 8px 0;
+      font-size: 14px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .slide-section h3:hover {
+      color: var(--accent-color);
+    }
+
+    .slide-toggle {
+      margin-right: 6px;
+      font-size: 12px;
+    }
+
+    .json-tree {
+      font-size: 11px;
+      font-family: monospace;
+      background-color: var(--bg-secondary);
+      padding: 8px;
+      border-radius: 4px;
+      overflow-x: auto;
+    }
+
+    .json-tree details {
+      margin-left: 12px;
+      cursor: pointer;
+    }
+
+    .json-tree summary {
+      user-select: none;
+      color: var(--accent-color);
+    }
+
+    .json-tree summary:hover {
+      color: var(--accent-hover);
+    }
+
+    .json-scalar {
+      color: var(--text-secondary);
+    }
+
+    .json-key {
+      color: #d4a574;
+      font-weight: 600;
+    }
+
+    .json-string {
+      color: #a3d588;
+    }
+
+    .json-number {
+      color: #a3d588;
+    }
+
+    .json-boolean {
+      color: #ff8e8e;
+    }
+
+    .json-null {
+      color: #999;
+      font-style: italic;
+    }
+
+    .json-missing {
+      opacity: 0.5;
+      text-decoration: line-through;
+    }
+
+    .compare-highlight {
+      background-color: #ffeb3b;
+      opacity: 0.3;
+    }
+
+    @media (max-width: 1024px) {
+      #layout {
+        grid-template-columns: 1fr;
+      }
+
+      #sidebar {
+        display: none;
+      }
+
+      .slide-over {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="error-banner" hidden>
+    <span id="error-message"></span>
+    <div>
+      <button id="error-close">Dismiss</button>
+    </div>
+  </div>
+
+  <div id="auth-prompt" hidden>
+    <h2>Enter Admin Secret</h2>
+    <p>This interface requires dev admin authentication.</p>
+    <input id="auth-input" type="password" placeholder="x-dev-admin-secret" />
+    <button id="auth-save">Save & Continue</button>
+  </div>
+
+  <header id="top-bar">
+    <span id="app-title">OFF Dump Explorer</span>
+    <span id="stats-text">Loading…</span>
+    <button id="btn-rebuild">Rebuild Index</button>
+  </header>
+
+  <div id="layout">
+    <aside id="sidebar">
+      <!-- Free text search -->
+      <label>Search</label>
+      <input id="q-input" type="text" placeholder="Free text search…" />
+
+      <!-- Brands -->
+      <label>Brands</label>
+      <div id="brand-container">
+        <input
+          id="brand-input"
+          type="text"
+          placeholder="Type to search…"
+          list="brand-suggestions"
+        />
+        <datalist id="brand-suggestions"></datalist>
+        <div id="brand-tags" class="tag-container"></div>
+      </div>
+
+      <hr />
+
+      <!-- Country filter -->
+      <label>Countries</label>
+      <div id="country-list" class="filter-group"></div>
+
+      <hr />
+
+      <!-- Category -->
+      <label>Category</label>
+      <input id="category-input" type="text" placeholder="e.g., Beverages" />
+
+      <!-- GTIN filters -->
+      <label>GTIN</label>
+      <input
+        id="gtin-prefix-input"
+        type="text"
+        placeholder="Prefix (e.g., 639)"
+      />
+      <input id="gtin-exact-input" type="text" placeholder="Exact GTIN" />
+
+      <hr />
+
+      <!-- Weight -->
+      <label>Weight (grams)</label>
+      <input id="min-weight-input" type="number" placeholder="Min" />
+      <input id="max-weight-input" type="number" placeholder="Max" />
+
+      <hr />
+
+      <!-- NutriScore -->
+      <label>NutriScore</label>
+      <div id="nutri-list" class="filter-group">
+        <div class="checkbox-item">
+          <input type="checkbox" id="check-nutri-a" value="a" />
+          <label for="check-nutri-a">A</label>
+        </div>
+        <div class="checkbox-item">
+          <input type="checkbox" id="check-nutri-b" value="b" />
+          <label for="check-nutri-b">B</label>
+        </div>
+        <div class="checkbox-item">
+          <input type="checkbox" id="check-nutri-c" value="c" />
+          <label for="check-nutri-c">C</label>
+        </div>
+        <div class="checkbox-item">
+          <input type="checkbox" id="check-nutri-d" value="d" />
+          <label for="check-nutri-d">D</label>
+        </div>
+        <div class="checkbox-item">
+          <input type="checkbox" id="check-nutri-e" value="e" />
+          <label for="check-nutri-e">E</label>
+        </div>
+      </div>
+
+      <!-- NOVA groups -->
+      <label>NOVA Group</label>
+      <div id="nova-list" class="filter-group">
+        <div class="checkbox-item">
+          <input type="checkbox" id="check-nova-1" value="1" />
+          <label for="check-nova-1">1 - Unprocessed</label>
+        </div>
+        <div class="checkbox-item">
+          <input type="checkbox" id="check-nova-2" value="2" />
+          <label for="check-nova-2">2 - Processed</label>
+        </div>
+        <div class="checkbox-item">
+          <input type="checkbox" id="check-nova-3" value="3" />
+          <label for="check-nova-3">3 - Ingredients</label>
+        </div>
+        <div class="checkbox-item">
+          <input type="checkbox" id="check-nova-4" value="4" />
+          <label for="check-nova-4">4 - Ultra-Processed</label>
+        </div>
+      </div>
+
+      <hr />
+
+      <!-- Boolean toggles -->
+      <label>Has…</label>
+      <div class="checkbox-item">
+        <input type="checkbox" id="check-has-nutrition" />
+        <label for="check-has-nutrition">Nutrition facts</label>
+      </div>
+      <div class="checkbox-item">
+        <input type="checkbox" id="check-has-image" />
+        <label for="check-has-image">Product image</label>
+      </div>
+      <div class="checkbox-item">
+        <input type="checkbox" id="check-has-ingredients" />
+        <label for="check-has-ingredients">Ingredients text</label>
+      </div>
+
+      <hr />
+
+      <!-- Apply/Reset buttons -->
+      <button id="btn-apply">Apply Filters</button>
+      <button id="btn-reset">Reset</button>
+    </aside>
+
+    <main id="main-panel">
+      <div id="search-bar-row">
+        <input id="search-input" type="text" placeholder="Search products…" />
+        <button id="btn-search">Apply</button>
+      </div>
+
+      <div id="no-index-cta" hidden>
+        <div class="cta-card">
+          <h2>Index Not Built</h2>
+          <p>
+            The OFF dump index has not been created yet. Click the "Rebuild
+            Index" button at the top to start the process. This may take
+            several minutes.
+          </p>
+          <button id="btn-cta-rebuild">
+            Start Indexing
+          </button>
+        </div>
+      </div>
+
+      <div id="results-area">
+        <table id="results-table">
+          <thead>
+            <tr>
+              <th data-sort="gtin">GTIN ↕</th>
+              <th data-sort="name_en">Name ↕</th>
+              <th data-sort="brand">Brand ↕</th>
+              <th>Countries</th>
+              <th>Img</th>
+              <th>Nutr</th>
+              <th>NutriScore</th>
+              <th>NOVA</th>
+            </tr>
+          </thead>
+          <tbody id="results-tbody"></tbody>
+        </table>
+        <div id="pagination-bar">
+          <div>
+            Page <span id="current-page">1</span> of
+            <span id="total-pages">1</span>
+          </div>
+          <div class="pagination-controls">
+            <button id="btn-prev-page" onclick="prevPage()">◀ Prev</button>
+            <select id="page-size-select" onchange="changePageSize()">
+              <option value="50">50 per page</option>
+              <option value="100">100 per page</option>
+              <option value="200">200 per page</option>
+            </select>
+            <button id="btn-next-page" onclick="nextPage()">Next ▶</button>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <div id="slide-backdrop" hidden></div>
+  <div id="slide-over" class="slide-over">
+    <button id="slide-close">✕</button>
+    <div id="slide-content">Loading…</div>
+  </div>
+
+  <script>
+    (function () {
+      // ==================== State ====================
+      const state = {
+        q: '',
+        brands: [],
+        countryTags: [],
+        categoryTags: [],
+        gtinPrefix: '',
+        gtinExact: '',
+        hasNutrition: undefined,
+        hasImage: undefined,
+        hasIngredientsText: undefined,
+        minGrams: undefined,
+        maxGrams: undefined,
+        nutriScoreGrades: [],
+        novaGroups: [],
+        page: 1,
+        pageSize: 50,
+        sort: 'recent',
+        lastFacets: null,
+      };
+
+      // ==================== Auth / Secret Management ====================
+      // HttpOnly cookie is set by bootstrap endpoint; no client-side storage of secret
+
+      function showAuthPrompt() {
+        document.getElementById('auth-prompt').removeAttribute('hidden');
+        document.getElementById('top-bar').setAttribute('hidden', '');
+        document.getElementById('layout').setAttribute('hidden', '');
+      }
+
+      function hideAuthPrompt() {
+        document.getElementById('auth-prompt').setAttribute('hidden', '');
+        document.getElementById('top-bar').removeAttribute('hidden');
+        document.getElementById('layout').removeAttribute('hidden');
+      }
+
+      async function bootstrapAdmin(secret) {
+        try {
+          const response = await fetch('/admin/off-explorer/bootstrap', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ secret: secret.trim() }),
+          });
+
+          if (!response.ok) {
+            const error = await response.json();
+            showError(error.message || 'Failed to authenticate');
+            return false;
+          }
+
+          // Bootstrap successful; HttpOnly cookie is now set by server
+          hideAuthPrompt();
+          window.location.reload(); // Reload to ensure subsequent requests use the cookie
+          return true;
+        } catch (err) {
+          showError(`Bootstrap error: ${err.message}`);
+          return false;
+        }
+      }
+
+      document.getElementById('auth-save').addEventListener('click', () => {
+        const input = document.getElementById('auth-input');
+        const secret = input.value.trim();
+        if (secret) {
+          bootstrapAdmin(secret);
+        }
+      });
+
+      document.getElementById('auth-input').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+          document.getElementById('auth-save').click();
+        }
+      });
+
+      // ==================== API Fetch Wrapper ====================
+      async function apiFetch(path, options = {}) {
+        const headers = options.headers || {};
+
+        try {
+          const response = await fetch(path, { 
+            ...options, 
+            headers,
+            credentials: 'include' 
+          });
+
+          if (response.status === 401 || response.status === 403) {
+            // For critical endpoints like /stats on initial load, show auth prompt immediately
+            if (path.includes('/stats') && document.getElementById('top-bar').hasAttribute('hidden')) {
+              showAuthPrompt();
+            } else {
+              showAuthError(
+                `Unauthorized (${response.status}). Please enter your dev admin secret.`,
+                () => {
+                  showAuthPrompt();
+                }
+              );
+            }
+            throw new Error('Unauthorized');
+          }
+
+          if (response.status === 500) {
+            const text = await response.text();
+            showError(
+              `Server error (500): ${text}`,
+              () => {
+                lastRequest?.();
+              }
+            );
+            throw new Error('Server error');
+          }
+
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+          }
+
+          return response.json();
+        } catch (err) {
+          if (err.message !== 'Unauthorized' && err.message !== 'Server error') {
+            showError(err.message);
+          }
+          throw err;
+        }
+      }
+
+      // ==================== Error Handling ====================
+      function showError(message, onRetry = null) {
+        const banner = document.getElementById('error-banner');
+        const msgEl = document.getElementById('error-message');
+        msgEl.textContent = message;
+
+        const errorClose = document.getElementById('error-close');
+        errorClose.textContent = onRetry ? 'Retry' : 'Dismiss';
+        errorClose.onclick = () => {
+          if (onRetry) {
+            onRetry();
+          } else {
+            banner.setAttribute('hidden', '');
+          }
+        };
+
+        banner.removeAttribute('hidden');
+      }
+
+      function showAuthError(message, onRetry) {
+        showError(message, onRetry);
+      }
+
+      let lastRequest = null;
+
+      // ==================== Stats Loading ====================
+      async function loadStats() {
+        try {
+          const data = await apiFetch('/admin/off-explorer/stats');
+          lastRequest = loadStats;
+
+          const total = data.totalProducts || 0;
+          const builtAt = data.indexBuiltAt;
+          const builtAtTime = builtAt ? new Date(builtAt) : null;
+          const minsAgo = builtAtTime
+            ? Math.round((Date.now() - builtAtTime) / 60000)
+            : '?';
+
+          document.getElementById('stats-text').textContent =
+            `Total: ${total.toLocaleString()} | Indexed: ${minsAgo}min ago | Brands: ${data.byBrandCount} | Countries: ${data.byCountryCount}`;
+
+          if (total === 0) {
+            document.getElementById('no-index-cta').removeAttribute('hidden');
+            document.getElementById('results-area').setAttribute('hidden', '');
+          } else {
+            document.getElementById('no-index-cta').setAttribute('hidden', '');
+            document.getElementById('results-area').removeAttribute('hidden');
+            loadProducts();
+          }
+        } catch (err) {
+          console.error('loadStats error:', err);
+        }
+      }
+
+      // ==================== Products Loading ====================
+      async function loadProducts() {
+        try {
+          lastRequest = loadProducts;
+          const params = new URLSearchParams();
+          if (state.q) params.append('q', state.q);
+          state.brands.forEach((b) => params.append('brands', b));
+          state.countryTags.forEach((c) => params.append('countryTags', c));
+          if (state.categoryTags.length > 0)
+            state.categoryTags.forEach((c) => params.append('categoryTags', c));
+          if (state.gtinPrefix) params.append('gtinPrefix', state.gtinPrefix);
+          if (state.gtinExact) params.append('gtinExact', state.gtinExact);
+          if (state.minGrams !== undefined)
+            params.append('minGrams', state.minGrams);
+          if (state.maxGrams !== undefined)
+            params.append('maxGrams', state.maxGrams);
+          state.nutriScoreGrades.forEach((g) =>
+            params.append('nutriScoreGrades', g)
+          );
+          state.novaGroups.forEach((n) => params.append('novaGroups', n));
+          if (state.hasNutrition !== undefined)
+            params.append('hasNutrition', state.hasNutrition);
+          if (state.hasImage !== undefined)
+            params.append('hasImage', state.hasImage);
+          if (state.hasIngredientsText !== undefined)
+            params.append(
+              'hasIngredientsText',
+              state.hasIngredientsText
+            );
+          params.append('page', state.page);
+          params.append('pageSize', state.pageSize);
+          params.append('sort', state.sort);
+
+          const data = await apiFetch(
+            `/admin/off-explorer/products?${params.toString()}`
+          );
+
+          renderTable(data.results);
+          updatePagination(data.total, state.page, state.pageSize);
+
+          if (data.facets) {
+            state.lastFacets = data.facets;
+            updateFacetUI(data.facets);
+          }
+        } catch (err) {
+          console.error('loadProducts error:', err);
+        }
+      }
+
+      // ==================== Table Rendering (Fix #3: DOM API, no injection) ====================
+      function renderTable(results) {
+        const tbody = document.getElementById('results-tbody');
+        tbody.innerHTML = '';
+
+        results.forEach((product) => {
+          const row = document.createElement('tr');
+          row.setAttribute('data-gtin', product.gtin);
+          row.style.cursor = 'pointer';
+          row.addEventListener('click', () => {
+            openSlideOver(product.gtin);
+          });
+
+          const gtin = product.gtin || '';
+          const gtinDisplay = gtin.length > 13 ? gtin.slice(0, 13) : gtin;
+
+          const nameEn = product.name_en || product.name || '—';
+          const brand = product.brand || '—';
+          const countries = (product.countries_tags || []).join(', ') || '—';
+
+          const hasImage = product.image_front_url ? '✔' : '–';
+          const hasNutrition = product.has_nutrition ? '✔' : '–';
+
+          // GTIN cell
+          const gtinCell = document.createElement('td');
+          gtinCell.className = 'gtin-cell';
+          gtinCell.textContent = gtinDisplay;
+          row.appendChild(gtinCell);
+
+          // Name cell
+          const nameCell = document.createElement('td');
+          nameCell.className = 'name-cell';
+          nameCell.textContent = nameEn;
+          row.appendChild(nameCell);
+
+          // Brand cell
+          const brandCell = document.createElement('td');
+          brandCell.textContent = brand;
+          row.appendChild(brandCell);
+
+          // Countries cell
+          const countriesCell = document.createElement('td');
+          countriesCell.className = 'countries-cell';
+          countriesCell.textContent = countries;
+          row.appendChild(countriesCell);
+
+          // Image cell
+          const imgCell = document.createElement('td');
+          imgCell.className = 'check-icon';
+          imgCell.textContent = hasImage;
+          row.appendChild(imgCell);
+
+          // Nutrition cell
+          const nutrCell = document.createElement('td');
+          nutrCell.className = 'check-icon';
+          nutrCell.textContent = hasNutrition;
+          row.appendChild(nutrCell);
+
+          // NutriScore cell
+          const nutriCell = document.createElement('td');
+          if (product.nutriscore_grade) {
+            const badge = document.createElement('span');
+            badge.className = `badge badge-${product.nutriscore_grade}`;
+            badge.textContent = product.nutriscore_grade.toUpperCase();
+            nutriCell.appendChild(badge);
+          } else {
+            nutriCell.textContent = '—';
+          }
+          row.appendChild(nutriCell);
+
+          // NOVA cell
+          const novaCell = document.createElement('td');
+          if (product.nova_group) {
+            const badge = document.createElement('span');
+            badge.className = 'nova-badge';
+            badge.textContent = product.nova_group;
+            novaCell.appendChild(badge);
+          } else {
+            novaCell.textContent = '—';
+          }
+          row.appendChild(novaCell);
+
+          tbody.appendChild(row);
+        });
+      }
+
+      // ==================== Pagination ====================
+      function updatePagination(totalCount, currentPage, pageSize) {
+        const totalPages = Math.ceil(totalCount / pageSize);
+
+        document.getElementById('current-page').textContent = currentPage;
+        document.getElementById('total-pages').textContent = totalPages;
+
+        document.getElementById('btn-prev-page').disabled = currentPage === 1;
+        document.getElementById('btn-next-page').disabled =
+          currentPage >= totalPages;
+      }
+
+      document.getElementById('btn-prev-page').addEventListener('click', () => {
+        if (state.page > 1) {
+          state.page--;
+          loadProducts();
+          window.scrollTo(0, 0);
+        }
+      });
+
+      document.getElementById('btn-next-page').addEventListener('click', () => {
+        state.page++;
+        loadProducts();
+        window.scrollTo(0, 0);
+      });
+
+      document.getElementById('page-size-select').addEventListener('change', (e) => {
+        state.pageSize = parseInt(e.target.value);
+        state.page = 1;
+        loadProducts();
+      });
+
+      // ==================== Sorting (Fix #1: use backend sort values) ====================
+      document.querySelectorAll('#results-table th[data-sort]').forEach((th) => {
+        th.addEventListener('click', () => {
+          const field = th.getAttribute('data-sort');
+          if (state.sort === field) {
+            state.sort = `recent`;
+          } else {
+            state.sort = field;
+          }
+          state.page = 1;
+          loadProducts();
+        });
+      });
+
+      // ==================== Facet UI ====================
+      function updateFacetUI(facets) {
+        // Countries (Fix #1: use topCountries from backend as objects)
+        const countryList = document.getElementById('country-list');
+        countryList.innerHTML = '';
+
+        const countryFacets = facets.topCountries || [];
+        const top20Countries = countryFacets.slice(0, 20);
+
+        top20Countries.forEach((facet) => {
+          const country = facet.label;
+          const div = document.createElement('div');
+          div.className = 'checkbox-item';
+
+          const checkbox = document.createElement('input');
+          checkbox.type = 'checkbox';
+          checkbox.id = `check-country-${country}`;
+          checkbox.value = country;
+          checkbox.checked = state.countryTags.includes(country);
+          checkbox.addEventListener('change', (e) => {
+            if (e.target.checked) {
+              state.countryTags.push(country);
+            } else {
+              state.countryTags = state.countryTags.filter(
+                (c) => c !== country
+              );
+            }
+          });
+
+          const label = document.createElement('label');
+          label.htmlFor = `check-country-${country}`;
+          label.textContent = country;
+
+          div.appendChild(checkbox);
+          div.appendChild(label);
+          countryList.appendChild(div);
+        });
+
+        // Brands (Fix #1: use topBrands from backend)
+        const brandSuggestions = document.getElementById('brand-suggestions');
+        brandSuggestions.innerHTML = '';
+
+        const brandFacets = facets.topBrands || [];
+        brandFacets.slice(0, 100).forEach((facet) => {
+          const option = document.createElement('option');
+          option.value = facet.label;
+          brandSuggestions.appendChild(option);
+        });
+      }
+
+      // ==================== Brand Picker (Fix #3: use addEventListener, no injection) ====================
+      document.getElementById('brand-input').addEventListener('change', () => {
+        const input = document.getElementById('brand-input');
+        const brand = input.value.trim();
+
+        const brandLabels = (state.lastFacets?.topBrands || []).map((b) => b.label);
+
+        if (
+          brand &&
+          !state.brands.includes(brand) &&
+          brandLabels.includes(brand)
+        ) {
+          state.brands.push(brand);
+          renderBrandTags();
+          input.value = '';
+        }
+      });
+
+      function renderBrandTags() {
+        const container = document.getElementById('brand-tags');
+        container.innerHTML = '';
+
+        state.brands.forEach((brand) => {
+          const chip = document.createElement('div');
+          chip.className = 'tag-chip';
+
+          const text = document.createElement('span');
+          text.textContent = brand;
+          chip.appendChild(text);
+
+          const btn = document.createElement('button');
+          btn.textContent = '✕';
+          btn.addEventListener('click', () => {
+            state.brands = state.brands.filter((b) => b !== brand);
+            renderBrandTags();
+          });
+          chip.appendChild(btn);
+
+          container.appendChild(chip);
+        });
+      }
+
+      // ==================== Slide Over ====================
+      async function openSlideOver(gtin) {
+        const slideOver = document.getElementById('slide-over');
+        const backdrop = document.getElementById('slide-backdrop');
+        const content = document.getElementById('slide-content');
+
+        slideOver.classList.add('open');
+        backdrop.classList.add('open');
+        content.innerHTML = '';
+
+        const loading = document.createElement('p');
+        loading.textContent = 'Loading…';
+        content.appendChild(loading);
+
+        backdrop.addEventListener('click', closeSlideOver, { once: true });
+
+        try {
+          const [product, comparison] = await Promise.all([
+            apiFetch(`/admin/off-explorer/products/${gtin}`),
+            apiFetch(`/admin/off-explorer/db-comparison/${gtin}`),
+          ]);
+
+          content.innerHTML = '';
+
+          // Image
+          if (product.image_front_url) {
+            const img = document.createElement('img');
+            img.src = product.image_front_url;
+            img.alt = product.name_en || 'Product image';
+            img.className = 'slide-image';
+            content.appendChild(img);
+          }
+
+          // OFF Data section
+          const offSection = document.createElement('div');
+          offSection.className = 'slide-section';
+          
+          const offTitle = document.createElement('h3');
+          offTitle.innerHTML = '<span class="slide-toggle">▾</span>OFF Data';
+          offSection.appendChild(offTitle);
+          
+          const offTree = document.createElement('div');
+          offTree.className = 'json-tree';
+          offTree.appendChild(renderJsonTreeElement(product));
+          offSection.appendChild(offTree);
+          
+          content.appendChild(offSection);
+
+          // DB Record section
+          const dbRecord = comparison.db;
+          const dbSection = document.createElement('div');
+          dbSection.className = 'slide-section';
+          
+          const dbTitle = document.createElement('h3');
+          dbTitle.innerHTML = '<span class="slide-toggle">▾</span>DB Record';
+          dbSection.appendChild(dbTitle);
+          
+          const dbTree = document.createElement('div');
+          dbTree.className = 'json-tree';
+          dbTree.appendChild(renderJsonTreeElement(dbRecord || {}, product));
+          dbSection.appendChild(dbTree);
+          
+          content.appendChild(dbSection);
+        } catch (err) {
+          content.innerHTML = '';
+          const errMsg = document.createElement('p');
+          errMsg.style.color = 'red';
+          errMsg.textContent = `Error loading product: ${err.message}`;
+          content.appendChild(errMsg);
+        }
+      }
+
+      function closeSlideOver() {
+        const slideOver = document.getElementById('slide-over');
+        const backdrop = document.getElementById('slide-backdrop');
+
+        slideOver.classList.remove('open');
+        backdrop.classList.remove('open');
+      }
+
+      document.getElementById('slide-close').addEventListener('click', closeSlideOver);
+
+      // ==================== JSON Tree Renderer (Fix #3: use DOM API) ====================
+      function renderJsonTreeElement(obj, offData = null) {
+        if (obj === null || obj === undefined) {
+          const span = document.createElement('span');
+          span.className = 'json-null';
+          span.textContent = 'null';
+          return span;
+        }
+
+        if (typeof obj === 'string') {
+          const span = document.createElement('span');
+          span.className = 'json-string';
+          span.textContent = `"${obj}"`;
+          return span;
+        }
+
+        if (typeof obj === 'number') {
+          const span = document.createElement('span');
+          span.className = 'json-number';
+          span.textContent = String(obj);
+          return span;
+        }
+
+        if (typeof obj === 'boolean') {
+          const span = document.createElement('span');
+          span.className = 'json-boolean';
+          span.textContent = String(obj);
+          return span;
+        }
+
+        if (Array.isArray(obj)) {
+          if (obj.length === 0) {
+            const span = document.createElement('span');
+            span.textContent = '[]';
+            return span;
+          }
+
+          const details = document.createElement('details');
+          details.open = true;
+
+          const summary = document.createElement('summary');
+          summary.textContent = '[ ]';
+          details.appendChild(summary);
+
+          obj.forEach((item, idx) => {
+            const div = document.createElement('div');
+            div.textContent = `${idx}: `;
+            div.appendChild(renderJsonTreeElement(item, offData));
+            details.appendChild(div);
+          });
+
+          return details;
+        }
+
+        if (typeof obj === 'object') {
+          const keys = Object.keys(obj);
+
+          if (keys.length === 0) {
+            const span = document.createElement('span');
+            span.textContent = '{}';
+            return span;
+          }
+
+          const details = document.createElement('details');
+          details.open = true;
+
+          const summary = document.createElement('summary');
+          summary.textContent = '{ }';
+          details.appendChild(summary);
+
+          keys.forEach((key) => {
+            const div = document.createElement('div');
+            if (offData && !(key in offData)) {
+              div.className = 'compare-highlight';
+            }
+
+            const keySpan = document.createElement('span');
+            keySpan.className = 'json-key';
+            keySpan.textContent = `"${key}"`;
+            div.appendChild(keySpan);
+
+            const colonSpan = document.createElement('span');
+            colonSpan.textContent = ': ';
+            div.appendChild(colonSpan);
+
+            div.appendChild(renderJsonTreeElement(obj[key], offData));
+
+            if (offData && !(key in offData)) {
+              const noteSpan = document.createElement('span');
+              noteSpan.style.opacity = '0.5';
+              noteSpan.textContent = ' (only in OFF)';
+              div.appendChild(noteSpan);
+            }
+
+            details.appendChild(div);
+          });
+
+          return details;
+        }
+
+        const span = document.createElement('span');
+        span.textContent = String(obj);
+        return span;
+      }
+
+      // ==================== Rebuild Index ====================
+      document.getElementById('btn-rebuild').addEventListener('click', async () => {
+        const confirmed = confirm(
+          'Rebuild the OFF index? This may take several minutes.'
+        );
+        if (!confirmed) return;
+
+        const btn = document.getElementById('btn-rebuild');
+        btn.classList.add('rebuilding');
+        btn.disabled = true;
+
+        try {
+          lastRequest = loadStats;
+          const result = await apiFetch('/admin/off-explorer/index/rebuild', {
+            method: 'POST',
+          });
+
+          showError('Index rebuild completed. Reloading…', () => {
+            location.reload();
+          });
+        } catch (err) {
+          btn.classList.remove('rebuilding');
+          btn.disabled = false;
+          console.error('Rebuild error:', err);
+        }
+      });
+
+      document.getElementById('btn-cta-rebuild').addEventListener('click', () => {
+        document.getElementById('btn-rebuild').click();
+      });
+
+      // ==================== Filter Application ====================
+      document.getElementById('btn-apply').addEventListener('click', () => {
+        syncFiltersFromUI();
+        state.page = 1;
+        loadProducts();
+      });
+
+      document.getElementById('btn-search').addEventListener('click', () => {
+        state.q = document.getElementById('search-input').value.trim();
+        state.page = 1;
+        loadProducts();
+      });
+
+      document.getElementById('search-input').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+          document.getElementById('btn-search').click();
+        }
+      });
+
+      document.getElementById('btn-reset').addEventListener('click', () => {
+        resetFilters();
+      });
+
+      function syncFiltersFromUI() {
+        state.q = document.getElementById('q-input').value.trim();
+        state.gtinPrefix = document.getElementById('gtin-prefix-input').value.trim();
+        state.gtinExact = document.getElementById('gtin-exact-input').value.trim();
+        state.categoryTags = document.getElementById('category-input').value.trim()
+          ? [document.getElementById('category-input').value.trim()]
+          : [];
+
+        const minGrams = document.getElementById('min-weight-input').value;
+        state.minGrams = minGrams ? parseInt(minGrams) : undefined;
+
+        const maxGrams = document.getElementById('max-weight-input').value;
+        state.maxGrams = maxGrams ? parseInt(maxGrams) : undefined;
+
+        state.nutriScoreGrades = Array.from(
+          document.querySelectorAll('#nutri-list input:checked')
+        ).map((cb) => cb.value);
+
+        state.novaGroups = Array.from(
+          document.querySelectorAll('#nova-list input:checked')
+        ).map((cb) => parseInt(cb.value));
+
+        state.hasNutrition = document.getElementById(
+          'check-has-nutrition'
+        ).checked
+          ? true
+          : undefined;
+        state.hasImage = document.getElementById('check-has-image').checked
+          ? true
+          : undefined;
+        state.hasIngredientsText = document.getElementById(
+          'check-has-ingredients'
+        ).checked
+          ? true
+          : undefined;
+      }
+
+      function resetFilters() {
+        state.q = '';
+        state.brands = [];
+        state.countryTags = [];
+        state.categoryTags = [];
+        state.gtinPrefix = '';
+        state.gtinExact = '';
+        state.hasNutrition = undefined;
+        state.hasImage = undefined;
+        state.hasIngredientsText = undefined;
+        state.minGrams = undefined;
+        state.maxGrams = undefined;
+        state.nutriScoreGrades = [];
+        state.novaGroups = [];
+        state.page = 1;
+
+        document.getElementById('q-input').value = '';
+        document.getElementById('brand-input').value = '';
+        document.getElementById('brand-tags').innerHTML = '';
+        document.getElementById('gtin-prefix-input').value = '';
+        document.getElementById('gtin-exact-input').value = '';
+        document.getElementById('category-input').value = '';
+        document.getElementById('min-weight-input').value = '';
+        document.getElementById('max-weight-input').value = '';
+        document.getElementById('page-size-select').value = '50';
+
+        document.querySelectorAll('#country-list input').forEach((cb) => {
+          cb.checked = false;
+        });
+        document.querySelectorAll('#nutri-list input').forEach((cb) => {
+          cb.checked = false;
+        });
+        document.querySelectorAll('#nova-list input').forEach((cb) => {
+          cb.checked = false;
+        });
+        document.getElementById('check-has-nutrition').checked = false;
+        document.getElementById('check-has-image').checked = false;
+        document.getElementById('check-has-ingredients').checked = false;
+
+        loadProducts();
+      }
+
+      // ==================== Initialization ====================
+      // Try to load stats on page load. If unauthorized, the apiFetch error handler
+      // will call showAuthPrompt. If authorized (cookie is set), proceed normally.
+      loadStats().catch((err) => {
+        // Error handling is already done in apiFetch and loadStats
+        console.log('Initial load attempted; check if auth prompt is visible');
+      });
+    })();
+  </script>
+</body>
+</html>

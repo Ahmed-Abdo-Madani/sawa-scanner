@@ -15,7 +15,21 @@ import { OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PricesModule } from '../prices/prices.module';
 import { StoresModule } from '../stores/stores.module';
+import { ProductsModule } from '../products/products.module';
 import { IngestionJobMode, IngestionPlatform } from './dto/ingestion-job.dto';
+import { GtinBackfillService } from './gtin-backfill.service';
+import { VertexGeminiGtinMatchProvider } from './ai-match/vertex-gemini-gtin-match.provider';
+import { GoogleAiGeminiGtinMatchProvider } from './ai-match/google-ai-gemini-gtin-match.provider';
+import { OllamaGtinMatchProvider } from './ai-match/ollama-gtin-match.provider';
+import { GeminiEmbeddingProvider } from './ai-match/gemini-embedding.provider';
+import { OllamaEmbeddingProvider } from './ai-match/ollama-embedding.provider';
+import { EMBEDDING_PROVIDER_TOKEN } from './ai-match/embedding-provider.interface';
+import { GtinMatchService } from './ai-match/gtin-match.service';
+import { CandidateShortlister } from './ai-match/candidate-shortlister';
+import { EmbeddingShortlister } from './ai-match/embedding-shortlister';
+import { AiVerdictCache } from './ai-match/ai-verdict-cache';
+import { BrandAliasCache } from './ai-match/brand-alias-cache';
+import { EmbeddingCache } from './ai-match/embedding-cache';
 
 // Entities
 import { Product } from '../entities/product.entity';
@@ -28,6 +42,9 @@ import { Merchant } from '../entities/merchant.entity';
 import { Store } from '../entities/store.entity';
 
 import { OpenFoodFactsService } from './open-food-facts.service';
+import { OpenFoodFactsDumpService } from './open-food-facts-dump.service';
+import { OffImportService } from './off-import.service';
+import { OffEnrichmentService } from './off-enrichment.service';
 
 @Module({
   imports: [
@@ -50,6 +67,7 @@ import { OpenFoodFactsService } from './open-food-facts.service';
     ScanModule,
     PricesModule,
     StoresModule,
+    ProductsModule,
   ],
   controllers: [IngestionController],
   providers: [
@@ -59,8 +77,31 @@ import { OpenFoodFactsService } from './open-food-facts.service';
     ProductClusteringService,
     RobotsTxtService,
     OpenFoodFactsService,
+    OpenFoodFactsDumpService,
+    OffImportService,
+    OffEnrichmentService,
+    GtinBackfillService,
+    VertexGeminiGtinMatchProvider,
+    OllamaGtinMatchProvider,
+    GoogleAiGeminiGtinMatchProvider,
+    GeminiEmbeddingProvider,
+    OllamaEmbeddingProvider,
+    {
+      provide: EMBEDDING_PROVIDER_TOKEN,
+      useFactory: (config: ConfigService, gemini: GeminiEmbeddingProvider, ollama: OllamaEmbeddingProvider) => {
+        const provider = config.get<string>('GTIN_EMBEDDING_PROVIDER') ?? 'google';
+        return provider === 'ollama' ? ollama : gemini;
+      },
+      inject: [ConfigService, GeminiEmbeddingProvider, OllamaEmbeddingProvider],
+    },
+    GtinMatchService,
+    CandidateShortlister,
+    EmbeddingShortlister,
+    AiVerdictCache,
+    BrandAliasCache,
+    EmbeddingCache,
   ],
-  exports: [IngestionService],
+  exports: [IngestionService, OpenFoodFactsDumpService],
 })
 export class IngestionModule implements OnModuleInit {
   private readonly logger = new Logger(IngestionModule.name);

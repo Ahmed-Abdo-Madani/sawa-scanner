@@ -95,3 +95,41 @@ export function doWeightsMatchStrictly(
   const margin = dbGrams * 0.1;
   return Math.abs(ocrGrams - dbGrams) <= margin;
 }
+
+/**
+ * Normalizes weight into a standardized object.
+ * Identical to the logic in ProductClusteringService.
+ */
+export function normalizeWeight(weightRaw: any): {
+  value: number;
+  unit: 'g' | 'ml' | 'unknown';
+} {
+  if (!weightRaw) return { value: 0, unit: 'unknown' };
+  let raw = '';
+  if (typeof weightRaw === 'object') {
+    raw = `${weightRaw.value || ''}${weightRaw.unit || ''}`.trim();
+  } else {
+    raw = String(weightRaw).toLowerCase().trim();
+  }
+  const match = raw.match(/(\d+\.?\d*)\s*(g|kg|l|ml|cc|cl)/);
+
+  if (!match) return { value: 0, unit: 'unknown' };
+
+  let value = parseFloat(match[1]);
+  let unit = match[2];
+
+  // Standardize units
+  if (unit === 'kg') {
+    value *= 1000;
+    unit = 'g';
+  } else if (unit === 'l') {
+    value *= 1000;
+    unit = 'ml';
+  } else if (unit === 'cc' || unit === 'cl') {
+    if (unit === 'cl') value *= 10;
+    unit = 'ml';
+  }
+
+  return { value, unit: unit as 'g' | 'ml' };
+}
+

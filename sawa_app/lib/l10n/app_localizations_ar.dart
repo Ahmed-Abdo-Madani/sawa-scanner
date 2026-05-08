@@ -682,4 +682,58 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get aiRecognitionFailed => 'تعذر التعرف على المنتج. حاول مرة أخرى.';
+
+  @override
+  String get adminSignIn => 'تسجيل دخول المسؤول';
+
+  @override
+  String get email => 'البريد الإلكتروني';
+
+  @override
+  String get password => 'كلمة المرور';
+
+  @override
+  String get signIn => 'تسجيل الدخول';
+
+  @override
+  String get adminTools => 'أدوات المسؤول';
+
+  @override
+  String get quickEntry => 'إدخال سريع';
+
+  @override
+  String get missingGtinList => 'قائمة الباركود المفقود';
+
+  @override
+  String get submitAndNext => 'إرسال والتالي';
+
+  @override
+  String get scanningForQuickEntry => 'جاري المسح للإدخال السريع...';
+
+  @override
+  String get fetchingProduct => 'جاري جلب بيانات المنتج...';
+
+  @override
+  String get allergens_tab => 'مسببات الحساسية';
+
+  @override
+  String get productExistsBanner => 'المنتج موجود بالفعل في قاعدة البيانات';
+
+  @override
+  String get productNewBanner => 'تم اكتشاف منتج جديد';
+
+  @override
+  String get gtinAssignedBanner => 'تم تعيين الباركود بنجاح';
+
+  @override
+  String get submitAndStay => 'إرسال وبقاء';
+
+  @override
+  String get signOut => 'تسجيل الخروج';
+
+  @override
+  String get notAuthorized => 'ليس لديك صلاحية الوصول إلى أدوات المسؤول.';
+
+  @override
+  String get reportsCount => 'التقارير';
 }

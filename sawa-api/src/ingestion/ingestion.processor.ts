@@ -35,6 +35,15 @@ import { SfdaMatcherService } from '../scan/sfda-matcher.service';
 import { LabelCoreService } from '../scan/label-core.service';
 import { StructuredLabelDto } from '../scan/dto/structured-label.dto';
 import { PricesService } from '../prices/prices.service';
+import { GtinBackfillService } from './gtin-backfill.service';
+import { Semaphore } from './ai-match/ai-match-runtime';
+import { isPlaceholderBrand, inferBrandAndWeightFromName, normalizeBrandStrict } from '../utils/normalization';
+import { GLOBAL_BRANDS_FOR_POOL } from './constants/global-brands';
+
+import { OffImportService } from './off-import.service';
+import { OffImportJobDto } from './dto/off-import-job.dto';
+import { OffEnrichmentService } from './off-enrichment.service';
+import { OffEnrichmentJobDto } from './dto/off-enrichment-job.dto';
 
 import { Product } from '../entities/product.entity';
 import { ProductPrice } from '../entities/product-price.entity';
@@ -70,6 +79,12 @@ export class IngestionProcessor extends WorkerHost {
   private readonly logger = new Logger(IngestionProcessor.name);
   private rejectedProductsCount = 0;
 
+  // Comment 2: Proper async lock for GTIN backfill using Semaphore with concurrency=1
+  // Ensures that only one GTIN backfill job executes at a time, acquired before run() and released in finally
+  private gtinBackfillLock = new Semaphore(1);
+  private offImportLock = new Semaphore(1);
+  private offEnrichmentLock = new Semaphore(1);
+
   private todayDateSuffix(): string {
     const now = new Date();
     const y = now.getUTCFullYear();
@@ -90,6 +105,9 @@ export class IngestionProcessor extends WorkerHost {
     private readonly pricesService: PricesService,
     private readonly storesService: StoresService,
     private readonly openFoodFactsService: OpenFoodFactsService,
+    private readonly gtinBackfillService: GtinBackfillService,
+    private readonly offImportService: OffImportService,
+    private readonly offEnrichmentService: OffEnrichmentService,
   ) {
     super();
     this.logger.log(
@@ -114,6 +132,12 @@ export class IngestionProcessor extends WorkerHost {
         return this.handleDiscoverBranches(job);
       case 'products-for-store':
         return this.handleProductsForStore(job);
+      case 'gtin-backfill-off':
+        return this.handleGtinBackfill(job);
+      case 'off-import':
+        return this.handleOffImport(job);
+      case 'off-enrichment':
+        return this.handleOffEnrichment(job);
       default:
         this.logger.warn(`Unknown job name: ${job.name}`);
     }
@@ -129,9 +153,9 @@ export class IngestionProcessor extends WorkerHost {
       return;
     }
 
-    if (!categoryUrl || !pageRange) {
+    if (!platform || !categoryUrl || !pageRange) {
       this.logger.error(
-        `scrape-category job ${job.id} is missing categoryUrl or pageRange — skipping.`,
+        `scrape-category job ${job.id} is missing platform, categoryUrl, or pageRange — skipping.`,
       );
       return;
     }
@@ -696,6 +720,73 @@ export class IngestionProcessor extends WorkerHost {
     return { enqueued, skipped };
   }
 
+  private async handleGtinBackfill(job: Job<IngestionJobDto>) {
+    // Comment 2: Acquire lock before run() starts and release in finally block
+    // Uses Semaphore with concurrency=1 for proper async locking
+    return this.gtinBackfillLock.run(async () => {
+      try {
+        const { dryRun, maxProducts, maxOffProducts, brandsOverride, useDump, rebuildPool, enableAiMatch, rebuildAiCache, rebuildBrandAliasCache, ignoreBrandAliasCache, enableEmbeddingMatch, rebuildEmbeddingCache, embeddingOnly, ignoreAiVerdictCache, aiVerdictProviderIsolation } = job.data;
+        this.logger.log('Starting GTIN Backfill...');
+        const stats = await this.gtinBackfillService.run({
+          dryRun,
+          maxProducts,
+          maxOffProducts,
+          brandsOverride,
+          useDump,
+          rebuildPool,
+          enableAiMatch,
+          rebuildAiCache,
+          rebuildBrandAliasCache,
+          ignoreBrandAliasCache,
+          enableEmbeddingMatch,
+          rebuildEmbeddingCache,
+          embeddingOnly,
+          ignoreAiVerdictCache,
+          aiVerdictProviderIsolation,
+        });
+        this.logger.log(`GTIN Backfill completed: ${JSON.stringify(stats)}`);
+        if (stats.reportDir) {
+          this.logger.log(`GTIN Backfill report: ${stats.reportDir}`);
+        }
+        return stats;
+      } catch (error) {
+        this.logger.error(`GTIN Backfill failed: ${error.message}`, error.stack);
+        throw error;
+      }
+      // Lock is automatically released in finally block by Semaphore.run()
+    });
+  }
+
+  private async handleOffImport(job: Job<IngestionJobDto>) {
+    return this.offImportLock.run(async () => {
+      try {
+        const opts = job.data as unknown as OffImportJobDto;
+        this.logger.log('Starting OFF Import...');
+        const stats = await this.offImportService.run(opts);
+        this.logger.log(`OFF Import completed: ${JSON.stringify(stats)}`);
+        return stats;
+      } catch (error) {
+        this.logger.error(`OFF Import failed: ${error.message}`, error.stack);
+        throw error;
+      }
+    });
+  }
+
+  private async handleOffEnrichment(job: Job<IngestionJobDto>) {
+    return this.offEnrichmentLock.run(async () => {
+      try {
+        const opts = job.data as unknown as OffEnrichmentJobDto;
+        this.logger.log('Starting OFF Enrichment...');
+        const stats = await this.offEnrichmentService.run(opts);
+        this.logger.log(`OFF Enrichment completed: ${JSON.stringify(stats)}`);
+        return stats;
+      } catch (error) {
+        this.logger.error(`OFF Enrichment failed: ${error.message}`, error.stack);
+        throw error;
+      }
+    });
+  }
+
   // ─── Scraper factory ────────────────────────────────────────────────────────
 
   private getScraper(platform: IngestionPlatform) {
@@ -832,11 +923,20 @@ export class IngestionProcessor extends WorkerHost {
       ? `URL-${Buffer.from(data.productPageUrl).toString('base64').slice(-16)}`
       : null;
 
+    // Comment 2: Wire brand inference into catalog ingestion
+    // Resolve brand and weight with proper precedence:
+    // brand: data.brand → structuredLabel?.brand → inferred → 'Generic'
+    // weight: data.weight → structuredLabel?.net_weight → inferred → ''
+    const { brand: candidateBrand, weight: candidateWeight } = this.resolveCatalogBrandAndWeight(
+      data,
+      structuredLabel,
+    );
+
     const product = await this.productClusteringService.findOrCreateProduct(
       data.gtin || fallbackGtin,
-      data.brand || (structuredLabel?.brand as string) || 'Generic',
+      candidateBrand,
       data.name || (structuredLabel?.name_en as string) || 'Unnamed Product',
-      data.weight || '',
+      candidateWeight,
       data.name_ar,
     );
 
@@ -1119,5 +1219,63 @@ export class IngestionProcessor extends WorkerHost {
     }
 
     return null;
+  }
+
+  /**
+   * Placeholder-aware resolver for catalog brand and weight.
+   * Precedence for brand: data.brand → structuredLabel?.brand → inferred → 'Generic'
+   * Precedence for weight: data.weight → structuredLabel?.net_weight → inferred → ''
+   */
+  private resolveCatalogBrandAndWeight(
+    data: ScrapedProductData,
+    structuredLabel: StructuredLabelDto | null,
+  ): { brand: string; weight: string } {
+    // Step 1: Resolve brand
+    let resolvedBrand: string;
+    
+    // Check data.brand first
+    if (data.brand && !isPlaceholderBrand(data.brand)) {
+      resolvedBrand = data.brand;
+    } else if (structuredLabel?.brand && !isPlaceholderBrand(structuredLabel.brand)) {
+      // Check structuredLabel.brand second
+      resolvedBrand = structuredLabel.brand;
+    } else {
+      // Try to infer from product name
+      const productName = data.name || (structuredLabel?.name_en as string) || '';
+      if (productName) {
+        const knownBrandSlugs = GLOBAL_BRANDS_FOR_POOL.map(normalizeBrandStrict);
+        const inference = inferBrandAndWeightFromName(productName, knownBrandSlugs);
+        if (inference.brand) {
+          resolvedBrand = inference.brand;
+        } else {
+          resolvedBrand = 'Generic';
+        }
+      } else {
+        resolvedBrand = 'Generic';
+      }
+    }
+
+    // Step 2: Resolve weight
+    let resolvedWeight: string;
+
+    // Check data.weight first
+    if (data.weight) {
+      resolvedWeight = data.weight;
+    } else if (structuredLabel?.net_weight) {
+      // Check structuredLabel.net_weight second
+      resolvedWeight = structuredLabel.net_weight;
+    } else {
+      // Try to infer from product name (reuse single inference call)
+      const productName = data.name || (structuredLabel?.name_en as string) || '';
+      if (productName) {
+        const knownBrandSlugs = GLOBAL_BRANDS_FOR_POOL.map(normalizeBrandStrict);
+        const inference = inferBrandAndWeightFromName(productName, knownBrandSlugs);
+        resolvedWeight = inference.weightRaw || '';
+      } else {
+        resolvedWeight = '';
+      }
+    }
+
+    return { brand: resolvedBrand, weight: resolvedWeight };
   }
 }

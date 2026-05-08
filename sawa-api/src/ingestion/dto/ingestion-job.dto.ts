@@ -9,6 +9,8 @@ import {
   IsArray,
   IsOptional,
   ValidateIf,
+  IsBoolean,
+  Min,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
@@ -28,6 +30,9 @@ export enum IngestionJobMode {
   DISCOVER_BRANCHES = 'discover-branches',
   PRODUCTS_FOR_STORE = 'products-for-store',
   DAILY_REFRESH_HUNGERSTATION = 'daily-refresh-hungerstation',
+  GTIN_BACKFILL_OFF = 'gtin-backfill-off',
+  OFF_IMPORT = 'off-import',
+  OFF_ENRICHMENT = 'off-enrichment',
 }
 
 export class PageRangeDto {
@@ -42,9 +47,95 @@ export class PageRangeDto {
   end: number;
 }
 
+/**
+ * DTO for dedicated GTIN backfill requests.
+ * This DTO excludes scrape-specific fields to allow operators to trigger backfill
+ * without providing platform, categoryUrl, pageRange, etc.
+ */
+export class GtinBackfillJobDto {
+  @IsOptional()
+  @IsBoolean()
+  dryRun?: boolean;
+
+  /**
+   * Caps the number of scan rows processed in the backfill.
+   * Does not affect the OFF slice pool size.
+   */
+  @IsOptional()
+  @IsNumber()
+  @Min(1)
+  maxProducts?: number;
+
+  /**
+   * Caps the number of OFF products indexed from the OFF slice.
+   * Independent of maxProducts; if omitted, indexes the full OFF slice.
+   */
+  @IsOptional()
+  @IsNumber()
+  @Min(1)
+  maxOffProducts?: number;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  brandsOverride?: string[];
+
+  @IsOptional()
+  @IsBoolean()
+  useDump?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  rebuildPool?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  enableAiMatch?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  rebuildAiCache?: boolean;
+
+  // Comment 4: Brand-alias cache control flags (independent of rebuildAiCache)
+  @IsOptional()
+  @IsBoolean()
+  rebuildBrandAliasCache?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  ignoreBrandAliasCache?: boolean;
+
+  // ── AI Verdict Cache Isolation ──
+  @IsOptional()
+  @IsBoolean()
+  ignoreAiVerdictCache?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  aiVerdictProviderIsolation?: boolean;
+
+  // ── GTIN Embedding Match (Pass G) Configuration ──
+  @IsOptional()
+  @IsBoolean()
+  enableEmbeddingMatch?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  rebuildEmbeddingCache?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  embeddingOnly?: boolean;
+}
+
 export class IngestionJobDto {
+  /**
+   * Platform is required for scrape, discovery, and other jobs that actually need it.
+   * For GTIN_BACKFILL_OFF mode, platform is not used and can be omitted.
+   */
+  @ValidateIf((o) => o.mode !== IngestionJobMode.GTIN_BACKFILL_OFF && o.mode !== IngestionJobMode.OFF_IMPORT && o.mode !== IngestionJobMode.OFF_ENRICHMENT && (!o.mode || o.mode === IngestionJobMode.SCRAPE))
   @IsEnum(IngestionPlatform)
-  platform: IngestionPlatform;
+  platform?: IngestionPlatform;
 
   /** Required only for regular scrape jobs (not discovery jobs). */
   @ValidateIf((o) => !o.mode || o.mode === IngestionJobMode.SCRAPE)
@@ -100,7 +191,84 @@ export class IngestionJobDto {
   @ValidateIf((o) => o.mode === IngestionJobMode.PRODUCTS_FOR_STORE)
   @IsString()
   storeId?: string;
+
+  // ── GTIN Backfill mode ─────────────────────────────────────────────────────
+
+  @IsOptional()
+  @IsBoolean()
+  dryRun?: boolean;
+
+  /**
+   * Caps the number of scan rows processed in the backfill.
+   * Does not affect the OFF slice pool size.
+   */
+  @IsOptional()
+  @IsNumber()
+  @Min(1)
+  maxProducts?: number;
+
+  /**
+   * Caps the number of OFF products indexed from the OFF slice.
+   * Independent of maxProducts; if omitted, indexes the full OFF slice.
+   */
+  @IsOptional()
+  @IsNumber()
+  @Min(1)
+  maxOffProducts?: number;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  brandsOverride?: string[];
+
+  @IsOptional()
+  @IsBoolean()
+  useDump?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  rebuildPool?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  enableAiMatch?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  rebuildAiCache?: boolean;
+
+  // Comment 4: Brand-alias cache control flags (independent of rebuildAiCache)
+  @IsOptional()
+  @IsBoolean()
+  rebuildBrandAliasCache?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  ignoreBrandAliasCache?: boolean;
+
+  // ── AI Verdict Cache Isolation ──
+  @IsOptional()
+  @IsBoolean()
+  ignoreAiVerdictCache?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  aiVerdictProviderIsolation?: boolean;
+
+  // ── GTIN Embedding Match (Pass G) Configuration ──
+  @IsOptional()
+  @IsBoolean()
+  enableEmbeddingMatch?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  rebuildEmbeddingCache?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  embeddingOnly?: boolean;
 }
+
 
 export interface ScrapedProductData {
   name: string;

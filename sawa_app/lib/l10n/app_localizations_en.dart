@@ -681,4 +681,58 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get aiRecognitionFailed =>
       'Could not recognize product. Please try again.';
+
+  @override
+  String get adminSignIn => 'Admin Sign In';
+
+  @override
+  String get email => 'Email';
+
+  @override
+  String get password => 'Password';
+
+  @override
+  String get signIn => 'Sign In';
+
+  @override
+  String get adminTools => 'Admin Tools';
+
+  @override
+  String get quickEntry => 'Quick Entry';
+
+  @override
+  String get missingGtinList => 'Missing GTIN List';
+
+  @override
+  String get submitAndNext => 'Submit & Next';
+
+  @override
+  String get scanningForQuickEntry => 'Scanning for Quick Entry...';
+
+  @override
+  String get fetchingProduct => 'Fetching product data...';
+
+  @override
+  String get allergens_tab => 'Allergens';
+
+  @override
+  String get productExistsBanner => 'Product already exists in database';
+
+  @override
+  String get productNewBanner => 'New product detected';
+
+  @override
+  String get gtinAssignedBanner => 'GTIN successfully assigned';
+
+  @override
+  String get submitAndStay => 'Submit & Stay';
+
+  @override
+  String get signOut => 'Sign Out';
+
+  @override
+  String get notAuthorized => 'You are not authorized to access admin tools.';
+
+  @override
+  String get reportsCount => 'Reports';
 }

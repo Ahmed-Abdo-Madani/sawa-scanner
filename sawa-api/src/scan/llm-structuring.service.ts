@@ -16,8 +16,10 @@ export class LlmStructuringService {
     private googleAiProvider: GoogleAiGeminiProvider,
     private vertexProvider: VertexGeminiProvider,
   ) {
+    // Default to Google AI for label OCR structuring (Comment 3)
+    // Vertex is optional and can be selected via LLM_PROVIDER=vertex
     const selectedProvider =
-      this.configService.get<string>('LLM_PROVIDER') || 'vertex';
+      this.configService.get<string>('LLM_PROVIDER') || 'google-ai';
 
     if (selectedProvider === 'vertex') {
       this.providers.push(this.vertexProvider);

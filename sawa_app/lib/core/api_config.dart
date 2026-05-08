@@ -16,6 +16,22 @@ class ApiConfig {
     defaultValue: 'gemini-2.5-flash',
   );
 
+  /// Raw development admin secret from environment.
+  /// Use [devAdminSecret] for the normalized nullable value.
+  static const String _rawDevAdminSecret = String.fromEnvironment(
+    'DEV_ADMIN_SECRET',
+  );
+
+  /// Development admin secret for local bypass of Firebase auth.
+  /// 
+  /// To enable: flutter run --dart-define=DEV_ADMIN_SECRET=your-secret
+  /// When set, the app will send the secret via x-dev-admin-secret header.
+  static String? get devAdminSecret {
+    final s = _rawDevAdminSecret;
+    if (s.isEmpty) return null;
+    return s;
+  }
+
   /// Validates that the API base URL is non-empty.
   /// Throws [ApiConfigurationException] if validation fails.
   static void validate() {
