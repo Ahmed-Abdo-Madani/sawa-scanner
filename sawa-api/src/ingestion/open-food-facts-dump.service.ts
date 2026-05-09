@@ -92,15 +92,26 @@ export class OpenFoodFactsDumpService {
         }
 
         // Apply filters
-        const countryMatch = this.matchesCountryFilter(product, filter.countryTags);
-        const brandMatch = this.matchesBrandFilter(product, filter.brandSlugs);
-        const prefixMatch = this.matchesGtinPrefixFilter(product, filter.gtinPrefixes);
+        // If no filters are provided, accept all products
+        const hasAnyFilter =
+          (filter.countryTags && filter.countryTags.length > 0) ||
+          (filter.brandSlugs && filter.brandSlugs.length > 0) ||
+          (filter.gtinPrefixes && filter.gtinPrefixes.length > 0);
 
-        // Accept based on requireAny flag (default true = union semantics)
-        const requireAny = filter.requireAny !== false;
-        const accept = requireAny
-          ? (countryMatch || brandMatch || prefixMatch)
-          : (countryMatch && brandMatch && prefixMatch);
+        let accept: boolean;
+        if (!hasAnyFilter) {
+          accept = true;
+        } else {
+          const countryMatch = this.matchesCountryFilter(product, filter.countryTags);
+          const brandMatch = this.matchesBrandFilter(product, filter.brandSlugs);
+          const prefixMatch = this.matchesGtinPrefixFilter(product, filter.gtinPrefixes);
+
+          // Accept based on requireAny flag (default true = union semantics)
+          const requireAny = filter.requireAny !== false;
+          accept = requireAny
+            ? (countryMatch || brandMatch || prefixMatch)
+            : (countryMatch && brandMatch && prefixMatch);
+        }
 
         if (accept) {
           yield product;

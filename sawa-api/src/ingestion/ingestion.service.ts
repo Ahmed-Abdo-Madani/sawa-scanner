@@ -44,6 +44,8 @@ export class IngestionService {
       jobName = 'off-import';
     else if (dto.mode === IngestionJobMode.OFF_ENRICHMENT)
       jobName = 'off-enrichment';
+    else if (dto.mode === IngestionJobMode.OFF_PRICE_LINKING)
+      jobName = 'off-price-linking';
 
     const options: JobsOptions & { timeout?: number; jobId?: string } = { ...INGESTION_JOB_OPTIONS };
     if (jobName === 'gtin-backfill-off') {
@@ -125,6 +127,24 @@ export class IngestionService {
         this.logger.warn(`Conflict: OFF enrichment already in-flight as ${activeJobState}`);
         throw err;
       }
+    } else if (jobName === 'off-price-linking') {
+      options.attempts = 1;
+      options.timeout = 8 * 60 * 60 * 1000; // 8 hours
+
+      const activeJobs = await this.ingestionQueue.getJobs(['active', 'waiting', 'delayed', 'prioritized']);
+      const activeLinkings = activeJobs.filter((job) => job.name === 'off-price-linking');
+      
+      if (activeLinkings.length > 0) {
+        const activeJobId = activeLinkings[0].id;
+        const activeJobState = await activeLinkings[0].getState();
+        const err = new ConflictException({
+          jobId: activeJobId,
+          created: false,
+          message: `An OFF price linking is already ${activeJobState} (job ID: ${activeJobId}). Wait for it to complete.`,
+        });
+        this.logger.warn(`Conflict: OFF price linking already in-flight as ${activeJobState}`);
+        throw err;
+      }
     }
 
     const job = await this.ingestionQueue.add(jobName, dto, options);
@@ -139,6 +159,9 @@ export class IngestionService {
     } else if (jobName === 'off-enrichment') {
       response.created = true;
       response.message = 'OFF enrichment job queued successfully.';
+    } else if (jobName === 'off-price-linking') {
+      response.created = true;
+      response.message = 'OFF price linking job queued successfully.';
     }
     return response;
   }

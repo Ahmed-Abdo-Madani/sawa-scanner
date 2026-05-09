@@ -1,8 +1,10 @@
 import { Injectable, Logger, Inject } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, DataSource, LessThan } from 'typeorm';
+import { Repository, DataSource } from 'typeorm';
 import * as fs from 'fs';
 import * as path from 'path';
+import * as zlib from 'zlib';
+import * as readline from 'readline';
 
 import { Product } from '../entities/product.entity';
 import { NutritionFact } from '../entities/nutrition-fact.entity';
@@ -15,6 +17,7 @@ import { EMBEDDING_PROVIDER_TOKEN } from './ai-match/embedding-provider.interfac
 import type { EmbeddingProvider } from './ai-match/embedding-provider.interface';
 import { OffEnrichmentJobDto } from './dto/off-enrichment-job.dto';
 import { computeCompletenessScore } from './off-completeness.util';
+import { getOffPoolFilter, getOffPoolHash } from './constants/off-pool';
 import {
   normalizeBrandStrict,
   normalizeProductName,
@@ -103,14 +106,17 @@ export class OffEnrichmentService {
     const startedAt = new Date().toISOString();
     const startTime = Date.now();
 
-    // 1. Query incomplete products
-    const findOpts: any = {
-      where: { data_completeness_score: LessThan(completenessThreshold) },
-      order: { data_completeness_score: 'ASC' as const },
-    };
-    if (maxProducts) findOpts.take = maxProducts;
+    // 1. Query incomplete products that have enough data to anchor matching
+    //    Products with score=0 and no brand/name are unenrichable by definition.
+    const qb = this.productRepo.createQueryBuilder('p')
+      .where('p.data_completeness_score > 0')
+      .andWhere('p.data_completeness_score < :threshold', { threshold: completenessThreshold })
+      .andWhere("p.brand IS NOT NULL AND p.brand != ''")
+      .orderBy('p.data_completeness_score', 'ASC');
 
-    const incompleteProducts = await this.productRepo.find(findOpts);
+    if (maxProducts) qb.limit(maxProducts);
+
+    const incompleteProducts = await qb.getMany();
     this.logger.log(
       `Found ${incompleteProducts.length} incomplete products (threshold < ${completenessThreshold})`,
     );
@@ -121,12 +127,28 @@ export class OffEnrichmentService {
       return summary;
     }
 
-    // 2. Build donor corpus from full OFF dump
-    this.openFoodFactsDumpService.validateDumpExists();
-
-    const poolHash = 'enrichment-full-dump';
+    // 2. Build donor corpus from the pre-materialized pool slice
+    const poolFilter = getOffPoolFilter();
+    const poolHash = getOffPoolHash(poolFilter);
     const model = this.embeddingProvider.modelId;
     const dim = this.embeddingProvider.dim;
+
+    // Locate the slice file (same one used by OffExplorerIndexService)
+    const slicePath = path.join(
+      process.cwd(),
+      'uploads',
+      'off-slice',
+      `off_pool_${poolHash}.ndjson.gz`,
+    );
+    if (!fs.existsSync(slicePath)) {
+      // Fallback: try to stream from full dump if slice doesn't exist
+      this.logger.warn(
+        `Pool slice not found at ${slicePath}. Please run off-pool/rebuild first.`,
+      );
+      const summary = this.buildEmptySummary(startedAt, startTime);
+      this.writeSummaryReport(summary);
+      return summary;
+    }
 
     if (rebuildDonorCache) {
       await this.embeddingCache.clear();
@@ -136,17 +158,28 @@ export class OffEnrichmentService {
     // Try loading from cache
     let donorVectors = await this.embeddingCache.load({ poolHash, model, dim });
 
-    // Build in-memory donor map and indexes
+    // Build in-memory donor map and indexes by streaming the slice file
     const donorMap = new Map<string, RawOffProduct>();
     const brandIndex = new Map<string, string[]>();
     const prefixIndex = new Map<string, string[]>();
     const categoryIndex = new Map<string, string[]>();
 
-    this.logger.log('Streaming full OFF dump to build donor corpus...');
+    this.logger.log(`Streaming pool slice ${slicePath} to build donor corpus...`);
     let dumpCount = 0;
-    for await (const raw of this.openFoodFactsDumpService.streamDumpProducts(
-      {} as any,
-    )) {
+
+    const fileStream = fs.createReadStream(slicePath);
+    const gunzip = zlib.createGunzip();
+    const rl = readline.createInterface({ input: fileStream.pipe(gunzip), crlfDelay: Infinity });
+
+    for await (const line of rl) {
+      if (!line.trim()) continue;
+      let raw: any;
+      try {
+        raw = JSON.parse(line);
+      } catch {
+        continue;
+      }
+
       const code = normalizeGtin(String(raw.code || ''));
       if (!code) continue;
 
@@ -173,7 +206,7 @@ export class OffEnrichmentService {
       }
 
       dumpCount++;
-      if (dumpCount % 500000 === 0) {
+      if (dumpCount % 10000 === 0) {
         this.logger.log(`Indexed ${dumpCount} OFF products...`);
       }
     }

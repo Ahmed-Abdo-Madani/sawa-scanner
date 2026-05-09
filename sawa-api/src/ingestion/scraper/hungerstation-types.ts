@@ -75,3 +75,11 @@ export interface HsBranch {
 export const HS_BASE_URL = 'https://hungerstation.com';
 export const HS_LOCALE_PATH = '/sa-en';
 export const HS_SUPERMARKETS_INDEX = '/sa-en/qc/supermarkets';
+
+export interface HsSearchResult {
+  name: string;
+  price: number;
+  imageUrl: string | null;
+  weight: string | null;
+  productPageUrl: string;
+}

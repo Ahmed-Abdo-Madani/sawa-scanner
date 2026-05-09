@@ -33,6 +33,7 @@ export enum IngestionJobMode {
   GTIN_BACKFILL_OFF = 'gtin-backfill-off',
   OFF_IMPORT = 'off-import',
   OFF_ENRICHMENT = 'off-enrichment',
+  OFF_PRICE_LINKING = 'off-price-linking',
 }
 
 export class PageRangeDto {
@@ -133,7 +134,7 @@ export class IngestionJobDto {
    * Platform is required for scrape, discovery, and other jobs that actually need it.
    * For GTIN_BACKFILL_OFF mode, platform is not used and can be omitted.
    */
-  @ValidateIf((o) => o.mode !== IngestionJobMode.GTIN_BACKFILL_OFF && o.mode !== IngestionJobMode.OFF_IMPORT && o.mode !== IngestionJobMode.OFF_ENRICHMENT && (!o.mode || o.mode === IngestionJobMode.SCRAPE))
+  @ValidateIf((o) => o.mode !== IngestionJobMode.GTIN_BACKFILL_OFF && o.mode !== IngestionJobMode.OFF_IMPORT && o.mode !== IngestionJobMode.OFF_ENRICHMENT && o.mode !== IngestionJobMode.OFF_PRICE_LINKING && (!o.mode || o.mode === IngestionJobMode.SCRAPE))
   @IsEnum(IngestionPlatform)
   platform?: IngestionPlatform;
 

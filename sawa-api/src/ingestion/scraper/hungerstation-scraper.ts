@@ -15,6 +15,7 @@ import {
   HUNGERSTATION_URL_SEGMENT_TO_VERTICAL,
   HS_BASE_URL,
   HS_SUPERMARKETS_INDEX,
+  HsSearchResult,
 } from './hungerstation-types';
 
 const DEFAULT_HS_PILOT_CITIES = ['الرياض', 'riyadh'];
@@ -149,6 +150,84 @@ export class HungerStationScraper extends BaseScraper {
       const products = Array.from(capturedProductsMap.values());
       this.logger.log(
         `[HS] scrapeListingPage(page=${pageNum}): found ${products.length} products (dom + intercept)`,
+      );
+      return products;
+    } finally {
+      await page.close();
+    }
+  }
+
+  async searchProducts(query: string, storeUrl: string, branchUuid: string): Promise<HsSearchResult[]> {
+    if (!this.context) throw new Error('Browser context not initialized');
+    const page = await this.context.newPage();
+    try {
+      const baseUrl = storeUrl || `${HS_BASE_URL}/sa-en/restaurant/store/${branchUuid}`;
+      const url = baseUrl.includes('?') 
+        ? `${baseUrl}&query=${encodeURIComponent(query)}` 
+        : `${baseUrl}?query=${encodeURIComponent(query)}`;
+      const capturedProductsMap = new Map<string, HsSearchResult>();
+
+      const teardown = this.interceptGraphQL(
+        page,
+        /Search|MenuItems|CatalogProducts|Items|Products/i,
+        (json) => {
+          const rawItems = this.extractHsProductNodes(json);
+          for (const raw of rawItems) {
+            const mapped = this.mapHsProduct(raw);
+            if (!mapped) continue;
+            const key = mapped.gtin || mapped.productPageUrl || mapped.name;
+            if (!key) continue;
+            if (!capturedProductsMap.has(key)) {
+              capturedProductsMap.set(key, {
+                name: mapped.name,
+                price: mapped.price,
+                imageUrl: mapped.imageUrls[0] || null,
+                weight: mapped.weight || null,
+                productPageUrl: mapped.productPageUrl,
+              });
+            }
+          }
+        },
+      );
+
+      const navigationResponse = await this.navigateWithEvasion(
+        page,
+        url,
+        'commit',
+        30000,
+      );
+      await page.waitForTimeout(1500);
+      await this.detectCloudflareChallenge(page, navigationResponse);
+
+      const hydrated = await this.sweepHydrationData(page, (json) => {
+        const out: HsSearchResult[] = [];
+        for (const raw of this.extractHsProductNodes(json)) {
+          const mapped = this.mapHsProduct(raw);
+          if (mapped) {
+            out.push({
+              name: mapped.name,
+              price: mapped.price,
+              imageUrl: mapped.imageUrls[0] || null,
+              weight: mapped.weight || null,
+              productPageUrl: mapped.productPageUrl,
+            });
+          }
+        }
+        return out;
+      });
+
+      for (const p of hydrated) {
+        const key = p.productPageUrl || p.name;
+        if (!key || capturedProductsMap.has(key)) continue;
+        capturedProductsMap.set(key, p);
+      }
+
+      await applyJitter(2000, 2000);
+
+      teardown();
+      const products = Array.from(capturedProductsMap.values());
+      this.logger.log(
+        `[HS] searchProducts(query="${query}", branch=${branchUuid}): found ${products.length} products`,
       );
       return products;
     } finally {

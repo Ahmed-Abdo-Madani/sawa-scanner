@@ -14,6 +14,7 @@ import { IngestionService } from './ingestion.service';
 import { IngestionJobDto, IngestionJobMode, GtinBackfillJobDto } from './dto/ingestion-job.dto';
 import { OffImportJobDto } from './dto/off-import-job.dto';
 import { OffEnrichmentJobDto } from './dto/off-enrichment-job.dto';
+import { OffPriceLinkingJobDto } from './dto/off-price-linking-job.dto';
 import { OpenFoodFactsDumpService } from './open-food-facts-dump.service';
 import { getOffPoolFilter, getOffPoolHash } from './constants/off-pool';
 import { FirebaseAuthGuard } from '../auth/firebase-auth.guard';
@@ -84,6 +85,14 @@ export class IngestionController {
       durationMs: result.durationMs,
       slicePath,
     };
+  }
+
+  @Post('off-price-linking')
+  async startOffPriceLinking(@Body() dto: OffPriceLinkingJobDto) {
+    return this.ingestionService.addIngestionJob({
+      mode: IngestionJobMode.OFF_PRICE_LINKING,
+      ...dto,
+    });
   }
 
   @Get('jobs/:id')

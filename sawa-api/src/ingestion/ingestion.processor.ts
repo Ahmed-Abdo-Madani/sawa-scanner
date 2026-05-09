@@ -44,6 +44,8 @@ import { OffImportService } from './off-import.service';
 import { OffImportJobDto } from './dto/off-import-job.dto';
 import { OffEnrichmentService } from './off-enrichment.service';
 import { OffEnrichmentJobDto } from './dto/off-enrichment-job.dto';
+import { OffPriceLinkerService } from './off-price-linker.service';
+import { OffPriceLinkingJobDto } from './dto/off-price-linking-job.dto';
 
 import { Product } from '../entities/product.entity';
 import { ProductPrice } from '../entities/product-price.entity';
@@ -84,6 +86,7 @@ export class IngestionProcessor extends WorkerHost {
   private gtinBackfillLock = new Semaphore(1);
   private offImportLock = new Semaphore(1);
   private offEnrichmentLock = new Semaphore(1);
+  private offPriceLinkingLock = new Semaphore(1);
 
   private todayDateSuffix(): string {
     const now = new Date();
@@ -108,6 +111,7 @@ export class IngestionProcessor extends WorkerHost {
     private readonly gtinBackfillService: GtinBackfillService,
     private readonly offImportService: OffImportService,
     private readonly offEnrichmentService: OffEnrichmentService,
+    private readonly offPriceLinkerService: OffPriceLinkerService,
   ) {
     super();
     this.logger.log(
@@ -138,6 +142,8 @@ export class IngestionProcessor extends WorkerHost {
         return this.handleOffImport(job);
       case 'off-enrichment':
         return this.handleOffEnrichment(job);
+      case 'off-price-linking':
+        return this.handleOffPriceLinking(job);
       default:
         this.logger.warn(`Unknown job name: ${job.name}`);
     }
@@ -782,6 +788,22 @@ export class IngestionProcessor extends WorkerHost {
         return stats;
       } catch (error) {
         this.logger.error(`OFF Enrichment failed: ${error.message}`, error.stack);
+        throw error;
+      }
+    });
+  }
+
+  private async handleOffPriceLinking(job: Job<IngestionJobDto>) {
+    return await this.offPriceLinkingLock.run(async () => {
+      this.logger.log(`Starting OFF price linking job ${job.id}`);
+      try {
+        const result = await this.offPriceLinkerService.run(
+          job.data as unknown as OffPriceLinkingJobDto,
+        );
+        this.logger.log(`Completed OFF price linking job ${job.id}`);
+        return result;
+      } catch (error: any) {
+        this.logger.error(`OFF Price Linking failed: ${error.message}`, error.stack);
         throw error;
       }
     });

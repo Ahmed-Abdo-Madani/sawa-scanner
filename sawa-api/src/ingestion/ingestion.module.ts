@@ -45,6 +45,7 @@ import { OpenFoodFactsService } from './open-food-facts.service';
 import { OpenFoodFactsDumpService } from './open-food-facts-dump.service';
 import { OffImportService } from './off-import.service';
 import { OffEnrichmentService } from './off-enrichment.service';
+import { OffPriceLinkerService } from './off-price-linker.service';
 
 @Module({
   imports: [
@@ -80,6 +81,7 @@ import { OffEnrichmentService } from './off-enrichment.service';
     OpenFoodFactsDumpService,
     OffImportService,
     OffEnrichmentService,
+    OffPriceLinkerService,
     GtinBackfillService,
     VertexGeminiGtinMatchProvider,
     OllamaGtinMatchProvider,

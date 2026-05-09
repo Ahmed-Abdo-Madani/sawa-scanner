@@ -9,7 +9,10 @@
 - [x] Implement automated Open Food Facts (OFF) ingestion pipeline (`OffImportService`)
 - [x] Implement semantic data enrichment pipeline (`OffEnrichmentService`) with borrowing rules
 - [x] Integrate ingestion infrastructure (Controller, Processor, CLI Triggers)
+- [x] Implement HungerStation price linking pipeline (`OffPriceLinkerService`)
+- [x] Refactor HungerStation scraper for dynamic store URLs and search parameters
 - [ ] Next Steps: Perform a full product catalog re-indexing for `ProductClusteringService` once the data is imported and enriched.
+- [ ] Next Steps: Deploy and validate the distributed worker system for portable multi-node price linking.
 
 ## Architecture Decisions
 - **AI Processing Layer**: A clear separation of match routing vs processing ensures clean code. The `gtin-backfill.service.ts` acts as the orchestrator.
@@ -17,6 +20,7 @@
 - **Ollama Fast Paths**: We use a `isDominantMatch` fast path (topCosine >= 0.78 and > 0.08 diff from runner-up) to auto-apply semantic embeddings without invoking LLM tokens.
 - **OFF Data Integration**: The `OffImportService` processes the 10GB raw dump dynamically using memory-efficient streams. Singleton concurrency locking using BullMQ ensures database resilience.
 - **Enrichment Logic**: `OffEnrichmentService` uses `EmbeddingShortlister` to find donor products and borrow high-completeness data (nutrition, ingredients, names) based on cosine similarity thresholds.
+- **HungerStation Price Linking**: Uses dynamic store URLs from `store.source_url` (or fallback to standardized paths) and normalized search query logic (`query` param) to resolve items on the platform. Implements confidence scoring for cross-merchant product linkage.
 
 ## Environment & Configuration
 Ensure you have updated the `.env` settings to match the optimizations:
@@ -36,4 +40,6 @@ Ensure you have updated the `.env` settings to match the optimizations:
 | `src/ingestion/ai-match/embedding-shortlister.ts` | Calculates semantic distance for matching and enrichment ranking. |
 | `src/scripts/trigger-off-import.ts` | CLI script to trigger the OFF ingestion pipeline. |
 | `src/scripts/trigger-off-enrichment.ts` | CLI script to trigger the automated enrichment pipeline. |
+| `src/ingestion/off-price-linker.service.ts` | Cross-references OFF products with store prices (HungerStation). |
+| `scripts/trigger-off-price-linking.ts` | CLI script to trigger the HungerStation price linking pipeline. |
 | `.env.example` | Template for configuring thresholds and batch sizes. |
