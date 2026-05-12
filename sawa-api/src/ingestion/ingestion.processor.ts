@@ -158,6 +158,8 @@ export class IngestionProcessor extends WorkerHost {
         return this.handleBarcodeListNames(job);
       case 'hs-catalog-scrape':
         return this.handleHsCatalogScrape(job);
+      case 'hs-catalog-scrape-category':
+        return this.handleHsCatalogScrapeCategory(job);
       default:
         this.logger.warn(`Unknown job name: ${job.name}`);
     }
@@ -855,6 +857,21 @@ export class IngestionProcessor extends WorkerHost {
         throw error;
       }
     });
+  }
+
+  private async handleHsCatalogScrapeCategory(job: Job<IngestionJobDto>) {
+    // No explicit lock to allow parallel execution up to INGESTION_WORKER_CONCURRENCY
+    this.logger.log(`Starting HS catalog category scrape job ${job.id}`);
+    try {
+      const result = await this.hsCatalogScraperService.run(
+        job.data as unknown as HsCatalogJobDto,
+      );
+      this.logger.log(`Completed HS catalog category scrape job ${job.id}`);
+      return result;
+    } catch (error: any) {
+      this.logger.error(`HS catalog category scrape failed: ${error.message}`, error.stack);
+      throw error;
+    }
   }
 
   // ─── Scraper factory ────────────────────────────────────────────────────────

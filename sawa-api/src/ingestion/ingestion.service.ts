@@ -185,6 +185,9 @@ export class IngestionService {
         this.logger.warn(`Conflict: HS catalog scrape already in-flight as ${activeJobState}`);
         throw err;
       }
+    } else if (jobName === 'hs-catalog-scrape-category') {
+      options.attempts = 3;
+      options.timeout = 2 * 60 * 60 * 1000; // 2 hours
     }
 
     const job = await this.ingestionQueue.add(jobName, dto, options);
@@ -208,6 +211,9 @@ export class IngestionService {
     } else if (jobName === 'hs-catalog-scrape') {
       response.created = true;
       response.message = 'HS catalog scrape job queued successfully.';
+    } else if (jobName === 'hs-catalog-scrape-category') {
+      response.created = true;
+      response.message = 'HS catalog category scrape job queued successfully.';
     }
     return response;
   }

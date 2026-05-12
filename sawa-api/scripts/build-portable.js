@@ -71,7 +71,7 @@ async function run() {
      const mainEnv = fs.readFileSync(path.join(BASE_DIR, '.env'), 'utf8');
      const lines = mainEnv.split('\n');
       for (const line of lines) {
-        if (line.startsWith('DATABASE_') || line.startsWith('REDIS_') || line.startsWith('BARCODE_LIST_')) {
+        if (line.startsWith('DATABASE_') || line.startsWith('REDIS_') || line.startsWith('BARCODE_LIST_') || line.startsWith('HS_CATALOG_')) {
             envContent += line + '\n';
         }
       }
@@ -219,6 +219,115 @@ execSync('.\\\\node.exe node_modules/playwright-core/cli.js install chromium', {
     'pause',
   ];
   fs.writeFileSync(path.join(OUTPUT_DIR, 'run-barcode-list.bat'), runBarcodeListBat.join('\r\n'));
+
+  // 4e. Create queue-hs-catalog-job.js
+  console.log('Creating queue-hs-catalog-job.js...');
+  const queueHsJobLines = [
+    'const http = require("http");',
+    '',
+    'function httpRequest(method, path) {',
+    '  return new Promise((resolve, reject) => {',
+    '    const req = http.request({',
+    '      hostname: "localhost", port: 3000, path, method,',
+    '      headers: { "Content-Type": "application/json", "x-dev-admin-secret": "sawa-scanner-dev-2026" }',
+    '    }, (res) => {',
+    '      let data = "";',
+    '      res.on("data", c => data += c);',
+    '      res.on("end", () => resolve({ status: res.statusCode, body: data }));',
+    '    });',
+    '    req.on("error", reject);',
+    '    if (method === "POST") req.write(JSON.stringify({ dryRun: false }));',
+    '    req.end();',
+    '  });',
+    '}',
+    '',
+    'async function main() {',
+    '  // Step 1: Clean any stale/zombie jobs',
+    '  console.log("Cleaning stale hs-catalog-scrape jobs...");',
+    '  try {',
+    '    const clean = await httpRequest("DELETE", "/ingestion/jobs/stale/hs-catalog-scrape");',
+    '    const parsed = JSON.parse(clean.body);',
+    '    if (parsed.removed > 0) {',
+    '      console.log("Removed", parsed.removed, "stale job(s):", parsed.ids.join(", "));',
+    '    } else {',
+    '      console.log("No stale jobs found. Queue is clear.");',
+    '    }',
+    '  } catch(e) {',
+    '    console.log("Could not clean stale jobs:", e.message);',
+    '  }',
+    '',
+    '  // Step 2: Queue new job',
+    '  console.log("Queuing new hs-catalog scraping job...");',
+    '  try {',
+    '    const res = await httpRequest("POST", "/ingestion/hs-catalog-scrape");',
+    '    const parsed = JSON.parse(res.body);',
+    '    if (res.status >= 200 && res.status < 300) {',
+    '      console.log("Job queued successfully! Job ID:", parsed.jobId);',
+    '    } else if (res.status === 409) {',
+    '      console.log("Job already running (ID:", parsed.jobId + "). Worker is processing.");',
+    '    } else {',
+    '      console.log("Unexpected response:", res.status, res.body);',
+    '    }',
+    '  } catch(e) {',
+    '    console.error("Error:", e.message);',
+    '    console.error("Make sure the worker is running first.");',
+    '  }',
+    '}',
+    '',
+    'main();',
+  ];
+  fs.writeFileSync(path.join(OUTPUT_DIR, 'queue-hs-catalog-job.js'), queueHsJobLines.join('\n'));
+
+  // 4f. Create clean-stale-hs-jobs.bat
+  console.log('Creating clean-stale-hs-jobs.bat...');
+  const cleanStaleHsJobsBat = [
+    '@echo off',
+    'echo.',
+    'echo ============================================== ',
+    'echo   CLEAN STALE HS CATALOG JOBS',
+    'echo ============================================== ',
+    'echo.',
+    'echo Connecting to local worker to clean zombie hs-catalog-scrape jobs...',
+    '.\\node.exe -e "const http = require(\'http\'); const req = http.request({ hostname: \'localhost\', port: 3000, path: \'/ingestion/jobs/stale/hs-catalog-scrape\', method: \'DELETE\', headers: { \'x-dev-admin-secret\': \'sawa-scanner-dev-2026\' } }, (res) => { let d = \'\'; res.on(\'data\', c => d += c); res.on(\'end\', () => console.log(d)); }); req.on(\'error\', e => console.error(\'Error:\', e.message)); req.end();"',
+    'echo.',
+    'pause',
+  ];
+  fs.writeFileSync(path.join(OUTPUT_DIR, 'clean-stale-hs-jobs.bat'), cleanStaleHsJobsBat.join('\r\n'));
+
+  // 4g. Create run-hs-catalog.bat
+  console.log('Creating run-hs-catalog.bat...');
+  const runHsCatalogBat = [
+    '@echo off',
+    'echo.',
+    'echo ============================================== ',
+    'echo   HUNGERSTATION CATALOG SCRAPING - ALL IN ONE',
+    'echo ============================================== ',
+    'echo.',
+    'echo To change settings, edit .env file:',
+    'echo   HS_CATALOG_STORE_URL',
+    'echo   HS_CATALOG_MAX_CATEGORIES',
+    'echo   HS_CATALOG_MAX_PRODUCTS_PER_CAT',
+    'echo.',
+    'echo [1/3] Ensure Headless Browsers are installed...',
+    '.\\node.exe install-browsers.js',
+    'echo.',
+    'echo [2/3] Starting Worker in background...',
+    'start "Sawa Worker" /MIN .\\node.exe dist\\src\\main.js',
+    'echo Waiting 20 seconds for worker to initialize...',
+    'timeout /t 20 /nobreak > nul',
+    'echo.',
+    'echo [3/3] Cleaning stale jobs and queuing new scraping job...',
+    '.\\node.exe queue-hs-catalog-job.js',
+    'echo.',
+    'echo ============================================',
+    'echo   Worker is processing now.',
+    'echo   Check the minimized "Sawa Worker" window',
+    'echo   for live progress logs.',
+    'echo   Close that window when done.',
+    'echo ============================================',
+    'pause',
+  ];
+  fs.writeFileSync(path.join(OUTPUT_DIR, 'run-hs-catalog.bat'), runHsCatalogBat.join('\r\n'));
 
   // 5. Install dependencies locally (since target PC won't have npm)
   console.log('Installing production dependencies for the portable module...');

@@ -12,6 +12,8 @@ import { HsCatalogJobDto } from './dto/hs-catalog-job.dto';
 import { HungerStationScraper } from './scraper/hungerstation-scraper';
 import { RobotsTxtService } from './scraper/robots-txt.service';
 import { StoresService } from '../stores/stores.service';
+import { InjectQueue } from '@nestjs/bullmq';
+import { Queue } from 'bullmq';
 import { ScrapedProductData } from './dto/ingestion-job.dto';
 import { normalizeBrandStrict, normalizeProductName, gtinPrefix } from '../utils/normalization';
 
@@ -52,6 +54,7 @@ export class HsCatalogScraperService {
     private readonly configService: ConfigService,
     private readonly robotsTxtService: RobotsTxtService,
     private readonly storesService: StoresService,
+    @InjectQueue('ingestion-queue') private readonly ingestionQueue: Queue,
   ) {}
 
   async run(opts: HsCatalogJobDto): Promise<HsCatalogStats> {
@@ -126,22 +129,56 @@ export class HsCatalogScraperService {
     };
 
     try {
-      // ── Discover categories ───────────────────────────────────────────
+      // ── Determine execution mode ──────────────────────────────────────
       const branch = this.buildBranchContext(storeUrl, storeInfo, store);
-      const categories = await scraper.discoverCategories(branch);
-      stats.categoriesTotal = categories.length;
 
-      const categoriesToScrape =
-        maxCategories > 0 ? categories.slice(0, maxCategories) : categories;
+      if (!opts.categoryUrl) {
+        // ORCHESTRATOR MODE: Discover categories and queue them
+        this.logger.log(`[HS Catalog Orchestrator] Discovering categories for store...`);
+        const categories = await scraper.discoverCategories(branch);
+        stats.categoriesTotal = categories.length;
 
+        const categoriesToScrape =
+          maxCategories > 0 ? categories.slice(0, maxCategories) : categories;
+
+        this.logger.log(
+          `[HS Catalog Orchestrator] Discovered ${categories.length} categories, enqueueing ${categoriesToScrape.length} category jobs.`,
+        );
+
+        for (const [catIdx, category] of categoriesToScrape.entries()) {
+          const jobId = `hs-cat-${storeInfo.branchUuid}-${category.name.substring(0, 15)}-${Date.now()}`;
+          await this.ingestionQueue.add(
+            'hs-catalog-scrape-category',
+            {
+              ...opts,
+              categoryUrl: category.url,
+              categoryName: category.name,
+            },
+            {
+              jobId,
+              attempts: 3,
+              timeout: 2 * 60 * 60 * 1000, // 2 hours
+            } as any
+          );
+        }
+
+        stats.durationMs = Date.now() - startTime;
+        return stats;
+      }
+
+      // WORKER MODE: Scrape specific category
       this.logger.log(
-        `[HS Catalog] Discovered ${categories.length} categories, scraping ${categoriesToScrape.length}`,
+        `[HS Catalog Worker] Processing specific category: ${opts.categoryName} (${opts.categoryUrl})`,
       );
+      
+      const category = { url: opts.categoryUrl, name: opts.categoryName || 'Unknown Category' };
+      stats.categoriesTotal = 1;
+      const categoriesToScrape = [category];
 
       // ── Iterate categories ────────────────────────────────────────────
       for (const [catIdx, category] of categoriesToScrape.entries()) {
         this.logger.log(
-          `[HS Catalog] Category [${catIdx + 1}/${categoriesToScrape.length}]: ${category.name}`,
+          `[HS Catalog Worker] Category [${catIdx + 1}/${categoriesToScrape.length}]: ${category.name}`,
         );
 
         try {

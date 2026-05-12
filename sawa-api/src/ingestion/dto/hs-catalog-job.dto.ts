@@ -32,4 +32,14 @@ export class HsCatalogJobDto {
   @IsNumber()
   @Min(500)
   requestDelayMs?: number;
+
+  /** Specific category URL to scrape (worker mode) */
+  @IsOptional()
+  @IsString()
+  categoryUrl?: string;
+
+  /** Specific category name (worker mode) */
+  @IsOptional()
+  @IsString()
+  categoryName?: string;
 }

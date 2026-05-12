@@ -136,8 +136,7 @@ export class IngestionModule implements OnModuleInit {
       'gtin-backfill-off',
       'off-import',
       'off-enrichment',
-      'off-price-linking',
-      'hs-catalog-scrape'
+      'off-price-linking'
     ];
 
     for (const jobName of staleJobsToClean) {

@@ -18,7 +18,7 @@
 - [x] Next Steps: Use admin mobile app to scan and assign GTINs to scraped products.
 - [ ] Next Steps: Integrate alternative names into HungerStation price linking search queries.
 - [ ] Next Steps: Perform a full product catalog re-indexing for `ProductClusteringService` once the data is imported and enriched.
-- [ ] Next Steps: Deploy and validate the distributed worker system for portable multi-node price linking.
+- [x] Next Steps: Deploy and validate the distributed worker system for portable multi-node price linking.
 
 ## Architecture Decisions
 - **AI Processing Layer**: A clear separation of match routing vs processing ensures clean code. The `gtin-backfill.service.ts` acts as the orchestrator.
@@ -29,6 +29,7 @@
 - **HungerStation Price Linking**: Uses dynamic store URLs from `store.source_url` (or fallback to standardized paths) and normalized search query logic (`query` param) to resolve items on the platform. Implements confidence scoring for cross-merchant product linkage.
 - **Barcode-List Name Enrichment**: `BarcodeListScraperService` scrapes barcode-list.com for alternative commercial product names (POS/retail-style) per GTIN. These names are stored in a dedicated `product_alternative_name` table with popularity rankings, enabling better HungerStation search match rates.
 - **HungerStation Catalog Pivot**: Products are now primary-indexed by `hs_product_id` (the numeric ID from HungerStation URLs), not by GTIN. The `gtin` column is nullable with a partial unique index (`WHERE gtin IS NOT NULL`) to maintain integrity for scanned products while allowing HS catalog imports without GTINs. The `HsCatalogScraperService` navigates the HungerStation web platform using Playwright-stealth. It robustly deduplicates listing products by resolving URL slugs, preventing 404s on detail pages. Manual GTIN assignment is handled via a dedicated Flutter admin screen (`NeedsGtinBrowseScreen`) with inline camera barcode scanning.
+- **Distributed Scraping Orchestration**: `HsCatalogScraperService` utilizes an Orchestrator-Worker pattern to bypass the singleton lock limitation for `hs-catalog-scrape`. An initial orchestrator job discovers categories and enqueues individual `hs-catalog-scrape-category` sub-tasks into BullMQ, allowing multiple local and remote PCs to process categories completely independently and in parallel. This also inherently resolves failover and resumability (since failed chunks return to the queue independently).
 
 ## Environment & Configuration
 Ensure you have updated the `.env` settings to match the optimizations:

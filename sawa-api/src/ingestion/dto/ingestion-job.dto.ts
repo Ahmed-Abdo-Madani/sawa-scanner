@@ -36,6 +36,7 @@ export enum IngestionJobMode {
   OFF_PRICE_LINKING = 'off-price-linking',
   BARCODE_LIST_NAMES = 'barcode-list-names',
   HS_CATALOG_SCRAPE = 'hs-catalog-scrape',
+  HS_CATALOG_SCRAPE_CATEGORY = 'hs-catalog-scrape-category',
 }
 
 export class PageRangeDto {
