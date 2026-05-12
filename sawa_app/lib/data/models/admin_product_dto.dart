@@ -102,7 +102,7 @@ class AdminProductDto {
     
     return AdminProductDto(
       id: json['id'],
-      gtin: json['gtin'],
+      gtin: json['gtin']?.toString() ?? '',
       nameEn: json['name_en'],
       nameAr: json['name_ar'],
       brand: json['brand'],
@@ -206,7 +206,7 @@ class AdminMissingGtinSummary {
 
   factory AdminMissingGtinSummary.fromJson(Map<String, dynamic> json) {
     return AdminMissingGtinSummary(
-      gtin: json['gtin'],
+      gtin: json['gtin']?.toString() ?? '',
       count: int.tryParse(json['count'].toString()) ?? 0,
     );
   }

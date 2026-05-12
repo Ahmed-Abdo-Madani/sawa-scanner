@@ -279,5 +279,30 @@
   "submitAndStay": "Submit & Stay",
   "signOut": "Sign Out",
   "notAuthorized": "You are not authorized to access admin tools.",
-  "reportsCount": "Reports"
+  "reportsCount": "Reports",
+  "browseHsProducts": "Browse Products",
+  "needsGtinTitle": "Products Needing GTIN",
+  "needsGtinSubtitle": "Tap a product to scan its barcode",
+  "scanGtinButton": "Scan GTIN",
+  "assignGtinTitle": "Assign GTIN",
+  "gtinAssignedSuccess": "GTIN assigned successfully!",
+  "nextProduct": "Next Product",
+  "noProductsNeedGtin": "All products have GTINs assigned",
+  "gtinScannerTitle": "GTIN Scanner",
+  "filterByCategory": "Filter by category",
+  "productsCount": "{count} products",
+  "@productsCount": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "hsProductId": "HS Product ID",
+  "confirmGtinAssignment": "Assign GTIN {gtin} to this product?",
+  "@confirmGtinAssignment": {
+    "placeholders": {
+      "gtin": { "type": "String" }
+    }
+  },
+  "confirm": "Confirm",
+  "gtinAlreadyAssigned": "This GTIN is already assigned to another product"
 }

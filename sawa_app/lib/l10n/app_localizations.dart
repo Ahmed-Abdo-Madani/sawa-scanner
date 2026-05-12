@@ -1465,6 +1465,96 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Reports'**
   String get reportsCount;
+
+  /// No description provided for @browseHsProducts.
+  ///
+  /// In en, this message translates to:
+  /// **'Browse Products'**
+  String get browseHsProducts;
+
+  /// No description provided for @needsGtinTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Products Needing GTIN'**
+  String get needsGtinTitle;
+
+  /// No description provided for @needsGtinSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap a product to scan its barcode'**
+  String get needsGtinSubtitle;
+
+  /// No description provided for @scanGtinButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Scan GTIN'**
+  String get scanGtinButton;
+
+  /// No description provided for @assignGtinTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Assign GTIN'**
+  String get assignGtinTitle;
+
+  /// No description provided for @gtinAssignedSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'GTIN assigned successfully!'**
+  String get gtinAssignedSuccess;
+
+  /// No description provided for @nextProduct.
+  ///
+  /// In en, this message translates to:
+  /// **'Next Product'**
+  String get nextProduct;
+
+  /// No description provided for @noProductsNeedGtin.
+  ///
+  /// In en, this message translates to:
+  /// **'All products have GTINs assigned'**
+  String get noProductsNeedGtin;
+
+  /// No description provided for @gtinScannerTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'GTIN Scanner'**
+  String get gtinScannerTitle;
+
+  /// No description provided for @filterByCategory.
+  ///
+  /// In en, this message translates to:
+  /// **'Filter by category'**
+  String get filterByCategory;
+
+  /// No description provided for @productsCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} products'**
+  String productsCount(int count);
+
+  /// No description provided for @hsProductId.
+  ///
+  /// In en, this message translates to:
+  /// **'HS Product ID'**
+  String get hsProductId;
+
+  /// No description provided for @confirmGtinAssignment.
+  ///
+  /// In en, this message translates to:
+  /// **'Assign GTIN {gtin} to this product?'**
+  String confirmGtinAssignment(String gtin);
+
+  /// No description provided for @confirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm'**
+  String get confirm;
+
+  /// No description provided for @gtinAlreadyAssigned.
+  ///
+  /// In en, this message translates to:
+  /// **'This GTIN is already assigned to another product'**
+  String get gtinAlreadyAssigned;
 }
 
 class _AppLocalizationsDelegate

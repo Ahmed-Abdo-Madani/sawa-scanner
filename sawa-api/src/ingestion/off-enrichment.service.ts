@@ -53,7 +53,7 @@ interface FieldBorrowResult {
 }
 
 interface EnrichmentResult {
-  gtin: string;
+  gtin: string | null;
   donorGtin: string | null;
   donorCosine: number;
   borrowed: string[];
@@ -371,7 +371,7 @@ export class OffEnrichmentService {
     this.embeddingShortlister.setIndex(restrictedVectors);
 
     const scan = {
-      gtin: product.gtin,
+      gtin: product.gtin || '',
       name_en: product.name_en || '',
       name_ar: product.name_ar || '',
       brand: product.brand || '',

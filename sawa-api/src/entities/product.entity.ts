@@ -20,9 +20,16 @@ export class Product {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Index({ unique: true })
-  @Column({ unique: true })
-  gtin: string;
+  @Index({ unique: true, where: '"gtin" IS NOT NULL' })
+  @Column({ type: 'varchar', unique: true, nullable: true })
+  gtin: string | null;
+
+  @Index('IDX_product_hs_product_id', { unique: true, where: '"hs_product_id" IS NOT NULL' })
+  @Column({ type: 'varchar', nullable: true, unique: true })
+  hs_product_id: string | null;
+
+  @Column({ type: 'text', nullable: true })
+  hs_product_url: string | null;
 
   @Column({ nullable: true })
   name_ar: string;

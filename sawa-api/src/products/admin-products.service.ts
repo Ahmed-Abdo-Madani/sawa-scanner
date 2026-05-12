@@ -46,6 +46,39 @@ export class AdminProductsService {
       .getRawMany();
   }
 
+  async listProductsNeedingGtin(query: { page?: number; pageSize?: number; search?: string; category?: string }) {
+    const page = query.page || 1;
+    const pageSize = query.pageSize || 20;
+    const offset = (page - 1) * pageSize;
+
+    const qb = this.productRepo
+      .createQueryBuilder('product')
+      .leftJoinAndSelect('product.images', 'images')
+      .where('product.gtin IS NULL')
+      .andWhere('product.hs_product_id IS NOT NULL');
+
+    if (query.search) {
+      qb.andWhere(
+        '(product.name_en ILIKE :search OR product.name_ar ILIKE :search)',
+        { search: `%${query.search}%` },
+      );
+    }
+
+    if (query.category) {
+      qb.andWhere('product.category ILIKE :category', {
+        category: `%${query.category}%`,
+      });
+    }
+
+    const [items, total] = await qb
+      .orderBy('product.created_at', 'DESC')
+      .skip(offset)
+      .take(pageSize)
+      .getManyAndCount();
+
+    return { items, total, page, pageSize };
+  }
+
   async searchByGtinPrefix(prefix: string) {
     return this.productRepo.find({
       where: { gtin: Like(`${prefix}%`) },
@@ -97,7 +130,7 @@ export class AdminProductsService {
       // Wire normalized fields
       product.brand_normalized = normalizeBrandStrict(product.brand ?? '');
       product.name_normalized = normalizeProductName(product.name_en ?? product.name_ar ?? '');
-      product.gtin_prefix = gtinPrefix(product.gtin);
+      product.gtin_prefix = product.gtin ? gtinPrefix(product.gtin) : null;
       
       await manager.save(product);
 

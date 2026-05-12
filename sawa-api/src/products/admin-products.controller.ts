@@ -42,6 +42,16 @@ export class AdminProductsController {
     return await this.adminService.listMissingGtin({ page, pageSize, search });
   }
 
+  @Get('products/needs-gtin')
+  async listNeedsGtin(
+    @Query('page') page: number,
+    @Query('pageSize') pageSize: number,
+    @Query('search') search: string,
+    @Query('category') category: string,
+  ) {
+    return await this.adminService.listProductsNeedingGtin({ page, pageSize, search, category });
+  }
+
   @Get('products/search')
   async searchByGtinPrefix(@Query('gtinPrefix') gtinPrefix: string) {
     return await this.adminService.searchByGtinPrefix(gtinPrefix);

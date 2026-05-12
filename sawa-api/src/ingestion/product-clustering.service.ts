@@ -37,7 +37,7 @@ export class ProductClusteringService {
         // Wire normalized fields
         existingByGtin.brand_normalized = normalizeBrandStrict(existingByGtin.brand ?? '');
         existingByGtin.name_normalized = normalizeProductName(existingByGtin.name_en ?? existingByGtin.name_ar ?? '');
-        existingByGtin.gtin_prefix = gtinPrefix(existingByGtin.gtin);
+        existingByGtin.gtin_prefix = gtinPrefix(existingByGtin.gtin || '');
         await this.productRepository.save(existingByGtin);
         return existingByGtin;
       }
@@ -101,7 +101,7 @@ export class ProductClusteringService {
             // Wire normalized fields
             product.brand_normalized = normalizeBrandStrict(product.brand ?? '');
             product.name_normalized = normalizeProductName(product.name_en ?? product.name_ar ?? '');
-            product.gtin_prefix = gtinPrefix(product.gtin);
+            product.gtin_prefix = gtinPrefix(product.gtin || '');
             await this.productRepository.save(product);
             return product;
           }
@@ -148,7 +148,7 @@ export class ProductClusteringService {
     // Wire normalized fields
     newProduct.brand_normalized = normalizeBrandStrict(resolvedBrand ?? '');
     newProduct.name_normalized = normalizeProductName(name ?? name_ar ?? '');
-    newProduct.gtin_prefix = gtinPrefix(newProduct.gtin);
+    newProduct.gtin_prefix = gtinPrefix(newProduct.gtin || '');
 
     return this.productRepository.save(newProduct);
   }

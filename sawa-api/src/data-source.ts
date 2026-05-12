@@ -11,6 +11,7 @@ import { ProductReport } from './entities/product-report.entity';
 import { Store } from './entities/store.entity';
 import { ProductAllergen } from './entities/product-allergen.entity';
 import { ProductMergeLog } from './entities/product-merge-log.entity';
+import { ProductAlternativeName } from './entities/product-alternative-name.entity';
 
 config();
 
@@ -37,6 +38,7 @@ export const AppDataSource = new DataSource({
     Store,
     ProductAllergen,
     ProductMergeLog,
+    ProductAlternativeName,
   ],
   migrations: [__dirname + '/migrations/*{.ts,.js}'],
   subscribers: [],

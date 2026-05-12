@@ -46,6 +46,10 @@ import { OffEnrichmentService } from './off-enrichment.service';
 import { OffEnrichmentJobDto } from './dto/off-enrichment-job.dto';
 import { OffPriceLinkerService } from './off-price-linker.service';
 import { OffPriceLinkingJobDto } from './dto/off-price-linking-job.dto';
+import { BarcodeListScraperService } from './barcode-list-scraper.service';
+import { BarcodeListNamesJobDto } from './dto/barcode-list-names-job.dto';
+import { HsCatalogScraperService } from './hs-catalog-scraper.service';
+import { HsCatalogJobDto } from './dto/hs-catalog-job.dto';
 
 import { Product } from '../entities/product.entity';
 import { ProductPrice } from '../entities/product-price.entity';
@@ -76,6 +80,8 @@ const HS_DAILY_STAGGER_MS = Number.parseInt(
     INGESTION_WORKER_CONCURRENCY > 0
       ? INGESTION_WORKER_CONCURRENCY
       : 2,
+  lockDuration: 300000,
+  stalledInterval: 60000,
 })
 export class IngestionProcessor extends WorkerHost {
   private readonly logger = new Logger(IngestionProcessor.name);
@@ -87,6 +93,8 @@ export class IngestionProcessor extends WorkerHost {
   private offImportLock = new Semaphore(1);
   private offEnrichmentLock = new Semaphore(1);
   private offPriceLinkingLock = new Semaphore(1);
+  private barcodeListNamesLock = new Semaphore(1);
+  private hsCatalogLock = new Semaphore(1);
 
   private todayDateSuffix(): string {
     const now = new Date();
@@ -112,6 +120,8 @@ export class IngestionProcessor extends WorkerHost {
     private readonly offImportService: OffImportService,
     private readonly offEnrichmentService: OffEnrichmentService,
     private readonly offPriceLinkerService: OffPriceLinkerService,
+    private readonly barcodeListScraperService: BarcodeListScraperService,
+    private readonly hsCatalogScraperService: HsCatalogScraperService,
   ) {
     super();
     this.logger.log(
@@ -144,6 +154,10 @@ export class IngestionProcessor extends WorkerHost {
         return this.handleOffEnrichment(job);
       case 'off-price-linking':
         return this.handleOffPriceLinking(job);
+      case 'barcode-list-names':
+        return this.handleBarcodeListNames(job);
+      case 'hs-catalog-scrape':
+        return this.handleHsCatalogScrape(job);
       default:
         this.logger.warn(`Unknown job name: ${job.name}`);
     }
@@ -809,6 +823,40 @@ export class IngestionProcessor extends WorkerHost {
     });
   }
 
+  private async handleBarcodeListNames(job: Job<IngestionJobDto>) {
+    return await this.barcodeListNamesLock.run(async () => {
+      this.logger.log(`Starting barcode-list name scraping job ${job.id}`);
+      try {
+        const result = await this.barcodeListScraperService.run(
+          job.data as unknown as BarcodeListNamesJobDto,
+          job
+        );
+        this.logger.log(`Completed barcode-list name scraping job ${job.id}`);
+        return result;
+      } catch (error: any) {
+        this.logger.error(`Barcode-list name scraping failed: ${error.message}`, error.stack);
+        throw error;
+      }
+    });
+  }
+  // ─── HS Catalog Scrape handler ──────────────────────────────────────────────
+
+  private async handleHsCatalogScrape(job: Job<IngestionJobDto>) {
+    return await this.hsCatalogLock.run(async () => {
+      this.logger.log(`Starting HS catalog scrape job ${job.id}`);
+      try {
+        const result = await this.hsCatalogScraperService.run(
+          job.data as unknown as HsCatalogJobDto,
+        );
+        this.logger.log(`Completed HS catalog scrape job ${job.id}`);
+        return result;
+      } catch (error: any) {
+        this.logger.error(`HS catalog scrape failed: ${error.message}`, error.stack);
+        throw error;
+      }
+    });
+  }
+
   // ─── Scraper factory ────────────────────────────────────────────────────────
 
   private getScraper(platform: IngestionPlatform) {
@@ -1144,7 +1192,9 @@ export class IngestionProcessor extends WorkerHost {
           existingPrice.promo_price_sar = data.promo_price;
         }
         await manager.save(existingPrice);
-        await this.pricesService.invalidateGtinCache(product.gtin);
+        if (product.gtin) {
+          await this.pricesService.invalidateGtinCache(product.gtin);
+        }
       } else {
         // Insert new Product Price
         const priceRecord = manager.create(ProductPrice, {
@@ -1164,7 +1214,9 @@ export class IngestionProcessor extends WorkerHost {
           scraped_at: new Date(),
         });
         await manager.save(priceRecord);
-        await this.pricesService.invalidateGtinCache(product.gtin);
+        if (product.gtin) {
+          await this.pricesService.invalidateGtinCache(product.gtin);
+        }
       }
 
       // Upsert Images

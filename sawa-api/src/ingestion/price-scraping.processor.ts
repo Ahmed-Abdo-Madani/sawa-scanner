@@ -21,7 +21,10 @@ import { ProductPrice } from '../entities/product-price.entity';
 import { Merchant } from '../entities/merchant.entity';
 import { PricesService } from '../prices/prices.service';
 
-@Processor('price-scraping-queue')
+@Processor('price-scraping-queue', {
+  lockDuration: 300000,
+  stalledInterval: 60000,
+})
 export class PriceScrapingProcessor extends WorkerHost {
   private readonly logger = new Logger(PriceScrapingProcessor.name);
 

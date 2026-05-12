@@ -735,4 +735,54 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get reportsCount => 'Reports';
+
+  @override
+  String get browseHsProducts => 'Browse Products';
+
+  @override
+  String get needsGtinTitle => 'Products Needing GTIN';
+
+  @override
+  String get needsGtinSubtitle => 'Tap a product to scan its barcode';
+
+  @override
+  String get scanGtinButton => 'Scan GTIN';
+
+  @override
+  String get assignGtinTitle => 'Assign GTIN';
+
+  @override
+  String get gtinAssignedSuccess => 'GTIN assigned successfully!';
+
+  @override
+  String get nextProduct => 'Next Product';
+
+  @override
+  String get noProductsNeedGtin => 'All products have GTINs assigned';
+
+  @override
+  String get gtinScannerTitle => 'GTIN Scanner';
+
+  @override
+  String get filterByCategory => 'Filter by category';
+
+  @override
+  String productsCount(int count) {
+    return '$count products';
+  }
+
+  @override
+  String get hsProductId => 'HS Product ID';
+
+  @override
+  String confirmGtinAssignment(String gtin) {
+    return 'Assign GTIN $gtin to this product?';
+  }
+
+  @override
+  String get confirm => 'Confirm';
+
+  @override
+  String get gtinAlreadyAssigned =>
+      'This GTIN is already assigned to another product';
 }

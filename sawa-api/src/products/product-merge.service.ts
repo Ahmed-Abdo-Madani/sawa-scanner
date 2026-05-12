@@ -50,7 +50,9 @@ export class ProductMergeService {
       await manager.update(ProductPrice, { product_id: loserId }, { product_id: winnerId });
 
       // 2. Move Reports (Update by GTIN)
-      await manager.update(ProductReport, { gtin: loser.gtin }, { gtin: winner.gtin });
+      if (loser.gtin && winner.gtin) {
+        await manager.update(ProductReport, { gtin: loser.gtin }, { gtin: winner.gtin });
+      }
 
       // 3. Move Images (Conflict handling: only move if winner doesn't have same URL)
       const loserImages = await manager.findBy(ProductImage, { product_id: loserId });
@@ -86,7 +88,7 @@ export class ProductMergeService {
       const log = manager.create(ProductMergeLog, {
         winner_product_id: winnerId,
         loser_product_id: loserId,
-        winner_gtin: winner.gtin,
+        winner_gtin: winner.gtin || '',
         loser_gtin: loser.gtin,
         reason: reason,
         triggered_by: adminId === 'off_backfill_job' ? 'off_backfill_job' : 'admin',
@@ -144,7 +146,9 @@ export class ProductMergeService {
       await manager.save(product);
 
       // Update Reports
-      await manager.update(ProductReport, { gtin: oldGtin }, { gtin: newGtin });
+      if (oldGtin) {
+        await manager.update(ProductReport, { gtin: oldGtin }, { gtin: newGtin });
+      }
 
       // Log the assignment
       const log = manager.create(ProductMergeLog, {

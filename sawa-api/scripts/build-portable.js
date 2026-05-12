@@ -70,11 +70,11 @@ async function run() {
   try {
      const mainEnv = fs.readFileSync(path.join(BASE_DIR, '.env'), 'utf8');
      const lines = mainEnv.split('\n');
-     for (const line of lines) {
-        if (line.startsWith('DATABASE_') || line.startsWith('REDIS_')) {
+      for (const line of lines) {
+        if (line.startsWith('DATABASE_') || line.startsWith('REDIS_') || line.startsWith('BARCODE_LIST_')) {
             envContent += line + '\n';
         }
-     }
+      }
   } catch (e) {
      console.warn('Could not read main .env, using blanks.');
   }
@@ -84,6 +84,8 @@ HUNGERSTATION_DAILY_ENABLED=false
 HUNGERSTATION_DISCOVERY_ENABLED=false
 ENABLE_AI_EXTRACTION=false
 INGESTION_WORKER_CONCURRENCY=5
+BARCODE_LIST_REQUEST_DELAY_MS=2000
+BARCODE_LIST_DAILY_BUDGET=5000
 `;
   fs.writeFileSync(path.join(OUTPUT_DIR, '.env'), envContent);
 
@@ -111,9 +113,116 @@ execSync('.\\\\node.exe node_modules/playwright-core/cli.js install chromium', {
 `;
   fs.writeFileSync(path.join(OUTPUT_DIR, 'install-browsers.js'), installBrowsersContent);
 
+  // 4b. Create queue-barcode-list-job.js (cleans stale jobs first, then queues new one)
+  console.log('Creating queue-barcode-list-job.js...');
+  const queueJobLines = [
+    'const http = require("http");',
+    '',
+    'function httpRequest(method, path) {',
+    '  return new Promise((resolve, reject) => {',
+    '    const req = http.request({',
+    '      hostname: "localhost", port: 3000, path, method,',
+    '      headers: { "Content-Type": "application/json", "x-dev-admin-secret": "sawa-scanner-dev-2026" }',
+    '    }, (res) => {',
+    '      let data = "";',
+    '      res.on("data", c => data += c);',
+    '      res.on("end", () => resolve({ status: res.statusCode, body: data }));',
+    '    });',
+    '    req.on("error", reject);',
+    '    if (method === "POST") req.write(JSON.stringify({ dryRun: false }));',
+    '    req.end();',
+    '  });',
+    '}',
+    '',
+    'async function main() {',
+    '  // Step 1: Clean any stale/zombie jobs',
+    '  console.log("Cleaning stale barcode-list jobs...");',
+    '  try {',
+    '    const clean = await httpRequest("DELETE", "/ingestion/jobs/stale/barcode-list-names");',
+    '    const parsed = JSON.parse(clean.body);',
+    '    if (parsed.removed > 0) {',
+    '      console.log("Removed", parsed.removed, "stale job(s):", parsed.ids.join(", "));',
+    '    } else {',
+    '      console.log("No stale jobs found. Queue is clear.");',
+    '    }',
+    '  } catch(e) {',
+    '    console.log("Could not clean stale jobs:", e.message);',
+    '  }',
+    '',
+    '  // Step 2: Queue new job',
+    '  console.log("Queuing new barcode-list scraping job...");',
+    '  try {',
+    '    const res = await httpRequest("POST", "/ingestion/barcode-list-names");',
+    '    const parsed = JSON.parse(res.body);',
+    '    if (res.status >= 200 && res.status < 300) {',
+    '      console.log("Job queued successfully! Job ID:", parsed.jobId);',
+    '    } else if (res.status === 409) {',
+    '      console.log("Job already running (ID:", parsed.jobId + "). Worker is processing.");',
+    '    } else {',
+    '      console.log("Unexpected response:", res.status, res.body);',
+    '    }',
+    '  } catch(e) {',
+    '    console.error("Error:", e.message);',
+    '    console.error("Make sure the worker is running first.");',
+    '  }',
+    '}',
+    '',
+    'main();',
+  ];
+  fs.writeFileSync(path.join(OUTPUT_DIR, 'queue-barcode-list-job.js'), queueJobLines.join('\n'));
+
+  // 4c. Create clean-stale-jobs.bat
+  console.log('Creating clean-stale-jobs.bat...');
+  const cleanStaleJobsBat = [
+    '@echo off',
+    'echo.',
+    'echo ==============================================',
+    'echo   CLEAN STALE JOBS',
+    'echo ==============================================',
+    'echo.',
+    'echo Connecting to local worker to clean zombie barcode-list jobs...',
+    '.\\node.exe -e "const http = require(\'http\'); const req = http.request({ hostname: \'localhost\', port: 3000, path: \'/ingestion/jobs/stale/barcode-list-names\', method: \'DELETE\', headers: { \'x-dev-admin-secret\': \'sawa-scanner-dev-2026\' } }, (res) => { let d = \'\'; res.on(\'data\', c => d += c); res.on(\'end\', () => console.log(d)); }); req.on(\'error\', e => console.error(\'Error:\', e.message)); req.end();"',
+    'echo.',
+    'pause',
+  ];
+  fs.writeFileSync(path.join(OUTPUT_DIR, 'clean-stale-jobs.bat'), cleanStaleJobsBat.join('\r\n'));
+
+  // 4d. Create a single all-in-one run-barcode-list.bat
+  console.log('Creating run-barcode-list.bat...');
+  const runBarcodeListBat = [
+    '@echo off',
+    'echo.',
+    'echo ==============================================',
+    'echo   BARCODE-LIST NAME SCRAPING - ALL IN ONE',
+    'echo ==============================================',
+    'echo.',
+    'echo To change the budget, edit .env file:',
+    'echo   BARCODE_LIST_DAILY_BUDGET=5000',
+    'echo.',
+    'echo [1/3] Ensure Headless Browsers are installed...',
+    '.\\node.exe install-browsers.js',
+    'echo.',
+    'echo [2/3] Starting Worker in background...',
+    'start "Sawa Worker" /MIN .\\node.exe dist\\src\\main.js',
+    'echo Waiting 20 seconds for worker to initialize...',
+    'timeout /t 20 /nobreak > nul',
+    'echo.',
+    'echo [3/3] Cleaning stale jobs and queuing new scraping job...',
+    '.\\node.exe queue-barcode-list-job.js',
+    'echo.',
+    'echo ============================================',
+    'echo   Worker is processing now.',
+    'echo   Check the minimized "Sawa Worker" window',
+    'echo   for live progress logs.',
+    'echo   Close that window when done.',
+    'echo ============================================',
+    'pause',
+  ];
+  fs.writeFileSync(path.join(OUTPUT_DIR, 'run-barcode-list.bat'), runBarcodeListBat.join('\r\n'));
+
   // 5. Install dependencies locally (since target PC won't have npm)
   console.log('Installing production dependencies for the portable module...');
-  execSync('npm install --omit=dev', { cwd: OUTPUT_DIR, stdio: 'inherit' });
+  execSync('npm install --omit=dev --ignore-scripts', { cwd: OUTPUT_DIR, stdio: 'inherit' });
 
   // 6. Download Node.exe
   console.log(`Downloading standalone Node.js (${NODE_VERSION}) from official servers...`);

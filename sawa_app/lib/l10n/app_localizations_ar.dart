@@ -736,4 +736,53 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get reportsCount => 'التقارير';
+
+  @override
+  String get browseHsProducts => 'تصفح المنتجات';
+
+  @override
+  String get needsGtinTitle => 'منتجات بحاجة لباركود';
+
+  @override
+  String get needsGtinSubtitle => 'اضغط على المنتج لمسح الباركود';
+
+  @override
+  String get scanGtinButton => 'مسح الباركود';
+
+  @override
+  String get assignGtinTitle => 'تعيين الباركود';
+
+  @override
+  String get gtinAssignedSuccess => 'تم تعيين الباركود بنجاح!';
+
+  @override
+  String get nextProduct => 'المنتج التالي';
+
+  @override
+  String get noProductsNeedGtin => 'جميع المنتجات لديها باركود';
+
+  @override
+  String get gtinScannerTitle => 'ماسح الباركود';
+
+  @override
+  String get filterByCategory => 'تصفية حسب الفئة';
+
+  @override
+  String productsCount(int count) {
+    return '$count منتج';
+  }
+
+  @override
+  String get hsProductId => 'معرّف المنتج HS';
+
+  @override
+  String confirmGtinAssignment(String gtin) {
+    return 'هل تريد تعيين الباركود $gtin لهذا المنتج؟';
+  }
+
+  @override
+  String get confirm => 'تأكيد';
+
+  @override
+  String get gtinAlreadyAssigned => 'هذا الباركود مُعيّن لمنتج آخر';
 }

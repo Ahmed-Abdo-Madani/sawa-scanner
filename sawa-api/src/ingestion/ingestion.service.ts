@@ -46,6 +46,10 @@ export class IngestionService {
       jobName = 'off-enrichment';
     else if (dto.mode === IngestionJobMode.OFF_PRICE_LINKING)
       jobName = 'off-price-linking';
+    else if (dto.mode === IngestionJobMode.BARCODE_LIST_NAMES)
+      jobName = 'barcode-list-names';
+    else if (dto.mode === IngestionJobMode.HS_CATALOG_SCRAPE)
+      jobName = 'hs-catalog-scrape';
 
     const options: JobsOptions & { timeout?: number; jobId?: string } = { ...INGESTION_JOB_OPTIONS };
     if (jobName === 'gtin-backfill-off') {
@@ -145,6 +149,42 @@ export class IngestionService {
         this.logger.warn(`Conflict: OFF price linking already in-flight as ${activeJobState}`);
         throw err;
       }
+    } else if (jobName === 'barcode-list-names') {
+      options.attempts = 1;
+      options.timeout = 8 * 60 * 60 * 1000; // 8 hours
+
+      const activeJobs = await this.ingestionQueue.getJobs(['active', 'waiting', 'delayed', 'prioritized']);
+      const activeBarcodeList = activeJobs.filter((job) => job.name === 'barcode-list-names');
+      
+      if (activeBarcodeList.length > 0) {
+        const activeJobId = activeBarcodeList[0].id;
+        const activeJobState = await activeBarcodeList[0].getState();
+        const err = new ConflictException({
+          jobId: activeJobId,
+          created: false,
+          message: `A barcode-list name scraping is already ${activeJobState} (job ID: ${activeJobId}). Wait for it to complete.`,
+        });
+        this.logger.warn(`Conflict: barcode-list name scraping already in-flight as ${activeJobState}`);
+        throw err;
+      }
+    } else if (jobName === 'hs-catalog-scrape') {
+      options.attempts = 1;
+      options.timeout = 8 * 60 * 60 * 1000; // 8 hours
+
+      const activeJobs = await this.ingestionQueue.getJobs(['active', 'waiting', 'delayed', 'prioritized']);
+      const activeHsCatalog = activeJobs.filter((job) => job.name === 'hs-catalog-scrape');
+      
+      if (activeHsCatalog.length > 0) {
+        const activeJobId = activeHsCatalog[0].id;
+        const activeJobState = await activeHsCatalog[0].getState();
+        const err = new ConflictException({
+          jobId: activeJobId,
+          created: false,
+          message: `An HS catalog scrape is already ${activeJobState} (job ID: ${activeJobId}). Wait for it to complete.`,
+        });
+        this.logger.warn(`Conflict: HS catalog scrape already in-flight as ${activeJobState}`);
+        throw err;
+      }
     }
 
     const job = await this.ingestionQueue.add(jobName, dto, options);
@@ -162,6 +202,12 @@ export class IngestionService {
     } else if (jobName === 'off-price-linking') {
       response.created = true;
       response.message = 'OFF price linking job queued successfully.';
+    } else if (jobName === 'barcode-list-names') {
+      response.created = true;
+      response.message = 'Barcode-list name scraping job queued successfully.';
+    } else if (jobName === 'hs-catalog-scrape') {
+      response.created = true;
+      response.message = 'HS catalog scrape job queued successfully.';
     }
     return response;
   }
@@ -177,5 +223,35 @@ export class IngestionService {
       result: job.returnvalue,
       failedReason: job.failedReason,
     };
+  }
+
+  /**
+   * Clean stale/stuck jobs for a given job name.
+   * This is needed when a distributed worker crashes and leaves
+   * zombie jobs in 'active' state that block new runs.
+   */
+  async cleanStaleJobs(jobName: string): Promise<{ removed: number; ids: string[] }> {
+    const activeJobs = await this.ingestionQueue.getJobs(['active', 'waiting', 'delayed']);
+    const staleJobs = activeJobs.filter((job) => job.name === jobName);
+
+    const removedIds: string[] = [];
+    for (const job of staleJobs) {
+      try {
+        try {
+          await job.remove();
+        } catch (removeErr) {
+          // If remove() fails due to lock, discard and move to failed
+          await job.discard();
+          await job.moveToFailed(new Error('Manually cleaned: stale/zombie job'), '0', false).catch(() => {});
+          await job.remove().catch(() => {});
+        }
+        removedIds.push(String(job.id));
+        this.logger.warn(`Removed stale ${jobName} job: ${job.id}`);
+      } catch (err: any) {
+        this.logger.warn(`Could not remove job ${job.id}: ${err.message}`);
+      }
+    }
+
+    return { removed: removedIds.length, ids: removedIds };
   }
 }

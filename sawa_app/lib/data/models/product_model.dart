@@ -60,7 +60,7 @@ class ProductModel extends Product {
 
     return ProductModel(
       id: json['id'].toString(),
-      gtin: json['gtin'].toString(),
+      gtin: json['gtin']?.toString() ?? '',
       nameAr: json['name_ar'] ?? '',
       nameEn: json['name_en'] ?? '',
       brand: json['brand'] ?? '',

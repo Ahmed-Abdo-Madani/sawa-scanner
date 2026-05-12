@@ -54,6 +54,7 @@ export class HungerStationScraper extends BaseScraper {
 
     try {
       const capturedProductsMap = new Map<string, ScrapedProductData>();
+      const normalizeKey = (s: string) => s.replace(/[^a-z0-9]/gi, '').toLowerCase();
 
       const teardown = this.interceptGraphQL(
         page,
@@ -63,14 +64,11 @@ export class HungerStationScraper extends BaseScraper {
           for (const raw of rawItems) {
             const mapped = this.mapHsProduct(raw, storeContext);
             if (!mapped) continue;
-            const key =
-              this.extractHsProductKey(raw) ||
-              mapped.gtin ||
-              mapped.productPageUrl ||
-              mapped.name;
+            const key = normalizeKey(mapped.name);
             if (!key) continue;
-            if (!capturedProductsMap.has(key))
+            if (!capturedProductsMap.has(key)) {
               capturedProductsMap.set(key, mapped);
+            }
           }
         },
       );
@@ -93,9 +91,11 @@ export class HungerStationScraper extends BaseScraper {
         return out;
       });
       for (const p of hydrated) {
-        const key = p.gtin || p.productPageUrl || p.name;
-        if (!key || capturedProductsMap.has(key)) continue;
-        capturedProductsMap.set(key, p);
+        const key = normalizeKey(p.name);
+        if (!key) continue;
+        if (!capturedProductsMap.has(key)) {
+          capturedProductsMap.set(key, p);
+        }
       }
 
       for (let i = 0; i < Math.max(1, pageNum); i++) {
@@ -107,7 +107,7 @@ export class HungerStationScraper extends BaseScraper {
       const domProducts = await page.evaluate(() => {
         const links = Array.from(
           document.querySelectorAll<HTMLAnchorElement>(
-            'a[href*="/items/"], a[href*="/item/"]',
+            'a[href*="/items/"], a[href*="/item/"], a[href*="/product/"]',
           ),
         );
         return links
@@ -134,16 +134,24 @@ export class HungerStationScraper extends BaseScraper {
         );
         if (!Number.isFinite(price) || price <= 0) continue;
         const productPageUrl = new URL(item.href, HS_BASE_URL).toString();
-        const key = productPageUrl;
-        if (capturedProductsMap.has(key)) continue;
-        capturedProductsMap.set(key, {
-          name: item.title,
-          price,
-          productPageUrl,
-          imageUrls: item.img
-            ? [new URL(item.img, HS_BASE_URL).toString()]
-            : [],
-        });
+        const slugMatch = item.href.match(/\/product\/([^/]+)\//);
+        const rawSlug = slugMatch ? slugMatch[1] : item.title;
+        const key = normalizeKey(rawSlug);
+        if (capturedProductsMap.has(key)) {
+          // Merge with DOM data to ensure we get the real productPageUrl
+          const existing = capturedProductsMap.get(key)!;
+          existing.productPageUrl = productPageUrl;
+          if (item.img) existing.imageUrls = [new URL(item.img, HS_BASE_URL).toString()];
+        } else {
+          capturedProductsMap.set(key, {
+            name: item.title,
+            price,
+            productPageUrl,
+            imageUrls: item.img
+              ? [new URL(item.img, HS_BASE_URL).toString()]
+              : [],
+          });
+        }
       }
 
       teardown();
@@ -555,7 +563,8 @@ export class HungerStationScraper extends BaseScraper {
   }
 
   private extractHsProductKey(raw: any): string {
-    const id = raw?.id ?? raw?.productId ?? raw?.menuItemId ?? raw?.slug;
+    // Prioritize productId over id because id is often a UUID for categories
+    const id = raw?.productId ?? raw?.id ?? raw?.menuItemId ?? raw?.slug;
     return id !== undefined && id !== null ? String(id) : '';
   }
 
@@ -655,7 +664,7 @@ export class HungerStationScraper extends BaseScraper {
     const directUrl = raw.link || raw.url || raw.href;
     const productPageUrl = directUrl
       ? new URL(String(directUrl), HS_BASE_URL).toString()
-      : `${storeContext?.source_url || HS_BASE_URL}/items/${id || encodeURIComponent(name.toLowerCase().replace(/\s+/g, '-'))}`;
+      : `${storeContext?.source_url || HS_BASE_URL}/product/${encodeURIComponent(name.toLowerCase().replace(/\s+/g, '-'))}/${id}`;
 
     const inStockValue = raw.available ?? raw.isAvailable ?? raw.stock;
     const inStock =

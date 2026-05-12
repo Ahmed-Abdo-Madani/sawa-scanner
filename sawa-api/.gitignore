@@ -82,3 +82,12 @@ gtin_backfill_residuals.csv
 uploads/
 src/config/service-account.json
 debug_env.js
+
+# Binary releases
+*.rar
+*.zip
+*.7z
+/portable_release
+
+# Temp dump files
+hs-graphql-dump.json

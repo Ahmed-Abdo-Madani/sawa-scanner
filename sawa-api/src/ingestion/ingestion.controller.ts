@@ -8,6 +8,7 @@ import {
   UseGuards,
   UsePipes,
   ValidationPipe,
+  Delete,
 } from '@nestjs/common';
 import * as path from 'path';
 import { IngestionService } from './ingestion.service';
@@ -15,6 +16,8 @@ import { IngestionJobDto, IngestionJobMode, GtinBackfillJobDto } from './dto/ing
 import { OffImportJobDto } from './dto/off-import-job.dto';
 import { OffEnrichmentJobDto } from './dto/off-enrichment-job.dto';
 import { OffPriceLinkingJobDto } from './dto/off-price-linking-job.dto';
+import { BarcodeListNamesJobDto } from './dto/barcode-list-names-job.dto';
+import { HsCatalogJobDto } from './dto/hs-catalog-job.dto';
 import { OpenFoodFactsDumpService } from './open-food-facts-dump.service';
 import { getOffPoolFilter, getOffPoolHash } from './constants/off-pool';
 import { FirebaseAuthGuard } from '../auth/firebase-auth.guard';
@@ -95,6 +98,24 @@ export class IngestionController {
     });
   }
 
+  @Post('barcode-list-names')
+  async startBarcodeListNames(@Body() dto: BarcodeListNamesJobDto) {
+    return this.ingestionService.addIngestionJob({
+      mode: IngestionJobMode.BARCODE_LIST_NAMES,
+      ...dto,
+    });
+  }
+
+  @Post('hs-catalog-scrape')
+  @UsePipes(new ValidationPipe({ transform: true, whitelist: true }))
+  @UseGuards(FirebaseAuthGuard, AdminGuard)
+  async startHsCatalogScrape(@Body() dto: HsCatalogJobDto) {
+    return this.ingestionService.addIngestionJob({
+      mode: IngestionJobMode.HS_CATALOG_SCRAPE,
+      ...dto,
+    });
+  }
+
   @Get('jobs/:id')
   async getJob(@Param('id') id: string) {
     const status = await this.ingestionService.getJobStatus(id);
@@ -102,5 +123,10 @@ export class IngestionController {
       throw new NotFoundException(`Job with ID ${id} not found`);
     }
     return status;
+  }
+
+  @Delete('jobs/stale/:jobName')
+  async cleanStaleJobs(@Param('jobName') jobName: string) {
+    return this.ingestionService.cleanStaleJobs(jobName);
   }
 }

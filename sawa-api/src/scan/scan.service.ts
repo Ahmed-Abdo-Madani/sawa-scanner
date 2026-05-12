@@ -113,7 +113,7 @@ export class ScanService {
             }
 
             if (bestMatch) {
-              gtin = bestMatch.gtin;
+              gtin = bestMatch.gtin || undefined;
             }
           }
         }

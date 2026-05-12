@@ -40,12 +40,15 @@ import { ProductImage } from '../entities/product-image.entity';
 import { ProductAllergen } from '../entities/product-allergen.entity';
 import { Merchant } from '../entities/merchant.entity';
 import { Store } from '../entities/store.entity';
+import { ProductAlternativeName } from '../entities/product-alternative-name.entity';
 
 import { OpenFoodFactsService } from './open-food-facts.service';
 import { OpenFoodFactsDumpService } from './open-food-facts-dump.service';
 import { OffImportService } from './off-import.service';
 import { OffEnrichmentService } from './off-enrichment.service';
 import { OffPriceLinkerService } from './off-price-linker.service';
+import { BarcodeListScraperService } from './barcode-list-scraper.service';
+import { HsCatalogScraperService } from './hs-catalog-scraper.service';
 
 @Module({
   imports: [
@@ -58,6 +61,7 @@ import { OffPriceLinkerService } from './off-price-linker.service';
       ProductAllergen,
       Merchant,
       Store,
+      ProductAlternativeName,
     ]),
     BullModule.registerQueue({
       name: 'ingestion-queue',
@@ -82,6 +86,8 @@ import { OffPriceLinkerService } from './off-price-linker.service';
     OffImportService,
     OffEnrichmentService,
     OffPriceLinkerService,
+    BarcodeListScraperService,
+    HsCatalogScraperService,
     GtinBackfillService,
     VertexGeminiGtinMatchProvider,
     OllamaGtinMatchProvider,
@@ -115,6 +121,7 @@ export class IngestionModule implements OnModuleInit {
 
   constructor(
     private readonly configService: ConfigService,
+    private readonly ingestionService: IngestionService,
     @InjectQueue('ingestion-queue')
     private readonly ingestionQueue: Queue,
     @InjectQueue('price-scraping-queue')
@@ -122,6 +129,27 @@ export class IngestionModule implements OnModuleInit {
   ) {}
 
   async onModuleInit() {
+    this.logger.log('Cleaning stale jobs on module init...');
+    
+    const staleJobsToClean = [
+      'barcode-list-names',
+      'gtin-backfill-off',
+      'off-import',
+      'off-enrichment',
+      'off-price-linking',
+      'hs-catalog-scrape'
+    ];
+
+    for (const jobName of staleJobsToClean) {
+      try {
+        const res = await this.ingestionService.cleanStaleJobs(jobName);
+        if (res.removed > 0) {
+          this.logger.log(`Cleaned ${res.removed} stale ${jobName} jobs on startup.`);
+        }
+      } catch (err: any) {
+        this.logger.warn(`Failed to clean stale ${jobName} jobs: ${err.message}`);
+      }
+    }
     // Schedule Daily Price Scraping Cron Jobs
     // Panda: Daily 2:00 AM KSA (23:00 UTC)
     await this.priceScrapingQueue.upsertJobScheduler(

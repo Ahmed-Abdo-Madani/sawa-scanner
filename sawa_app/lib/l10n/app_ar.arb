@@ -279,5 +279,30 @@
   "submitAndStay": "إرسال وبقاء",
   "signOut": "تسجيل الخروج",
   "notAuthorized": "ليس لديك صلاحية الوصول إلى أدوات المسؤول.",
-  "reportsCount": "التقارير"
+  "reportsCount": "التقارير",
+  "browseHsProducts": "تصفح المنتجات",
+  "needsGtinTitle": "منتجات بحاجة لباركود",
+  "needsGtinSubtitle": "اضغط على المنتج لمسح الباركود",
+  "scanGtinButton": "مسح الباركود",
+  "assignGtinTitle": "تعيين الباركود",
+  "gtinAssignedSuccess": "تم تعيين الباركود بنجاح!",
+  "nextProduct": "المنتج التالي",
+  "noProductsNeedGtin": "جميع المنتجات لديها باركود",
+  "gtinScannerTitle": "ماسح الباركود",
+  "filterByCategory": "تصفية حسب الفئة",
+  "productsCount": "{count} منتج",
+  "@productsCount": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "hsProductId": "معرّف المنتج HS",
+  "confirmGtinAssignment": "هل تريد تعيين الباركود {gtin} لهذا المنتج؟",
+  "@confirmGtinAssignment": {
+    "placeholders": {
+      "gtin": { "type": "String" }
+    }
+  },
+  "confirm": "تأكيد",
+  "gtinAlreadyAssigned": "هذا الباركود مُعيّن لمنتج آخر"
 }

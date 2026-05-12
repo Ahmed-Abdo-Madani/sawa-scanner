@@ -10,7 +10,7 @@ import { NutritionService } from '../nutrition/nutrition.service';
 // ─── Types ──────────────────────────────────────────────────────────────────
 
 export interface SimilarProductSummary {
-  gtin: string;
+  gtin: string | null;
   name_ar: string | null;
   name_en: string | null;
   brand: string | null;
@@ -32,7 +32,7 @@ export interface ComparisonResult {
 }
 
 export interface ProductComparisonCard {
-  gtin: string;
+  gtin: string | null;
   name_ar: string | null;
   name_en: string | null;
   brand: string | null;
