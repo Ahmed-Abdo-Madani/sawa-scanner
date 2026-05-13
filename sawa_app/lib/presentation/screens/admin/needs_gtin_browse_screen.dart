@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:sawa_app/l10n/app_localizations.dart';
 
 import '../../../data/datasources/admin_product_remote_data_source.dart';
 import '../../../data/datasources/authed_http_client.dart';
