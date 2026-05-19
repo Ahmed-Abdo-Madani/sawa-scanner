@@ -49,6 +49,9 @@ import { OffEnrichmentService } from './off-enrichment.service';
 import { OffPriceLinkerService } from './off-price-linker.service';
 import { BarcodeListScraperService } from './barcode-list-scraper.service';
 import { HsCatalogScraperService } from './hs-catalog-scraper.service';
+import { EtaamGtinService } from './etaam-gtin.service';
+import { EtaamGtinProcessor } from './etaam-gtin.processor';
+import { EtaamGtinScraper } from './scraper/etaam-gtin-scraper';
 
 @Module({
   imports: [
@@ -69,6 +72,9 @@ import { HsCatalogScraperService } from './hs-catalog-scraper.service';
     BullModule.registerQueue({
       name: 'price-scraping-queue',
     }),
+    BullModule.registerQueue({
+      name: 'etaam-gtin-queue',
+    }),
     ScanModule,
     PricesModule,
     StoresModule,
@@ -88,6 +94,9 @@ import { HsCatalogScraperService } from './hs-catalog-scraper.service';
     OffPriceLinkerService,
     BarcodeListScraperService,
     HsCatalogScraperService,
+    EtaamGtinService,
+    EtaamGtinProcessor,
+    EtaamGtinScraper,
     GtinBackfillService,
     VertexGeminiGtinMatchProvider,
     OllamaGtinMatchProvider,
@@ -136,7 +145,9 @@ export class IngestionModule implements OnModuleInit {
       'gtin-backfill-off',
       'off-import',
       'off-enrichment',
-      'off-price-linking'
+      'off-price-linking',
+      'hs-catalog-scrape',
+      'hs-catalog-scrape-category',
     ];
 
     for (const jobName of staleJobsToClean) {

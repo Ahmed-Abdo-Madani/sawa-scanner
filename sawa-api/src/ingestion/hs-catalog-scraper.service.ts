@@ -34,9 +34,11 @@ interface HsCatalogStats {
   categoriesFailed: number;
   productsTotal: number;
   productsUpserted: number;
+  productsSkipped: number;
   productsFailed: number;
   pricesUpserted: number;
   imagesUpserted: number;
+  subcategoriesEnqueued: number;
   dryRun: boolean;
   durationMs: number;
   storeUrl: string;
@@ -120,9 +122,11 @@ export class HsCatalogScraperService {
       categoriesFailed: 0,
       productsTotal: 0,
       productsUpserted: 0,
+      productsSkipped: 0,
       productsFailed: 0,
       pricesUpserted: 0,
       imagesUpserted: 0,
+      subcategoriesEnqueued: 0,
       dryRun,
       durationMs: 0,
       storeUrl,
@@ -141,6 +145,10 @@ export class HsCatalogScraperService {
         const categoriesToScrape =
           maxCategories > 0 ? categories.slice(0, maxCategories) : categories;
 
+        // Collect all top-level category IDs so workers can exclude them
+        // from subcategory discovery (the HS tab bar shows all siblings).
+        const allTopLevelCategoryIds = categories.map((c) => c.id);
+
         this.logger.log(
           `[HS Catalog Orchestrator] Discovered ${categories.length} categories, enqueueing ${categoriesToScrape.length} category jobs.`,
         );
@@ -153,6 +161,8 @@ export class HsCatalogScraperService {
               ...opts,
               categoryUrl: category.url,
               categoryName: category.name,
+              depth: 0,
+              siblingCategoryIds: allTopLevelCategoryIds,
             },
             {
               jobId,
@@ -167,133 +177,144 @@ export class HsCatalogScraperService {
       }
 
       // WORKER MODE: Scrape specific category
+      const currentDepth = opts.depth ?? 0;
+      const MAX_SUBCATEGORY_DEPTH = 3;
       this.logger.log(
-        `[HS Catalog Worker] Processing specific category: ${opts.categoryName} (${opts.categoryUrl})`,
+        `[HS Catalog Worker] Processing category: ${opts.categoryName} (${opts.categoryUrl}) [depth=${currentDepth}]`,
       );
       
       const category = { url: opts.categoryUrl, name: opts.categoryName || 'Unknown Category' };
       stats.categoriesTotal = 1;
-      const categoriesToScrape = [category];
 
-      // ── Iterate categories ────────────────────────────────────────────
-      for (const [catIdx, category] of categoriesToScrape.entries()) {
-        this.logger.log(
-          `[HS Catalog Worker] Category [${catIdx + 1}/${categoriesToScrape.length}]: ${category.name}`,
+      // ── Step 1: Leaf category — paginate and scrape products ──────────
+      try {
+        let productsInCategory = 0;
+
+        const listingItems = await scraper.scrapeListingPage(
+          category.url,
+          1,
+          branch,
         );
 
-        try {
-          let productsInCategory = 0;
-
-          for (let pageNum = 1; pageNum <= 25; pageNum++) {
-            const listingItems = await scraper.scrapeListingPage(
-              category.url,
-              pageNum,
-              branch,
-            );
-
-            if (listingItems.length === 0) {
-              this.logger.debug(
-                `[HS Catalog] Page ${pageNum} empty for category ${category.name}, stopping pagination`,
-              );
-              break;
-            }
-
-            for (const listingItem of listingItems) {
-              if (
-                maxProductsPerCat > 0 &&
-                productsInCategory >= maxProductsPerCat
-              ) {
-                break;
-              }
-
-              stats.productsTotal++;
-              let detailPage: any = null;
-
-              try {
-                // Get detail page data
-                let detailData: ScrapedProductData = {} as any;
-                try {
-                  const scrapeResult = await scraper.scrapeDetailPage(
-                    listingItem.productPageUrl,
-                    branch,
-                  );
-                  detailPage = scrapeResult.page;
-                  detailData = scrapeResult;
-                } catch (err) {
-                  this.logger.warn(
-                    `[HS Catalog] Detail page failed for ${listingItem.name}: ${err.message}`,
-                  );
-                }
-
-                const combined: ScrapedProductData = {
-                  ...listingItem,
-                  ...detailData,
-                };
-                const hsProductId = extractHsProductId(
-                  combined.productPageUrl,
-                );
-
-                if (!hsProductId) {
-                  this.logger.warn(
-                    `[HS Catalog] Could not extract HS product ID from URL: ${combined.productPageUrl}`,
-                  );
-                  stats.productsFailed++;
-                  continue;
-                }
-
-                if (dryRun) {
-                  this.logger.log(
-                    `[DRY RUN] Would upsert: hs_id=${hsProductId}, name=${combined.name}, price=${combined.price}, promo=${combined.promo_price}, images=${combined.imageUrls?.length ?? 0}`,
-                  );
-                  stats.productsUpserted++;
-                } else {
-                  const upsertResult = await this.upsertProduct(
-                    hsProductId,
-                    combined,
-                    category.name,
-                    merchant!,
-                    store ?? null,
-                  );
-                  if (upsertResult) {
-                    stats.productsUpserted++;
-                    stats.pricesUpserted += upsertResult.pricesUpserted;
-                    stats.imagesUpserted += upsertResult.imagesUpserted;
-                  } else {
-                    stats.productsFailed++;
-                  }
-                }
-
-                productsInCategory++;
-
-                // Throttle between products
-                await this.delay(requestDelayMs);
-              } catch (err) {
-                stats.productsFailed++;
-                this.logger.error(
-                  `[HS Catalog] Product failed (${listingItem.name}): ${err.message}`,
-                );
-              } finally {
-                if (detailPage) {
-                  await detailPage.close().catch(() => undefined);
-                }
-              }
-            }
-
+        if (listingItems.length === 0) {
+          this.logger.debug(
+            `[HS Catalog] Category ${category.name} is empty.`,
+          );
+        } else {
+          for (const listingItem of listingItems) {
             if (
               maxProductsPerCat > 0 &&
               productsInCategory >= maxProductsPerCat
             ) {
               break;
             }
-          }
 
-          stats.categoriesProcessed++;
-        } catch (err) {
-          stats.categoriesFailed++;
-          this.logger.error(
-            `[HS Catalog] Category failed (${category.name}): ${err.message}`,
-          );
+            stats.productsTotal++;
+
+            // ── Skip-existing optimization ─────────────────────────────
+            const hsProductIdFromListing = extractHsProductId(
+              listingItem.productPageUrl,
+            );
+            if (hsProductIdFromListing && !dryRun) {
+              const existing = await this.productRepo.findOne({
+                where: { hs_product_id: hsProductIdFromListing },
+              });
+              if (existing) {
+                // Product exists — update price from listing data only (no detail page needed)
+                await this.quickUpdatePrice(
+                  existing,
+                  listingItem,
+                  category.name,
+                  merchant!,
+                  store ?? null,
+                );
+                stats.productsSkipped++;
+                stats.pricesUpserted++;
+                productsInCategory++;
+                continue; // Skip expensive detail page navigation
+              }
+            }
+
+            // ── New product — fetch detail page ────────────────────────
+            let detailPage: any = null;
+
+            try {
+              // Get detail page data
+              let detailData: ScrapedProductData = {} as any;
+              try {
+                const scrapeResult = await scraper.scrapeDetailPage(
+                  listingItem.productPageUrl,
+                  branch,
+                );
+                detailPage = scrapeResult.page;
+                detailData = scrapeResult;
+              } catch (err) {
+                this.logger.warn(
+                  `[HS Catalog] Detail page failed for ${listingItem.name}: ${err.message}`,
+                );
+              }
+
+              const combined: ScrapedProductData = {
+                ...listingItem,
+                ...detailData,
+              };
+              const hsProductId = extractHsProductId(
+                combined.productPageUrl,
+              );
+
+              if (!hsProductId) {
+                this.logger.warn(
+                  `[HS Catalog] Could not extract HS product ID from URL: ${combined.productPageUrl}`,
+                );
+                stats.productsFailed++;
+                continue;
+              }
+
+              if (dryRun) {
+                this.logger.log(
+                  `[DRY RUN] Would upsert: hs_id=${hsProductId}, name=${combined.name}, price=${combined.price}, promo=${combined.promo_price}, images=${combined.imageUrls?.length ?? 0}`,
+                );
+                stats.productsUpserted++;
+              } else {
+                const upsertResult = await this.upsertProduct(
+                  hsProductId,
+                  combined,
+                  category.name,
+                  merchant!,
+                  store ?? null,
+                );
+                if (upsertResult) {
+                  stats.productsUpserted++;
+                  stats.pricesUpserted += upsertResult.pricesUpserted;
+                  stats.imagesUpserted += upsertResult.imagesUpserted;
+                } else {
+                  stats.productsFailed++;
+                }
+              }
+
+              productsInCategory++;
+
+              // Throttle between products
+              await this.delay(requestDelayMs);
+            } catch (err) {
+              stats.productsFailed++;
+              this.logger.error(
+                `[HS Catalog] Product failed (${listingItem.name}): ${err.message}`,
+              );
+            } finally {
+              if (detailPage) {
+                await detailPage.close().catch(() => undefined);
+              }
+            }
+          }
         }
+
+        stats.categoriesProcessed++;
+      } catch (err) {
+        stats.categoriesFailed++;
+        this.logger.error(
+          `[HS Catalog] Category failed (${category.name}): ${err.message}`,
+        );
       }
 
       stats.durationMs = Date.now() - startTime;
@@ -424,6 +445,59 @@ export class HsCatalogScraperService {
     });
 
     return { pricesUpserted, imagesUpserted };
+  }
+
+  // ── Quick price update (skip-existing optimization) ─────────────────────
+
+  /**
+   * Lightweight price update for products that already exist in the DB.
+   * Uses listing data only — skips the expensive detail page navigation.
+   * This saves ~3-5 seconds per product on re-scrape runs.
+   */
+  private async quickUpdatePrice(
+    product: Product,
+    listingData: ScrapedProductData,
+    categoryName: string,
+    merchant: Merchant,
+    store: Store | null,
+  ): Promise<void> {
+    await this.dataSource.transaction(async (manager) => {
+      // Update category if not set
+      if (categoryName && !product.category) {
+        product.category = categoryName;
+        await manager.save(product);
+      }
+
+      // Upsert the price record
+      const priceWhere: any = {
+        product_id: product.id,
+        merchant_id: merchant.id,
+      };
+      if (store) {
+        priceWhere.store_id = store.id;
+      }
+
+      let price = await manager.findOne(ProductPrice, {
+        where: priceWhere,
+      });
+
+      if (!price) {
+        price = manager.create(ProductPrice, {
+          product_id: product.id,
+          merchant_id: merchant.id,
+          store_id: store?.id ?? null,
+        });
+      }
+
+      price.price_sar_incl_vat = listingData.price;
+      price.promo_price_sar = listingData.promo_price ?? price.promo_price_sar;
+      price.currency = 'SAR';
+      price.in_stock = listingData.inStock ?? true;
+      price.source_url = listingData.productPageUrl;
+      price.scraped_at = new Date();
+
+      await manager.save(price);
+    });
   }
 
   // ── Helpers ─────────────────────────────────────────────────────────────

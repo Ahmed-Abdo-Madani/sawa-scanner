@@ -20,6 +20,7 @@ import { BarcodeListNamesJobDto } from './dto/barcode-list-names-job.dto';
 import { HsCatalogJobDto } from './dto/hs-catalog-job.dto';
 import { OpenFoodFactsDumpService } from './open-food-facts-dump.service';
 import { getOffPoolFilter, getOffPoolHash } from './constants/off-pool';
+import { EtaamGtinService } from './etaam-gtin.service';
 import { FirebaseAuthGuard } from '../auth/firebase-auth.guard';
 import { AdminGuard } from '../auth/admin.guard';
 
@@ -28,6 +29,7 @@ export class IngestionController {
   constructor(
     private readonly ingestionService: IngestionService,
     private readonly dumpService: OpenFoodFactsDumpService,
+    private readonly etaamGtinService: EtaamGtinService,
   ) {}
 
   @Post('jobs')
@@ -114,6 +116,13 @@ export class IngestionController {
       mode: IngestionJobMode.HS_CATALOG_SCRAPE,
       ...dto,
     });
+  }
+
+  @Post('etaam-gtin')
+  @UseGuards(FirebaseAuthGuard, AdminGuard)
+  async startEtaamGtinScrape(@Body() body: { limit?: number; merchantName?: string; threshold?: number; dryRun?: boolean }) {
+    const { limit = 1000, merchantName = 'HungerStation', threshold = 0.8, dryRun = false } = body;
+    return this.etaamGtinService.enqueueMissingGtins(limit, merchantName, threshold, dryRun);
   }
 
   @Get('jobs/:id')

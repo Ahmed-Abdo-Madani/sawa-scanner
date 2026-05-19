@@ -28,6 +28,20 @@ export abstract class BaseScraper {
     },
   ) {}
 
+  /** Returns true when the browser context is alive and usable. */
+  isLaunched(): boolean {
+    return this.context !== null;
+  }
+
+  /**
+   * Launches the browser only if it is not already running.
+   * Use this in processor jobs instead of raw launch() to enable browser reuse.
+   */
+  async ensureLaunched(): Promise<void> {
+    if (this.isLaunched()) return;
+    await this.launch();
+  }
+
   async launch(): Promise<void> {
     this.logger.log('Launching browser...');
 
@@ -89,6 +103,8 @@ export abstract class BaseScraper {
     url: string,
     waitUntil: 'load' | 'domcontentloaded' | 'networkidle' | 'commit' = 'load',
     timeout: number = 60000,
+    jitterMin?: number,
+    jitterMax?: number,
   ): Promise<PlaywrightResponse | null> {
     if (!url || url.trim() === '') {
       throw new Error(`Invalid navigation URL: "${url}"`);
@@ -99,7 +115,8 @@ export abstract class BaseScraper {
       throw new Error(`Navigation blocked by robots.txt: ${url}`);
     }
 
-    await applyJitter();
+    await applyJitter(jitterMin, jitterMax);
+
 
     let navigationResponse: PlaywrightResponse | null = null;
     await withRetry(async () => {

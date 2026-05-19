@@ -121,12 +121,14 @@ async function bootstrap() {
   const ingestionQ = app.get<Queue>(getQueueToken('ingestion-queue'));
   const priceScrapeQ = app.get<Queue>(getQueueToken('price-scraping-queue'));
   const ocrQ = app.get<Queue>(getQueueToken('ocr-queue'));
+  const etaamGtinQ = app.get<Queue>(getQueueToken('etaam-gtin-queue'));
 
   createBullBoard({
     queues: [
       new BullMQAdapter(ingestionQ),
       new BullMQAdapter(priceScrapeQ),
       new BullMQAdapter(ocrQ),
+      new BullMQAdapter(etaamGtinQ),
     ],
     serverAdapter: bullBoardAdapter,
   });

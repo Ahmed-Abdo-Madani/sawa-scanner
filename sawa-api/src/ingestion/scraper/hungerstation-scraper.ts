@@ -98,9 +98,27 @@ export class HungerStationScraper extends BaseScraper {
         }
       }
 
-      for (let i = 0; i < Math.max(1, pageNum); i++) {
+      // Wait for at least one product to appear in the DOM before we start scrolling,
+      // as 'commit' navigation might finish before the SPA renders the products.
+      await page.waitForSelector('a[href*="/items/"], a[href*="/item/"], a[href*="/product/"]', { timeout: 10000 }).catch(() => undefined);
+
+      let previousCount = 0;
+      let unchangedRounds = 0;
+      for (let i = 0; i < 50; i++) { // Max 50 scroll rounds to prevent infinite loops
         await this.autoScroll(page);
-        await page.waitForTimeout(500);
+        await page.waitForTimeout(800);
+        
+        const currentCount = await page.evaluate(() => {
+          return document.querySelectorAll('a[href*="/items/"], a[href*="/item/"], a[href*="/product/"]').length;
+        });
+
+        if (currentCount === previousCount) {
+          unchangedRounds++;
+          if (unchangedRounds >= 2) break; // Reached bottom or no new items
+        } else {
+          unchangedRounds = 0;
+        }
+        previousCount = currentCount;
       }
       await page.waitForTimeout(1000);
 
@@ -533,6 +551,171 @@ export class HungerStationScraper extends BaseScraper {
       return [...categoryMap.values()];
     } finally {
       await page.close();
+    }
+  }
+
+  /**
+   * Discovers subcategories within a given category page.
+   * HungerStation embeds the full category tree in __NEXT_DATA__ hydration data.
+   * Each category node has a `children` array with `{ id, name, children }` objects.
+   * If the current category has non-empty children, we return them as subcategory URLs.
+   */
+  async discoverSubcategories(
+    categoryUrl: string,
+    branch: HsBranch,
+    currentCategoryName?: string,
+    siblingCategoryIds?: string[],
+  ): Promise<{ id: string; name: string; url: string }[]> {
+    if (!this.context) throw new Error('Browser context not initialized');
+    const page = await this.context.newPage();
+
+    // Build a Set of known top-level / sibling category IDs for fast lookup
+    const siblingIdSet = new Set(siblingCategoryIds ?? []);
+
+    try {
+      // Extract the current category UUID from the URL
+      // Pattern: /category/{Name-Slug}/{uuid}
+      const catUuidMatch = categoryUrl.match(
+        /\/category\/[^/]+\/([a-f0-9-]{36})/i,
+      );
+      const currentCatId = catUuidMatch ? catUuidMatch[1] : null;
+
+      // Also exclude the current category itself from results
+      if (currentCatId) siblingIdSet.add(currentCatId);
+
+      this.logger.debug(
+        `[HS] discoverSubcategories: navigating to ${categoryUrl} (catId=${currentCatId})`,
+      );
+
+      const navigationResponse = await this.navigateWithEvasion(
+        page,
+        categoryUrl,
+        'commit',
+        30000,
+      );
+      await page.waitForTimeout(2000);
+      await this.detectCloudflareChallenge(page, navigationResponse);
+
+      // Build the base store URL for constructing subcategory URLs
+      const storeBaseUrl = branch.source_url || categoryUrl.replace(/\/category\/.*$/, '');
+
+      const subcategoryMap = new Map<
+        string,
+        { id: string; name: string; url: string }
+      >();
+
+      // ── Source 1: Sweep __NEXT_DATA__ / RSC for the category tree ──
+      // This is the ONLY reliable source for subcategories. It looks for the
+      // current category node in the hydration JSON and extracts its `children`.
+      // If the category has no children array, it correctly returns 0 results.
+      //
+      // NOTE: We intentionally do NOT use a DOM fallback here because
+      // HungerStation renders ALL sibling categories as horizontal tab links
+      // on every category page. A DOM query for `a[href*="/category/"]` would
+      // pick up all ~49 sibling tabs as false subcategories, causing an
+      // exponential explosion of duplicate scraping jobs.
+      const hydrated = await this.sweepHydrationData(page, (json) => {
+        const results: { id: string; name: string; url: string }[] = [];
+        this.extractSubcategoriesFromTree(
+          json,
+          currentCatId,
+          currentCategoryName || '',
+          storeBaseUrl,
+          results,
+        );
+        return results;
+      });
+
+      for (const sub of hydrated) {
+        // Filter out known sibling/top-level categories
+        if (siblingIdSet.has(sub.id)) continue;
+        if (!subcategoryMap.has(sub.id)) {
+          subcategoryMap.set(sub.id, sub);
+        }
+      }
+
+      const subcategories = [...subcategoryMap.values()];
+      this.logger.log(
+        `[HS] discoverSubcategories("${currentCategoryName || categoryUrl}"): found ${subcategories.length} true subcategories (hydration-only, filtered ${siblingIdSet.size} sibling IDs)`,
+      );
+      if (subcategories.length > 0) {
+        for (const s of subcategories) {
+          this.logger.debug(`  ↳ ${s.name} (${s.id})`);
+        }
+      }
+
+      return subcategories;
+    } finally {
+      await page.close();
+    }
+  }
+
+  /**
+   * Recursively searches a JSON tree (from __NEXT_DATA__) for the current
+   * category node (by ID or name) and extracts its `children` array.
+   * If we can't find the exact node, we look for any category object
+   * matching the current category's ID and extract its children.
+   */
+  private extractSubcategoriesFromTree(
+    json: any,
+    currentCatId: string | null,
+    currentCatName: string,
+    storeBaseUrl: string,
+    results: { id: string; name: string; url: string }[],
+  ): void {
+    if (!json || typeof json !== 'object') return;
+    if (Array.isArray(json)) {
+      for (const item of json) {
+        this.extractSubcategoriesFromTree(
+          item,
+          currentCatId,
+          currentCatName,
+          storeBaseUrl,
+          results,
+        );
+      }
+      return;
+    }
+
+    // Check if this node is our current category
+    const nodeId = json.id || json.categoryId || '';
+    const nodeName = json.name || json.nameEn || json.title || '';
+    const isCurrentCategory =
+      (currentCatId && nodeId === currentCatId) ||
+      (!currentCatId &&
+        currentCatName &&
+        nodeName.toLowerCase() === currentCatName.toLowerCase());
+
+    if (isCurrentCategory && Array.isArray(json.children) && json.children.length > 0) {
+      for (const child of json.children) {
+        const childId = String(child.id || child.categoryId || '').trim();
+        const childName = String(
+          child.name || child.nameEn || child.title || '',
+        ).trim();
+        if (!childId || !childName) continue;
+
+        // Build the subcategory URL: {storeBaseUrl}/category/{name-slug}/{uuid}
+        const nameSlug = childName
+          .replace(/&/g, '')
+          .replace(/[^a-zA-Z0-9\s-]/g, '')
+          .replace(/\s+/g, '-')
+          .replace(/-+/g, '-')
+          .trim();
+        const url = `${storeBaseUrl}/category/${nameSlug}/${childId}`;
+        results.push({ id: childId, name: childName, url });
+      }
+      return; // Found our node, no need to recurse further
+    }
+
+    // Recurse into child objects
+    for (const val of Object.values(json)) {
+      this.extractSubcategoriesFromTree(
+        val,
+        currentCatId,
+        currentCatName,
+        storeBaseUrl,
+        results,
+      );
     }
   }
 

@@ -42,4 +42,18 @@ export class HsCatalogJobDto {
   @IsOptional()
   @IsString()
   categoryName?: string;
+
+  /** Recursion depth for subcategory discovery (max 3 to prevent infinite loops) */
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  depth?: number;
+
+  /**
+   * IDs of all known top-level / sibling categories.
+   * Passed from orchestrator to workers so that subcategory discovery
+   * can exclude sibling main-categories that appear in the tab bar.
+   */
+  @IsOptional()
+  siblingCategoryIds?: string[];
 }
