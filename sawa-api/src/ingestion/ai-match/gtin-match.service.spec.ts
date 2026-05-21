@@ -3,6 +3,8 @@ import { ConfigService } from '@nestjs/config';
 import { GtinMatchService } from './gtin-match.service';
 import { VertexGeminiGtinMatchProvider } from './vertex-gemini-gtin-match.provider';
 import { GoogleAiGeminiGtinMatchProvider } from './google-ai-gemini-gtin-match.provider';
+import { OllamaGtinMatchProvider } from './ollama-gtin-match.provider';
+import { TransientProviderFailureException } from './transient-provider-failure.exception';
 import { Logger } from '@nestjs/common';
 
 describe('GtinMatchService (Comment 1: Vertex Circuit Breaker)', () => {
@@ -34,9 +36,23 @@ describe('GtinMatchService (Comment 1: Vertex Circuit Breaker)', () => {
           },
         },
         {
+          provide: OllamaGtinMatchProvider,
+          useValue: {
+            name: 'Ollama',
+            pickBestMatch: jest.fn(),
+            resolveBrandAlias: jest.fn(),
+            healthCheck: jest.fn(),
+          },
+        },
+        {
           provide: ConfigService,
           useValue: {
-            get: jest.fn().mockReturnValue(undefined),
+            get: jest.fn((key: string) => {
+              if (key === 'GTIN_AI_ENABLE_VERTEX') {
+                return 'true';
+              }
+              return undefined;
+            }),
           },
         },
       ],
@@ -249,6 +265,13 @@ describe('GtinMatchService (Comment 1: Vertex Circuit Breaker)', () => {
     let ollamaProvider: any;
 
     beforeEach(async () => {
+      const mockOllama = {
+        name: 'Ollama',
+        pickBestMatch: jest.fn(),
+        resolveBrandAlias: jest.fn(),
+        healthCheck: jest.fn(),
+      };
+
       // Create a new test module with Ollama mode enabled
       const module: TestingModule = await Test.createTestingModule({
         providers: [
@@ -272,13 +295,12 @@ describe('GtinMatchService (Comment 1: Vertex Circuit Breaker)', () => {
             },
           },
           {
+            provide: OllamaGtinMatchProvider,
+            useValue: mockOllama,
+          },
+          {
             provide: 'OllamaGtinMatchProvider',
-            useValue: {
-              name: 'Ollama',
-              pickBestMatch: jest.fn(),
-              resolveBrandAlias: jest.fn(),
-              healthCheck: jest.fn(),
-            },
+            useValue: mockOllama,
           },
           {
             provide: ConfigService,
@@ -300,8 +322,6 @@ describe('GtinMatchService (Comment 1: Vertex Circuit Breaker)', () => {
     });
 
     it('pickBestMatch should handle Ollama TransientProviderFailureException and return all_providers_failed', async () => {
-      const { TransientProviderFailureException } = await import('./transient-provider-failure.exception');
-
       const input = {
         scan: {
           id: 'test-scan-ollama-1',
@@ -332,8 +352,6 @@ describe('GtinMatchService (Comment 1: Vertex Circuit Breaker)', () => {
     });
 
     it('resolveBrandAlias should handle Ollama TransientProviderFailureException and return all_providers_failed', async () => {
-      const { TransientProviderFailureException } = await import('./transient-provider-failure.exception');
-
       const knownOffBrandSlugs = ['brand-1', 'brand-2'];
 
       // Mock Ollama provider to throw TransientProviderFailureException

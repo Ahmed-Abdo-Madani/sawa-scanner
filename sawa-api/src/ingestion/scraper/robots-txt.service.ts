@@ -12,6 +12,10 @@ export class RobotsTxtService {
   private readonly TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 
   async isAllowed(url: string): Promise<boolean> {
+    if (process.env.BYPASS_ROBOTS_TXT === 'true') {
+      this.logger.log(`Bypassing robots.txt check for: ${url}`);
+      return true;
+    }
     try {
       const parsedUrl = new URL(url);
       const domain = `${parsedUrl.protocol}//${parsedUrl.host}`;

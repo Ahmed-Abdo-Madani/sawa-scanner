@@ -1,0 +1,550 @@
+import { Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { BaseScraper } from './base-scraper';
+import { diceCoefficient } from '../../utils/string-similarity';
+import { Page } from 'playwright';
+import { RobotsTxtService } from './robots-txt.service';
+import { ImageHashService } from '../image-hash.service';
+import axios from 'axios';
+import { getRandomUA } from './evasion';
+
+export interface SallaArProductMatch {
+  name: string;
+  url: string;
+  similarity: number;
+  image?: string | null;
+  matchMethod?: 'text' | 'image';
+  hammingDistance?: number;
+}
+
+const BRAND_GUARD_STOPWORDS_AR = new Set([
+  // Colors (Arabic)
+  'أصفر', 'أحمر', 'أخضر', 'أزرق', 'أبيض', 'أسود', 'ذهبي', 'بني', 'برتقالي',
+  'وردي', 'بنفسجي', 'رمادي', 'فضي',
+  // Generic adjectives (Arabic)
+  'كلاسيكي', 'كلاسيك', 'أصلي', 'ممتاز', 'طازج', 'نقي', 'طبيعي', 'عضوي',
+  'خفيف', 'لايت', 'إكسترا', 'سوبر', 'ميني', 'كبير', 'صغير',
+  'جديد', 'قديم', 'تقليدي', 'خاص', 'عادي', 'كامل', 'منزوع', 'قليل',
+  'دسم', 'خالي', 'سكر', 'زيرو', 'دايت', 'عالي', 'غني', 'ناعم', 'مقرمش',
+  'فاخر', 'مختار', 'أفضل',
+  // Arabic articles / connectors
+  'ال', 'من', 'مع', 'في', 'بنكهة', 'نكهة', 'طعم',
+  // Food category words (Arabic)
+  'حليب', 'عصير', 'ماء', 'زيت', 'جبن', 'جبنة', 'زبدة', 'كريم', 'كريمة', 'خبز',
+  'دجاج', 'لحم', 'سمك', 'أرز', 'رز', 'طحين', 'ملح', 'سكر', 'عسل',
+  'موز', 'تفاح', 'مانجو', 'تمر', 'تمور', 'طماطم', 'بطاطس', 'بصل',
+  'بيض', 'زبادي', 'لبن', 'سمن', 'شوكولاتة', 'شوكولا', 'قهوة',
+  'شاي', 'بسكويت', 'كيك', 'شيبس', 'سناك', 'حلوى', 'علكة',
+  'معجون', 'صلصة', 'معكرونة', 'مكرونة', 'فول', 'حمص', 'فاصوليا',
+  // Generic packaging / format words
+  'علبة', 'كيس', 'عبوة', 'قطعة', 'حبة', 'قطع', 'حبات', 'جرام', 'غرام',
+  'مل', 'لتر', 'كغ', 'كيلو',
+]);
+
+@Injectable()
+export class SallaGtinArScraper extends BaseScraper {
+  constructor(
+    protected readonly robotsTxtService: RobotsTxtService,
+    private readonly configService: ConfigService,
+    private readonly imageHashService: ImageHashService,
+  ) {
+    const scraperConfig = configService.get<{ headless: boolean; cookieSessionPath?: string; deviceProfile?: 'mobile' | 'desktop'; channel?: string }>('scraper') ?? { headless: true };
+    const envHeadless = process.env.ETAAM_SCRAPER_HEADLESS;
+    if (envHeadless === 'false') {
+      scraperConfig.headless = false;
+    } else if (envHeadless === 'true') {
+      scraperConfig.headless = true;
+    }
+
+    scraperConfig.cookieSessionPath = scraperConfig.cookieSessionPath ?? './scraper-sessions/salla-ar';
+    scraperConfig.channel = scraperConfig.channel ?? 'chrome';
+    scraperConfig.deviceProfile = scraperConfig.deviceProfile ?? 'desktop';
+    super(robotsTxtService, scraperConfig);
+  }
+
+  async scrapeListingPage(categoryUrl: string, page: number): Promise<any[]> {
+    throw new Error('Method not implemented for SallaGtinArScraper.');
+  }
+
+  async scrapeDetailPage(productUrl: string): Promise<any> {
+    throw new Error('Method not implemented for SallaGtinArScraper. Use scrapeGtinFromProductPage.');
+  }
+
+  private async fetchHtmlWithAxios(url: string): Promise<string> {
+    const ua = getRandomUA('desktop');
+    try {
+      const response = await axios.get(url, {
+        headers: {
+          'User-Agent': ua,
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+          'Accept-Language': 'ar,en-US;q=0.9,en;q=0.8',
+          'Referer': new URL(url).origin,
+          'Connection': 'keep-alive',
+        },
+        timeout: 10000,
+      });
+      if (response.status === 200 && typeof response.data === 'string') {
+        return response.data;
+      }
+    } catch (err: any) {
+      this.logger.warn(`[Axios GET] failed for ${url}: ${err.message}`);
+    }
+    return '';
+  }
+
+  private parseSallaJsonLd(html: string): any[] {
+    const results: any[] = [];
+    const matches = html.match(/<script\s+type="application\/ld\+json">([\s\S]*?)<\/script>/gi);
+    if (!matches) return results;
+
+    function parseImageUrl(imageField: any): string | null {
+      if (!imageField) return null;
+      if (typeof imageField === 'string') return imageField;
+      if (Array.isArray(imageField) && imageField.length > 0) {
+        const first = imageField[0];
+        if (typeof first === 'string') return first;
+        return first?.url || null;
+      }
+      if (typeof imageField === 'object') {
+        return imageField.url || null;
+      }
+      return null;
+    }
+
+    for (const match of matches) {
+      try {
+        const jsonText = match
+          .replace(/<script\s+type="application\/ld\+json">/i, '')
+          .replace(/<\/script>/i, '')
+          .trim();
+        const json = JSON.parse(jsonText);
+        const items = Array.isArray(json) ? json : [json];
+
+        for (const obj of items) {
+          if (obj['@type'] === 'ItemList' && Array.isArray(obj.itemListElement)) {
+            for (const el of obj.itemListElement) {
+              const product = el.item;
+              if (product && product.name && product.url) {
+                results.push({
+                  name: product.name,
+                  url: product.url,
+                  image: parseImageUrl(product.image),
+                });
+              }
+            }
+          }
+
+          if (obj['@type'] === 'Product' && obj.name && obj.url) {
+            results.push({
+              name: obj.name,
+              url: obj.url,
+              image: parseImageUrl(obj.image),
+            });
+          }
+
+          if (Array.isArray(obj.itemListElement)) {
+            for (const el of obj.itemListElement) {
+              if (el.item?.['@type'] === 'Product' && el.item.name && el.item.url) {
+                results.push({
+                  name: el.item.name,
+                  url: el.item.url,
+                  image: parseImageUrl(el.item.image),
+                });
+              }
+            }
+          }
+        }
+      } catch { /* ignore */ }
+    }
+    return results;
+  }
+
+  async searchAndGetBestMatch(
+    productNameAr: string,
+    threshold: number = 0.7,
+    localHashes?: string[],
+    baseUrl: string = 'https://etaamexpress.com',
+  ): Promise<SallaArProductMatch | null> {
+    const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+    let searchUrl = `${cleanBaseUrl}/ar/search?q=${encodeURIComponent(productNameAr)}`;
+
+    this.logger.log(`[Salla Scraper] Searching for "${productNameAr}" on store: ${baseUrl}...`);
+
+    let searchResults: { name: string; url: string; image: string | null }[] = [];
+
+    // --- Fast Path: Axios ---
+    const html = await this.fetchHtmlWithAxios(searchUrl);
+    if (html) {
+      searchResults = this.parseSallaJsonLd(html);
+      if (searchResults.length > 0) {
+        this.logger.log(`[Fast Path Axios] Successfully scraped ${searchResults.length} search candidates via Axios!`);
+      }
+    }
+
+    // --- Fallback Path: Playwright-stealth ---
+    if (searchResults.length === 0) {
+      this.logger.log(`[Fallback Path] Axios returned empty or failed. Initializing Playwright browser fallback...`);
+      await this.ensureLaunched();
+      if (!this.context) throw new Error('Browser context not initialized');
+
+      const page = await this.context.newPage();
+      try {
+        await this.applyHostThrottling(searchUrl);
+        await this.navigateWithEvasion(page, searchUrl, 'domcontentloaded', 60000, 400, 1200);
+        await page.waitForTimeout(2000);
+
+        searchResults = await page.evaluate(() => {
+          function parseImageUrl(imageField: any): string | null {
+            if (!imageField) return null;
+            if (typeof imageField === 'string') return imageField;
+            if (Array.isArray(imageField) && imageField.length > 0) {
+              const first = imageField[0];
+              if (typeof first === 'string') return first;
+              return first?.url || null;
+            }
+            if (typeof imageField === 'object') {
+              return imageField.url || null;
+            }
+            return null;
+          }
+
+          const results: { name: string; url: string; image: string | null }[] = [];
+          const ldScripts = Array.from(document.querySelectorAll('script[type="application/ld+json"]'));
+
+          for (const script of ldScripts) {
+            try {
+              const json = JSON.parse(script.textContent || '{}');
+              const items = Array.isArray(json) ? json : [json];
+
+              for (const obj of items) {
+                if (obj['@type'] === 'ItemList' && Array.isArray(obj.itemListElement)) {
+                  for (const el of obj.itemListElement) {
+                    const product = el.item;
+                    if (product && product.name && product.url) {
+                      results.push({
+                        name: product.name,
+                        url: product.url,
+                        image: parseImageUrl(product.image),
+                      });
+                    }
+                  }
+                }
+
+                if (obj['@type'] === 'Product' && obj.name && obj.url) {
+                  results.push({
+                    name: obj.name,
+                    url: obj.url,
+                    image: parseImageUrl(obj.image),
+                  });
+                }
+
+                if (Array.isArray(obj.itemListElement)) {
+                  for (const el of obj.itemListElement) {
+                    if (el.item?.['@type'] === 'Product' && el.item.name && el.item.url) {
+                      results.push({
+                        name: el.item.name,
+                        url: el.item.url,
+                        image: parseImageUrl(el.item.image),
+                      });
+                    }
+                  }
+                }
+              }
+            } catch { /* ignore */ }
+          }
+          return results;
+        });
+
+        this.logger.log(`[Fallback Playwright] Scraped ${searchResults.length} candidates.`);
+      } finally {
+        await page.close().catch((err) => this.logger.warn(`Failed to close search page: ${err.message}`));
+      }
+    }
+
+    if (searchResults.length === 0) {
+      return null;
+    }
+
+    let bestMatch: SallaArProductMatch | null = null;
+    const normalizedQuery = this.normalizeArabic(productNameAr);
+    const brandToken = normalizedQuery
+      .split(/\s+/)
+      .find((w) => w.length >= 2 && !BRAND_GUARD_STOPWORDS_AR.has(w)) ?? '';
+
+    const candidates: Array<SallaArProductMatch & { image?: string | null }> = [];
+
+    for (const result of searchResults) {
+      const candidateName = this.normalizeArabic(result.name);
+
+      if (brandToken && !candidateName.includes(brandToken)) {
+        this.logger.debug(
+          `[Brand Guard] Rejected '${result.name}' for query '${productNameAr}' (missing brand token: '${brandToken}')`,
+        );
+        continue;
+      }
+
+      if (!this.sizeGuardPasses(productNameAr, result.name)) {
+        this.logger.debug(
+          `[Size Guard] Rejected '${result.name}' for query '${productNameAr}'`,
+        );
+        continue;
+      }
+
+      const similarity = diceCoefficient(normalizedQuery, candidateName);
+      candidates.push({ ...result, similarity });
+    }
+
+    if (localHashes && localHashes.length > 0) {
+      const fastPathCandidates = candidates.filter((c) => c.similarity >= 0.85);
+      if (fastPathCandidates.length > 0) {
+        fastPathCandidates.sort((a, b) => b.similarity - a.similarity);
+        const bestFast = fastPathCandidates[0];
+        this.logger.log(
+          `[Fast Path Match] High-confidence text match resolved for "${productNameAr}" -> "${bestFast.name}" (Similarity: ${bestFast.similarity.toFixed(2)})`
+        );
+        return { ...bestFast, matchMethod: 'text' };
+      }
+
+      const fuzzyCandidates = candidates.filter((c) => c.similarity >= 0.50 && c.similarity < 0.85);
+      const visualMatches: Array<SallaArProductMatch & { hammingDistance: number }> = [];
+
+      for (const candidate of fuzzyCandidates) {
+        if (!candidate.image) {
+          this.logger.debug(`[Visual Match] Candidate has no image, skipping: "${candidate.name}"`);
+          continue;
+        }
+
+        try {
+          this.logger.debug(`[Visual Match] Downloading and hashing: ${candidate.image}`);
+          const candidateHash = await this.imageHashService.generateHashFromUrl(candidate.image);
+          
+          let minDistance = 64;
+          for (const localHash of localHashes) {
+            const distance = this.imageHashService.calculateHammingDistance(candidateHash, localHash);
+            if (distance < minDistance) {
+              minDistance = distance;
+            }
+          }
+
+          this.logger.debug(`[Visual Match] Min Hamming distance for "${candidate.name}" is ${minDistance}`);
+
+          if (minDistance <= 6) {
+            this.logger.log(
+              `[Image Match] Confident visual match found for "${productNameAr}" -> "${candidate.name}" (Hamming Distance: ${minDistance}, Text Similarity: ${candidate.similarity.toFixed(2)})`
+            );
+            visualMatches.push({
+              ...candidate,
+              matchMethod: 'image',
+              hammingDistance: minDistance,
+            });
+          }
+        } catch (hashError) {
+          this.logger.warn(`Failed to process visual match for candidate "${candidate.name}": ${hashError.message}`);
+        }
+      }
+
+      if (visualMatches.length > 0) {
+        visualMatches.sort((a, b) => a.hammingDistance - b.hammingDistance);
+        return visualMatches[0];
+      }
+
+      this.logger.debug(`No confident visual or fast path match found for "${productNameAr}" using local hashes.`);
+      return null;
+    } else {
+      for (const candidate of candidates) {
+        if (candidate.similarity >= threshold) {
+          if (!bestMatch || candidate.similarity > bestMatch.similarity) {
+            bestMatch = { ...candidate, matchMethod: 'text' };
+          }
+        }
+      }
+      return bestMatch;
+    }
+  }
+
+  async scrapeGtinFromProductPage(productUrl: string): Promise<string | null> {
+    // --- Fast Path: Axios ---
+    const html = await this.fetchHtmlWithAxios(productUrl);
+    if (html) {
+      const gtin = this.parseGtinFromHtml(html);
+      if (gtin) {
+        this.logger.log(`[Fast Path Axios] Successfully resolved GTIN: ${gtin} via Axios!`);
+        return gtin;
+      }
+    }
+
+    // --- Fallback Path: Playwright-stealth ---
+    this.logger.log(`[Fallback Path] Axios GTIN parsing failed. Loading Playwright page fallback...`);
+    await this.ensureLaunched();
+    if (!this.context) throw new Error('Browser context not initialized');
+
+    const page = await this.context.newPage();
+    try {
+      await this.applyHostThrottling(productUrl);
+      await this.navigateWithEvasion(page, productUrl, 'domcontentloaded', 60000, 400, 1200);
+      await page.waitForTimeout(2000);
+
+      const gtin = await page.evaluate(() => {
+        try {
+          const ldScripts = Array.from(document.querySelectorAll('script[type="application/ld+json"]'));
+          for (const script of ldScripts) {
+            const json = JSON.parse(script.textContent || '{}');
+            const products = Array.isArray(json) ? json : [json];
+            const product = products.find((i: any) => i['@type'] === 'Product');
+            if (product && (product.gtin13 || product.sku || product.gtin12 || product.gtin)) {
+              return product.gtin13 || product.sku || product.gtin12 || product.gtin;
+            }
+          }
+        } catch (e) { /* ignore */ }
+
+        const modelNodes = document.querySelectorAll('.product-details li, .product-info li, .product__details li, [id*="sku"], [class*="sku"], .product-sku');
+        for (const node of Array.from(modelNodes)) {
+          if (node.classList.contains('product-sku')) {
+            const valSpan = node.querySelector('span.font-bold, span:last-child');
+            if (valSpan?.textContent) {
+               const val = valSpan.textContent.trim();
+               if (/^\d{8,}$/.test(val)) return val;
+            }
+          }
+        
+          const text = node.textContent?.toLowerCase() || '';
+          if (text.includes('رقم الموديل') || text.includes('model number') || text.includes('sku') || text.includes('barcode') || text.includes('باركود')) {
+             const valueMatch = text
+               .replace('رقم الموديل', '').replace('model number', '')
+               .replace('sku', '').replace('barcode', '').replace('باركود', '')
+               .replace(':', '').trim();
+             if (valueMatch && valueMatch.length > 5 && /^\d+$/.test(valueMatch)) {
+               return valueMatch;
+             }
+             const span = node.querySelector('span:not(.label), b, strong, .value');
+             if (span?.textContent) {
+                 const val = span.textContent.trim();
+                 if (/^\d+$/.test(val)) return val;
+             }
+          }
+        }
+
+        const allScripts = document.querySelectorAll('script');
+        for (const script of Array.from(allScripts)) {
+          const content = script.textContent || '';
+          const match = content.match(/"sku"\s*:\s*"(\d{8,})"/);
+          if (match && match[1]) {
+             return match[1];
+          }
+        }
+        return null;
+      });
+
+      return gtin || null;
+    } finally {
+      await page.close().catch((err) => this.logger.warn(`Failed to close product page: ${err.message}`));
+    }
+  }
+
+  private parseGtinFromHtml(html: string): string | null {
+    // 1. Regex over application/ld+json matches
+    const ldMatches = html.match(/<script\s+type="application\/ld\+json">([\s\S]*?)<\/script>/gi);
+    if (ldMatches) {
+      for (const script of ldMatches) {
+        try {
+          const jsonText = script
+            .replace(/<script\s+type="application\/ld\+json">/i, '')
+            .replace(/<\/script>/i, '')
+            .trim();
+          const json = JSON.parse(jsonText);
+          const products = Array.isArray(json) ? json : [json];
+          const product = products.find((i: any) => i['@type'] === 'Product');
+          if (product && (product.gtin13 || product.sku || product.gtin12 || product.gtin)) {
+            return String(product.gtin13 || product.sku || product.gtin12 || product.gtin);
+          }
+        } catch { /* ignore */ }
+      }
+    }
+
+    // 2. Direct SKU match inside JavaScript script elements
+    const scriptMatches = html.match(/<script\b[^>]*>([\s\S]*?)<\/script>/gi);
+    if (scriptMatches) {
+      for (const script of scriptMatches) {
+        const match = script.match(/"sku"\s*:\s*"(\d{8,})"/);
+        if (match && match[1]) {
+          return match[1];
+        }
+      }
+    }
+
+    return null;
+  }
+
+  private normalizeArabic(text: string): string {
+    return text
+      .replace(/[\u064B-\u065F\u0670]/g, '')
+      .replace(/[أإآٱ]/g, 'ا')
+      .replace(/ة/g, 'ه')
+      .replace(/ـ/g, '')
+      .toLowerCase()
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  private static extractSizes(
+    text: string,
+  ): Array<{ normalized: number; dim: 'vol' | 'mass' }> {
+    const sizes: Array<{ normalized: number; dim: 'vol' | 'mass' }> = [];
+
+    // Latin units
+    const reLatin = /(?:\d+[x×])?([\d]+(?:[.,]\d+)?)\s*(ml|l|g|kg|oz)\b/gi;
+    let m: RegExpExecArray | null;
+    while ((m = reLatin.exec(text)) !== null) {
+      const val = parseFloat(m[1].replace(',', '.'));
+      const unit = m[2].toLowerCase();
+      if (unit === 'ml') sizes.push({ normalized: val, dim: 'vol' });
+      else if (unit === 'oz') sizes.push({ normalized: val * 29.574, dim: 'vol' });
+      else if (unit === 'l') sizes.push({ normalized: val * 1000, dim: 'vol' });
+      else if (unit === 'g') sizes.push({ normalized: val, dim: 'mass' });
+      else if (unit === 'kg') sizes.push({ normalized: val * 1000, dim: 'mass' });
+    }
+
+    // Arabic units
+    const reArabic = /(?:\d+[x×])?([\d]+(?:[.,]\d+)?)\s*(مل|ملل|لتر|جرام|غرام|غ|جم|كجم|كغ|كيلو|كيلوجرام|كيلوغرام)(?![a-zA-Z0-9\u0600-\u06FF])/g;
+    while ((m = reArabic.exec(text)) !== null) {
+      const val = parseFloat(m[1].replace(',', '.'));
+      const unit = m[2];
+      if (['مل', 'ملل'].includes(unit)) {
+        sizes.push({ normalized: val, dim: 'vol' });
+      } else if (unit === 'لتر') {
+        sizes.push({ normalized: val * 1000, dim: 'vol' });
+      } else if (['جرام', 'غرام', 'غ', 'جم'].includes(unit)) {
+        sizes.push({ normalized: val, dim: 'mass' });
+      } else if (['كجم', 'كغ', 'كيلو', 'كيلوجرام', 'كيلوغرام'].includes(unit)) {
+        sizes.push({ normalized: val * 1000, dim: 'mass' });
+      }
+    }
+
+    return sizes;
+  }
+
+  private sizeGuardPasses(query: string, candidate: string): boolean {
+    const qSizes = SallaGtinArScraper.extractSizes(query);
+    const cSizes = SallaGtinArScraper.extractSizes(candidate);
+
+    for (const dim of ['vol', 'mass'] as const) {
+      const qVals = qSizes.filter((s) => s.dim === dim).map((s) => s.normalized);
+      const cVals = cSizes.filter((s) => s.dim === dim).map((s) => s.normalized);
+
+      if (qVals.length === 0 || cVals.length === 0) continue;
+
+      const qUnit = Math.min(...qVals);
+      const cUnit = Math.min(...cVals);
+
+      const tolerance = 0.10;
+      const diff = Math.abs(qUnit - cUnit) / Math.max(qUnit, cUnit);
+      if (diff > tolerance) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+
+}

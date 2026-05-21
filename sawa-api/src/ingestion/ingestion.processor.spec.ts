@@ -15,6 +15,11 @@ import { Product } from '../entities/product.entity';
 import { DataSource, Repository } from 'typeorm';
 import { ScrapedProductData } from './dto/ingestion-job.dto';
 import { StructuredLabelDto } from '../scan/dto/structured-label.dto';
+import { OffImportService } from './off-import.service';
+import { OffEnrichmentService } from './off-enrichment.service';
+import { OffPriceLinkerService } from './off-price-linker.service';
+import { BarcodeListScraperService } from './barcode-list-scraper.service';
+import { HsCatalogScraperService } from './hs-catalog-scraper.service';
 
 /**
  * Comment 2: Regression test for brand and weight resolution
@@ -69,6 +74,26 @@ describe('IngestionProcessor - resolveCatalogBrandAndWeight', () => {
 
     const mockMerchantRepo = {} as any;
 
+    const mockOffImportService = {
+      run: jest.fn(),
+    } as any;
+
+    const mockOffEnrichmentService = {
+      run: jest.fn(),
+    } as any;
+
+    const mockOffPriceLinkerService = {
+      run: jest.fn(),
+    } as any;
+
+    const mockBarcodeListScraperService = {
+      run: jest.fn(),
+    } as any;
+
+    const mockHsCatalogScraperService = {
+      run: jest.fn(),
+    } as any;
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         IngestionProcessor,
@@ -115,6 +140,26 @@ describe('IngestionProcessor - resolveCatalogBrandAndWeight', () => {
         {
           provide: getRepositoryToken(Merchant),
           useValue: mockMerchantRepo,
+        },
+        {
+          provide: OffImportService,
+          useValue: mockOffImportService,
+        },
+        {
+          provide: OffEnrichmentService,
+          useValue: mockOffEnrichmentService,
+        },
+        {
+          provide: OffPriceLinkerService,
+          useValue: mockOffPriceLinkerService,
+        },
+        {
+          provide: BarcodeListScraperService,
+          useValue: mockBarcodeListScraperService,
+        },
+        {
+          provide: HsCatalogScraperService,
+          useValue: mockHsCatalogScraperService,
         },
       ],
     }).compile();

@@ -56,6 +56,8 @@ import { EtaamGtinScraper } from './scraper/etaam-gtin-scraper';
 import { EtaamGtinArService } from './etaam-gtin-ar.service';
 import { EtaamGtinArProcessor } from './etaam-gtin-ar.processor';
 import { EtaamGtinArScraper } from './scraper/etaam-gtin-ar-scraper';
+import { SallaGtinArScraper } from './scraper/salla-gtin-ar-scraper';
+import { ZidGtinArScraper } from './scraper/zid-gtin-ar-scraper';
 
 @Module({
   imports: [
@@ -107,6 +109,8 @@ import { EtaamGtinArScraper } from './scraper/etaam-gtin-ar-scraper';
     EtaamGtinArService,
     EtaamGtinArProcessor,
     EtaamGtinArScraper,
+    SallaGtinArScraper,
+    ZidGtinArScraper,
     GtinBackfillService,
     VertexGeminiGtinMatchProvider,
     OllamaGtinMatchProvider,

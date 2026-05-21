@@ -4,10 +4,10 @@ import { Logger, OnModuleDestroy } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Product } from '../entities/product.entity';
-import { EtaamGtinArScraper } from './scraper/etaam-gtin-ar-scraper';
+import { SallaGtinArScraper } from './scraper/salla-gtin-ar-scraper';
+import { ZidGtinArScraper } from './scraper/zid-gtin-ar-scraper';
 import { EtaamGtinArScrapeJobDto } from './dto/etaam-gtin-ar-job.dto';
 
-/** Errors that indicate the browser/context died and must be re-launched. */
 const BROWSER_CRASH_PATTERNS = [
   'Target page',
   'context or browser has been closed',
@@ -20,7 +20,7 @@ function isBrowserCrash(err: Error): boolean {
 }
 
 @Processor('etaam-gtin-ar-queue', {
-  concurrency: 1, // 1 page at a time to mimic human behavior and avoid rate-limiting
+  concurrency: 1, // Sequential processing to prevent rate limiting
   lockDuration: 300000,
   stalledInterval: 60000,
 })
@@ -30,30 +30,38 @@ export class EtaamGtinArProcessor extends WorkerHost implements OnModuleDestroy 
   constructor(
     @InjectRepository(Product)
     private readonly productRepo: Repository<Product>,
-    private readonly etaamGtinArScraper: EtaamGtinArScraper,
+    private readonly sallaScraper: SallaGtinArScraper,
+    private readonly zidScraper: ZidGtinArScraper,
   ) {
     super();
-    this.logger.log('EtaamGtinArProcessor (Arabic) initialized and ready.');
+    this.logger.log('EtaamGtinArProcessor (Arabic Multi-Store) initialized and ready.');
   }
 
-  /** Shut down the shared browser cleanly when the NestJS module is destroyed. */
   async onModuleDestroy(): Promise<void> {
-    this.logger.log('Module shutting down — closing shared Etaam Arabic browser...');
-    await this.etaamGtinArScraper.close();
+    this.logger.log('Module shutting down — closing shared multi-store Arabic browsers...');
+    await this.sallaScraper.close().catch(() => undefined);
+    await this.zidScraper.close().catch(() => undefined);
   }
 
   async process(job: Job<EtaamGtinArScrapeJobDto>): Promise<any> {
-    const { productId, productNameAr, threshold = 0.7, dryRun = false } = job.data;
+    const {
+      productId,
+      productNameAr,
+      threshold = 0.7,
+      dryRun = false,
+      storeUrl = 'https://etaamexpress.com',
+      storePlatform = 'salla',
+    } = job.data;
 
     this.logger.log(
-      `[AR] Processing Etaam GTIN job for product: ${productId} - ${productNameAr} (Dry Run: ${dryRun})`,
+      `[AR] Processing GTIN job for product: ${productId} - ${productNameAr} (Store: ${storeUrl}, Platform: ${storePlatform}, Dry Run: ${dryRun})`,
     );
 
-    // Reuse the persistent browser; launch once if it hasn't started yet.
-    await this.etaamGtinArScraper.ensureLaunched();
+    const scraper = storePlatform === 'zid' ? this.zidScraper : this.sallaScraper;
+
+    await scraper.ensureLaunched();
 
     try {
-      // Find the database product along with its images relation
       const product = await this.productRepo.findOne({
         where: { id: productId },
         relations: ['images'],
@@ -69,7 +77,6 @@ export class EtaamGtinArProcessor extends WorkerHost implements OnModuleDestroy 
         return { success: false, reason: 'already-has-gtin' };
       }
 
-      // Extract all valid, non-failed perceptual hashes
       const localHashes = product.images
         ?.map((img) => img.image_hash)
         .filter((hash): hash is string => !!hash && hash !== 'FAILED') || [];
@@ -78,15 +85,15 @@ export class EtaamGtinArProcessor extends WorkerHost implements OnModuleDestroy 
         `[AR] Loaded ${localHashes.length} local image hash(es) for product ${productId}`,
       );
 
-      // 1. Search Arabic Etaam for the best match (pass local hashes for perceptual image matching)
-      const bestMatch = await this.etaamGtinArScraper.searchAndGetBestMatch(
+      const bestMatch = await scraper.searchAndGetBestMatch(
         productNameAr,
         threshold,
         localHashes,
+        storeUrl,
       );
 
       if (!bestMatch) {
-        this.logger.warn(`[AR] No match found for "${productNameAr}" (Threshold: ${threshold})`);
+        this.logger.warn(`[AR] No match found for "${productNameAr}" on ${storeUrl} (Threshold: ${threshold})`);
         return { success: false, reason: 'no-match' };
       }
 
@@ -94,8 +101,7 @@ export class EtaamGtinArProcessor extends WorkerHost implements OnModuleDestroy 
         `[AR] Found match for "${productNameAr}" -> "${bestMatch.name}" (Similarity: ${bestMatch.similarity.toFixed(3)})`,
       );
 
-      // 2. Scrape GTIN from product page
-      const gtin = await this.etaamGtinArScraper.scrapeGtinFromProductPage(bestMatch.url);
+      const gtin = await scraper.scrapeGtinFromProductPage(bestMatch.url);
 
       if (!gtin) {
         this.logger.warn(`[AR] Matched product page does not have a GTIN: ${bestMatch.url}`);
@@ -104,7 +110,6 @@ export class EtaamGtinArProcessor extends WorkerHost implements OnModuleDestroy 
 
       this.logger.log(`[AR] Extracted GTIN: ${gtin} for product ${productId}`);
 
-      // 3. Update the database
       if (dryRun) {
         this.logger.log(`[AR] [DRY RUN] Would update product ${productId} with GTIN ${gtin}`);
         return { success: true, gtin, similarity: bestMatch.similarity, dryRun: true };
@@ -116,16 +121,14 @@ export class EtaamGtinArProcessor extends WorkerHost implements OnModuleDestroy 
       }
     } catch (error) {
       this.logger.error(
-        `[AR] Error processing Etaam GTIN for product ${productId}: ${error.message}`,
+        `[AR] Error processing GTIN for product ${productId} on ${storeUrl}: ${error.message}`,
         error.stack,
       );
-      // If the browser context died, close it so ensureLaunched() re-creates it on the next job.
       if (isBrowserCrash(error)) {
         this.logger.warn('[AR] Browser crash detected — closing for re-launch on next job.');
-        await this.etaamGtinArScraper.close().catch(() => undefined);
+        await scraper.close().catch(() => undefined);
       }
       throw error;
     }
-    // ⚠️  NO close() in finally — browser stays alive for the next job.
   }
 }

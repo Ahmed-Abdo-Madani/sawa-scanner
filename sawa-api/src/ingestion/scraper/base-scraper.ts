@@ -19,6 +19,9 @@ export abstract class BaseScraper {
   protected browser: Browser | null = null;
   protected context: BrowserContext | null = null;
 
+  protected static lastAccessedHost: string | null = null;
+  protected static lastAccessTime: number = 0;
+
   constructor(
     protected readonly robotsTxtService: RobotsTxtService,
     protected readonly config: {
@@ -28,6 +31,46 @@ export abstract class BaseScraper {
       channel?: string;
     },
   ) {}
+
+  protected async applyHostThrottling(targetUrl: string): Promise<void> {
+    try {
+      const targetHost = new URL(targetUrl).hostname;
+      const delayBase = parseInt(process.env.ETAAM_SCRAPER_REQUEST_DELAY_MS || '3000', 10);
+      const now = Date.now();
+
+      if (BaseScraper.lastAccessedHost === targetHost) {
+        // Same host! We must throttle to protect this specific store.
+        const elapsed = now - BaseScraper.lastAccessTime;
+        const jitterFactor = 0.8 + Math.random() * 0.4;
+        const requiredDelay = Math.round(delayBase * jitterFactor);
+
+        if (elapsed < requiredDelay) {
+          const remainingDelay = requiredDelay - elapsed;
+          this.logger.debug(
+            `[Throttling] Same host "${targetHost}" detected. Elapsed: ${elapsed}ms. Sleeping for remaining ${remainingDelay}ms...`,
+          );
+          await new Promise((resolve) => setTimeout(resolve, remainingDelay));
+        } else {
+          this.logger.debug(
+            `[Throttling] Same host "${targetHost}" detected. But elapsed (${elapsed}ms) >= required delay (${requiredDelay}ms). No sleep needed.`,
+          );
+        }
+      } else {
+        // Different host! Just sleep for a very brief natural jitter (200-500ms)
+        const minorJitter = Math.round(200 + Math.random() * 300);
+        this.logger.debug(
+          `[Throttling] Switch host: "${BaseScraper.lastAccessedHost || 'None'}" -> "${targetHost}". Fast path: sleeping only ${minorJitter}ms jitter...`,
+        );
+        await new Promise((resolve) => setTimeout(resolve, minorJitter));
+      }
+
+      // Update tracking state
+      BaseScraper.lastAccessedHost = targetHost;
+      BaseScraper.lastAccessTime = Date.now();
+    } catch (err: any) {
+      this.logger.warn(`Failed to apply host throttling: ${err.message}`);
+    }
+  }
 
   /** Returns true when the browser context is alive and usable. */
   isLaunched(): boolean {

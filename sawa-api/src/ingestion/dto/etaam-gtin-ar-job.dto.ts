@@ -3,4 +3,6 @@ export interface EtaamGtinArScrapeJobDto {
   productNameAr: string;
   threshold?: number;
   dryRun?: boolean;
+  storeUrl?: string;
+  storePlatform?: 'salla' | 'zid';
 }

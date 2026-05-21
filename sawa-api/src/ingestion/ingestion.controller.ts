@@ -129,9 +129,59 @@ export class IngestionController {
 
   @Post('etaam-gtin-ar')
   @UseGuards(FirebaseAuthGuard, AdminGuard)
-  async startEtaamGtinArScrape(@Body() body: { limit?: number; merchantName?: string; threshold?: number; dryRun?: boolean }) {
-    const { limit = 1000, merchantName = 'HungerStation', threshold = 0.7, dryRun = false } = body;
-    return this.etaamGtinArService.enqueueMissingGtins(limit, merchantName, threshold, dryRun);
+  async startEtaamGtinArScrape(
+    @Body() body: {
+      limit?: number;
+      merchantName?: string;
+      threshold?: number;
+      dryRun?: boolean;
+      storeUrl?: string;
+      storePlatform?: 'salla' | 'zid';
+    },
+  ) {
+    const {
+      limit = 1000,
+      merchantName = 'HungerStation',
+      threshold = 0.7,
+      dryRun = false,
+      storeUrl = 'https://etaamexpress.com',
+      storePlatform = 'salla',
+    } = body;
+    return this.etaamGtinArService.enqueueMissingGtins(
+      limit,
+      merchantName,
+      threshold,
+      dryRun,
+      storeUrl,
+      storePlatform,
+    );
+  }
+
+  @Post('etaam-gtin-ar/multistore')
+  @UseGuards(FirebaseAuthGuard, AdminGuard)
+  async startEtaamGtinArMultistoreScrape(
+    @Body() body: {
+      limit?: number;
+      merchantName?: string;
+      threshold?: number;
+      dryRun?: boolean;
+      stores?: Array<{ url: string; platform: 'salla' | 'zid' }>;
+    },
+  ) {
+    const {
+      limit = 1000,
+      merchantName = 'HungerStation',
+      threshold = 0.7,
+      dryRun = false,
+      stores = [],
+    } = body;
+    return this.etaamGtinArService.enqueueMissingGtinsInterleaved(
+      limit,
+      merchantName,
+      threshold,
+      dryRun,
+      stores,
+    );
   }
 
   @Get('jobs/:id')
