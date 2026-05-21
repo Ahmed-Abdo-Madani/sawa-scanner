@@ -23,6 +23,8 @@
     "migration:run": "typeorm-ts-node-commonjs migration:run -d src/data-source.ts",
     "migration:revert": "typeorm-ts-node-commonjs migration:revert -d src/data-source.ts",
     "admin:board": "npx ts-node src/scripts/open-bull-board.ts",
+    "image-hash:dry-run": "npx ts-node src/scripts/backfill-image-hashes-dry-run.ts",
+    "image-hash:backfill": "npx ts-node src/scripts/backfill-image-hashes.ts",
     "postinstall": "node scripts/download-tessdata.js"
   },
   "dependencies": {

@@ -785,4 +785,48 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get gtinAlreadyAssigned =>
       'This GTIN is already assigned to another product';
+
+  @override
+  String get toggleGridView => 'Switch to grid view';
+
+  @override
+  String get toggleListView => 'Switch to list view';
+
+  @override
+  String get viewMode => 'View Mode';
+
+  @override
+  String get productsGtinEditTitle => 'Products GTIN Edit';
+
+  @override
+  String get gtinStatusAll => 'All';
+
+  @override
+  String get gtinStatusNeedsGtin => 'Needs GTIN';
+
+  @override
+  String get gtinStatusWithGtin => 'With GTIN';
+
+  @override
+  String get filterBrand => 'Brand';
+
+  @override
+  String get filterCategory => 'Category';
+
+  @override
+  String get correctGtin => 'Correct GTIN';
+
+  @override
+  String gtinValue(String gtin) {
+    return 'GTIN: $gtin';
+  }
+
+  @override
+  String get allBrands => 'All Brands';
+
+  @override
+  String get allCategories => 'All Categories';
+
+  @override
+  String get enterGtinManually => 'Enter GTIN Manually';
 }

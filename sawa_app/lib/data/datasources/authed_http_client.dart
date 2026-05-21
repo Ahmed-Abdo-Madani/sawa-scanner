@@ -21,6 +21,8 @@ class AuthedHttpClient {
     final token = await _tokenProvider();
     final headers = <String, String>{
       'Content-Type': 'application/json',
+      'bypass-tunnel-reminder': 'true',
+      'ngrok-skip-browser-warning': 'true',
       ...?baseHeaders,
     };
     if (token != null) {
@@ -62,6 +64,8 @@ class AuthedHttpClient {
 
   Future<http.StreamedResponse> multipartSend(http.MultipartRequest request) async {
     final token = await _tokenProvider();
+    request.headers['bypass-tunnel-reminder'] = 'true';
+    request.headers['ngrok-skip-browser-warning'] = 'true';
     if (token != null) {
       request.headers['Authorization'] = 'Bearer $token';
     }

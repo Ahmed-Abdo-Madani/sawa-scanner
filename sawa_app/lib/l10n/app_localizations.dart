@@ -1555,6 +1555,90 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'This GTIN is already assigned to another product'**
   String get gtinAlreadyAssigned;
+
+  /// No description provided for @toggleGridView.
+  ///
+  /// In en, this message translates to:
+  /// **'Switch to grid view'**
+  String get toggleGridView;
+
+  /// No description provided for @toggleListView.
+  ///
+  /// In en, this message translates to:
+  /// **'Switch to list view'**
+  String get toggleListView;
+
+  /// No description provided for @viewMode.
+  ///
+  /// In en, this message translates to:
+  /// **'View Mode'**
+  String get viewMode;
+
+  /// No description provided for @productsGtinEditTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Products GTIN Edit'**
+  String get productsGtinEditTitle;
+
+  /// No description provided for @gtinStatusAll.
+  ///
+  /// In en, this message translates to:
+  /// **'All'**
+  String get gtinStatusAll;
+
+  /// No description provided for @gtinStatusNeedsGtin.
+  ///
+  /// In en, this message translates to:
+  /// **'Needs GTIN'**
+  String get gtinStatusNeedsGtin;
+
+  /// No description provided for @gtinStatusWithGtin.
+  ///
+  /// In en, this message translates to:
+  /// **'With GTIN'**
+  String get gtinStatusWithGtin;
+
+  /// No description provided for @filterBrand.
+  ///
+  /// In en, this message translates to:
+  /// **'Brand'**
+  String get filterBrand;
+
+  /// No description provided for @filterCategory.
+  ///
+  /// In en, this message translates to:
+  /// **'Category'**
+  String get filterCategory;
+
+  /// No description provided for @correctGtin.
+  ///
+  /// In en, this message translates to:
+  /// **'Correct GTIN'**
+  String get correctGtin;
+
+  /// No description provided for @gtinValue.
+  ///
+  /// In en, this message translates to:
+  /// **'GTIN: {gtin}'**
+  String gtinValue(String gtin);
+
+  /// No description provided for @allBrands.
+  ///
+  /// In en, this message translates to:
+  /// **'All Brands'**
+  String get allBrands;
+
+  /// No description provided for @allCategories.
+  ///
+  /// In en, this message translates to:
+  /// **'All Categories'**
+  String get allCategories;
+
+  /// No description provided for @enterGtinManually.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter GTIN Manually'**
+  String get enterGtinManually;
 }
 
 class _AppLocalizationsDelegate

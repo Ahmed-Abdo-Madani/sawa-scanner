@@ -23,6 +23,10 @@ export class ProductImage {
   @Column({ nullable: true })
   image_type: string;
 
+  @Index()
+  @Column({ type: 'varchar', length: 16, nullable: true })
+  image_hash: string | null;
+
   @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
   ingested_at: Date;
 

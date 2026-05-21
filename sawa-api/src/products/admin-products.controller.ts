@@ -48,8 +48,22 @@ export class AdminProductsController {
     @Query('pageSize') pageSize: number,
     @Query('search') search: string,
     @Query('category') category: string,
+    @Query('brand') brand?: string,
+    @Query('gtinStatus') gtinStatus?: string,
   ) {
-    return await this.adminService.listProductsNeedingGtin({ page, pageSize, search, category });
+    return await this.adminService.listProductsNeedingGtin({
+      page,
+      pageSize,
+      search,
+      category,
+      brand,
+      gtinStatus,
+    });
+  }
+
+  @Get('products/filters-meta')
+  async getFiltersMeta() {
+    return await this.adminService.getFilterOptions();
   }
 
   @Get('products/search')

@@ -785,4 +785,48 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get gtinAlreadyAssigned => 'هذا الباركود مُعيّن لمنتج آخر';
+
+  @override
+  String get toggleGridView => 'التبديل إلى عرض الشبكة';
+
+  @override
+  String get toggleListView => 'التبديل إلى عرض القائمة';
+
+  @override
+  String get viewMode => 'وضع العرض';
+
+  @override
+  String get productsGtinEditTitle => 'تعديل باركود المنتجات';
+
+  @override
+  String get gtinStatusAll => 'الكل';
+
+  @override
+  String get gtinStatusNeedsGtin => 'بحاجة لباركود';
+
+  @override
+  String get gtinStatusWithGtin => 'مع باركود';
+
+  @override
+  String get filterBrand => 'العلامة التجارية';
+
+  @override
+  String get filterCategory => 'الفئة';
+
+  @override
+  String get correctGtin => 'تصحيح الباركود';
+
+  @override
+  String gtinValue(String gtin) {
+    return 'الباركود: $gtin';
+  }
+
+  @override
+  String get allBrands => 'كل العلامات التجارية';
+
+  @override
+  String get allCategories => 'كل الفئات';
+
+  @override
+  String get enterGtinManually => 'إدخال الباركود يدوياً';
 }

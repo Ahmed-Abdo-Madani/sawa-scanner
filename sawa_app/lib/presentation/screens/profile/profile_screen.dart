@@ -9,7 +9,7 @@ import '../../providers/auth_provider.dart';
 import '../admin/admin_sign_in_screen.dart';
 import '../admin/quick_entry_screen.dart';
 import '../admin/missing_gtin_list_screen.dart';
-import '../admin/needs_gtin_browse_screen.dart';
+import '../admin/products_gtin_edit_screen.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
@@ -118,7 +118,7 @@ class ProfileScreen extends ConsumerWidget {
               title: l10n.browseHsProducts,
               onTap: () {
                 if (ref.read(currentUserProvider).value != null) {
-                  Navigator.push(context, MaterialPageRoute(builder: (_) => const NeedsGtinBrowseScreen()));
+                  Navigator.push(context, MaterialPageRoute(builder: (_) => const ProductsGtinEditScreen()));
                 } else {
                   Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminSignInScreen(targetScreen: AdminTargetScreen.quickEntry)));
                 }

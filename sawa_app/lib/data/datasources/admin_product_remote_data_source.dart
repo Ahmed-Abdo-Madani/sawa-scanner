@@ -88,22 +88,39 @@ class AdminProductRemoteDataSource {
     int pageSize = 20,
     String? search,
     String? category,
+    String? brand,
+    String? gtinStatus,
   }) async {
     final queryParams = {
       'page': page.toString(),
       'pageSize': pageSize.toString(),
       if (search != null && search.isNotEmpty) 'search': search,
       if (category != null && category.isNotEmpty) 'category': category,
+      if (brand != null && brand.isNotEmpty) 'brand': brand,
+      if (gtinStatus != null && gtinStatus.isNotEmpty) 'gtinStatus': gtinStatus,
     };
     final uri = Uri.parse('$_baseUrl/admin/products/needs-gtin')
         .replace(queryParameters: queryParams);
     final response = await _authedClient.get(uri);
 
     if (response.statusCode != 200) {
-      throw ServerException('Failed to list products needing GTIN');
+      throw ServerException('Failed to list products');
     }
     final Map<String, dynamic> body = jsonDecode(response.body);
     return NeedsGtinResponse.fromJson(body);
+  }
+
+  Future<Map<String, List<String>>> getFilterOptions() async {
+    final uri = Uri.parse('$_baseUrl/admin/products/filters-meta');
+    final response = await _authedClient.get(uri);
+    if (response.statusCode != 200) {
+      throw ServerException('Failed to load filter options');
+    }
+    final Map<String, dynamic> body = jsonDecode(response.body);
+    return {
+      'categories': List<String>.from(body['categories'] ?? []),
+      'brands': List<String>.from(body['brands'] ?? []),
+    };
   }
 }
 
@@ -141,6 +158,7 @@ class NeedsGtinProduct {
   final String? category;
   final String? imageFrontUrl;
   final List<String> imageUrls;
+  final String? gtin;
 
   NeedsGtinProduct({
     required this.id,
@@ -151,6 +169,7 @@ class NeedsGtinProduct {
     this.category,
     this.imageFrontUrl,
     this.imageUrls = const [],
+    this.gtin,
   });
 
   factory NeedsGtinProduct.fromJson(Map<String, dynamic> json) {
@@ -168,6 +187,7 @@ class NeedsGtinProduct {
       category: json['category'] as String?,
       imageFrontUrl: json['image_front_url'] as String?,
       imageUrls: images,
+      gtin: json['gtin'] as String?,
     );
   }
 

@@ -4,8 +4,8 @@ import { Logger, OnModuleDestroy } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Product } from '../entities/product.entity';
-import { EtaamGtinScraper } from './scraper/etaam-gtin-scraper';
-import { EtaamGtinScrapeJobDto } from './dto/etaam-gtin-job.dto';
+import { EtaamGtinArScraper } from './scraper/etaam-gtin-ar-scraper';
+import { EtaamGtinArScrapeJobDto } from './dto/etaam-gtin-ar-job.dto';
 
 /** Errors that indicate the browser/context died and must be re-launched. */
 const BROWSER_CRASH_PATTERNS = [
@@ -19,38 +19,38 @@ function isBrowserCrash(err: Error): boolean {
   return BROWSER_CRASH_PATTERNS.some((p) => err.message?.includes(p));
 }
 
-@Processor('etaam-gtin-queue', {
+@Processor('etaam-gtin-ar-queue', {
   concurrency: 1, // 1 page at a time to mimic human behavior and avoid rate-limiting
   lockDuration: 300000,
   stalledInterval: 60000,
 })
-export class EtaamGtinProcessor extends WorkerHost implements OnModuleDestroy {
-  private readonly logger = new Logger(EtaamGtinProcessor.name);
+export class EtaamGtinArProcessor extends WorkerHost implements OnModuleDestroy {
+  private readonly logger = new Logger(EtaamGtinArProcessor.name);
 
   constructor(
     @InjectRepository(Product)
     private readonly productRepo: Repository<Product>,
-    private readonly etaamGtinScraper: EtaamGtinScraper,
+    private readonly etaamGtinArScraper: EtaamGtinArScraper,
   ) {
     super();
-    this.logger.log('EtaamGtinProcessor initialized and ready.');
+    this.logger.log('EtaamGtinArProcessor (Arabic) initialized and ready.');
   }
 
   /** Shut down the shared browser cleanly when the NestJS module is destroyed. */
   async onModuleDestroy(): Promise<void> {
-    this.logger.log('Module shutting down — closing shared Etaam browser...');
-    await this.etaamGtinScraper.close();
+    this.logger.log('Module shutting down — closing shared Etaam Arabic browser...');
+    await this.etaamGtinArScraper.close();
   }
 
-  async process(job: Job<EtaamGtinScrapeJobDto>): Promise<any> {
-    const { productId, productName, threshold = 0.8, dryRun = false } = job.data;
+  async process(job: Job<EtaamGtinArScrapeJobDto>): Promise<any> {
+    const { productId, productNameAr, threshold = 0.7, dryRun = false } = job.data;
 
     this.logger.log(
-      `Processing Etaam GTIN job for product: ${productId} - ${productName} (Dry Run: ${dryRun})`,
+      `[AR] Processing Etaam GTIN job for product: ${productId} - ${productNameAr} (Dry Run: ${dryRun})`,
     );
 
     // Reuse the persistent browser; launch once if it hasn't started yet.
-    await this.etaamGtinScraper.ensureLaunched();
+    await this.etaamGtinArScraper.ensureLaunched();
 
     try {
       // Find the database product along with its images relation
@@ -60,12 +60,12 @@ export class EtaamGtinProcessor extends WorkerHost implements OnModuleDestroy {
       });
 
       if (!product) {
-        this.logger.warn(`Product ${productId} not found in DB.`);
+        this.logger.warn(`[AR] Product ${productId} not found in DB.`);
         return { success: false, reason: 'product-not-found' };
       }
 
       if (product.gtin) {
-        this.logger.warn(`Product ${productId} already has a GTIN in the DB. Skipping update.`);
+        this.logger.warn(`[AR] Product ${productId} already has a GTIN in the DB. Skipping update.`);
         return { success: false, reason: 'already-has-gtin' };
       }
 
@@ -75,54 +75,54 @@ export class EtaamGtinProcessor extends WorkerHost implements OnModuleDestroy {
         .filter((hash): hash is string => !!hash && hash !== 'FAILED') || [];
 
       this.logger.log(
-        `Loaded ${localHashes.length} local image hash(es) for product ${productId}`,
+        `[AR] Loaded ${localHashes.length} local image hash(es) for product ${productId}`,
       );
 
-      // 1. Search for the best match (pass local hashes for perceptual image matching)
-      const bestMatch = await this.etaamGtinScraper.searchAndGetBestMatch(
-        productName,
+      // 1. Search Arabic Etaam for the best match (pass local hashes for perceptual image matching)
+      const bestMatch = await this.etaamGtinArScraper.searchAndGetBestMatch(
+        productNameAr,
         threshold,
         localHashes,
       );
 
       if (!bestMatch) {
-        this.logger.warn(`No match found for ${productName} (Threshold: ${threshold})`);
+        this.logger.warn(`[AR] No match found for "${productNameAr}" (Threshold: ${threshold})`);
         return { success: false, reason: 'no-match' };
       }
 
       this.logger.log(
-        `Found match for ${productName} -> ${bestMatch.name} (Similarity: ${bestMatch.similarity})`,
+        `[AR] Found match for "${productNameAr}" -> "${bestMatch.name}" (Similarity: ${bestMatch.similarity.toFixed(3)})`,
       );
 
       // 2. Scrape GTIN from product page
-      const gtin = await this.etaamGtinScraper.scrapeGtinFromProductPage(bestMatch.url);
+      const gtin = await this.etaamGtinArScraper.scrapeGtinFromProductPage(bestMatch.url);
 
       if (!gtin) {
-        this.logger.warn(`Matched product page does not have a GTIN: ${bestMatch.url}`);
+        this.logger.warn(`[AR] Matched product page does not have a GTIN: ${bestMatch.url}`);
         return { success: false, reason: 'no-gtin' };
       }
 
-      this.logger.log(`Extracted GTIN: ${gtin} for product ${productId}`);
+      this.logger.log(`[AR] Extracted GTIN: ${gtin} for product ${productId}`);
 
       // 3. Update the database
       if (dryRun) {
-        this.logger.log(`[DRY RUN] Would update product ${productId} with GTIN ${gtin}`);
+        this.logger.log(`[AR] [DRY RUN] Would update product ${productId} with GTIN ${gtin}`);
         return { success: true, gtin, similarity: bestMatch.similarity, dryRun: true };
       } else {
         product.gtin = gtin;
         await this.productRepo.save(product);
-        this.logger.log(`Successfully updated product ${productId} with GTIN ${gtin}`);
+        this.logger.log(`[AR] Successfully updated product ${productId} with GTIN ${gtin}`);
         return { success: true, gtin, similarity: bestMatch.similarity };
       }
     } catch (error) {
       this.logger.error(
-        `Error processing Etaam GTIN for product ${productId}: ${error.message}`,
+        `[AR] Error processing Etaam GTIN for product ${productId}: ${error.message}`,
         error.stack,
       );
       // If the browser context died, close it so ensureLaunched() re-creates it on the next job.
       if (isBrowserCrash(error)) {
-        this.logger.warn('Browser crash detected — closing for re-launch on next job.');
-        await this.etaamGtinScraper.close().catch(() => undefined);
+        this.logger.warn('[AR] Browser crash detected — closing for re-launch on next job.');
+        await this.etaamGtinArScraper.close().catch(() => undefined);
       }
       throw error;
     }

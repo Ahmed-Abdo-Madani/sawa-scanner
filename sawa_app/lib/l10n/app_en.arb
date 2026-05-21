@@ -304,5 +304,24 @@
     }
   },
   "confirm": "Confirm",
-  "gtinAlreadyAssigned": "This GTIN is already assigned to another product"
+  "gtinAlreadyAssigned": "This GTIN is already assigned to another product",
+  "toggleGridView": "Switch to grid view",
+  "toggleListView": "Switch to list view",
+  "viewMode": "View Mode",
+  "productsGtinEditTitle": "Products GTIN Edit",
+  "gtinStatusAll": "All",
+  "gtinStatusNeedsGtin": "Needs GTIN",
+  "gtinStatusWithGtin": "With GTIN",
+  "filterBrand": "Brand",
+  "filterCategory": "Category",
+  "correctGtin": "Correct GTIN",
+  "gtinValue": "GTIN: {gtin}",
+  "@gtinValue": {
+    "placeholders": {
+      "gtin": { "type": "String" }
+    }
+  },
+  "allBrands": "All Brands",
+  "allCategories": "All Categories",
+  "enterGtinManually": "Enter GTIN Manually"
 }

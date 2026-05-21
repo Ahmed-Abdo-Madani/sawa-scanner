@@ -304,5 +304,24 @@
     }
   },
   "confirm": "تأكيد",
-  "gtinAlreadyAssigned": "هذا الباركود مُعيّن لمنتج آخر"
+  "gtinAlreadyAssigned": "هذا الباركود مُعيّن لمنتج آخر",
+  "toggleGridView": "التبديل إلى عرض الشبكة",
+  "toggleListView": "التبديل إلى عرض القائمة",
+  "viewMode": "وضع العرض",
+  "productsGtinEditTitle": "تعديل باركود المنتجات",
+  "gtinStatusAll": "الكل",
+  "gtinStatusNeedsGtin": "بحاجة لباركود",
+  "gtinStatusWithGtin": "مع باركود",
+  "filterBrand": "العلامة التجارية",
+  "filterCategory": "الفئة",
+  "correctGtin": "تصحيح الباركود",
+  "gtinValue": "الباركود: {gtin}",
+  "@gtinValue": {
+    "placeholders": {
+      "gtin": { "type": "String" }
+    }
+  },
+  "allBrands": "كل العلامات التجارية",
+  "allCategories": "كل الفئات",
+  "enterGtinManually": "إدخال الباركود يدوياً"
 }

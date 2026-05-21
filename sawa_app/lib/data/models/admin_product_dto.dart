@@ -198,16 +198,22 @@ class AdminUpsertProductDto {
 class AdminMissingGtinSummary {
   final String gtin;
   final int count;
+  final String? name;
+  final String? imageUrl;
 
   AdminMissingGtinSummary({
     required this.gtin,
     required this.count,
+    this.name,
+    this.imageUrl,
   });
 
   factory AdminMissingGtinSummary.fromJson(Map<String, dynamic> json) {
     return AdminMissingGtinSummary(
       gtin: json['gtin']?.toString() ?? '',
       count: int.tryParse(json['count'].toString()) ?? 0,
+      name: json['name']?.toString(),
+      imageUrl: json['image_url']?.toString(),
     );
   }
 }

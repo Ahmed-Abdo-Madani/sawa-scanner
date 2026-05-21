@@ -25,6 +25,7 @@ export abstract class BaseScraper {
       headless: boolean;
       cookieSessionPath?: string;
       deviceProfile?: 'mobile' | 'desktop';
+      channel?: string;
     },
   ) {}
 
@@ -45,10 +46,18 @@ export abstract class BaseScraper {
   async launch(): Promise<void> {
     this.logger.log('Launching browser...');
 
-    const launchOptions = {
+    const launchOptions: any = {
       headless: this.config.headless,
-      args: ['--no-sandbox', '--disable-setuid-sandbox'],
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-blink-features=AutomationControlled',
+      ],
     };
+
+    if ((this.config as any).channel) {
+      launchOptions.channel = (this.config as any).channel;
+    }
 
     const isMobile = this.config.deviceProfile !== 'desktop';
     const viewport = isMobile
@@ -84,8 +93,16 @@ export abstract class BaseScraper {
       await this.context.route('**/*', (route) => {
         const type = route.request().resourceType();
         const url = route.request().url();
+        
+        // Salla/Etaam storefronts rely on CSS and image rendering for Cloudflare Turnstile validation.
+        // Blocking stylesheets and images on these domains triggers immediate Turnstile challenge failures.
+        const isSalla = url.includes('etaamexpress.com') || url.includes('salla');
+        const blockedTypes = isSalla
+          ? ['font', 'media']
+          : ['font', 'media', 'stylesheet', 'image'];
+
         if (
-          ['font', 'media', 'stylesheet', 'image'].includes(type) ||
+          blockedTypes.includes(type) ||
           url.includes('google-analytics') ||
           url.includes('hotjar') ||
           url.includes('segment.com')

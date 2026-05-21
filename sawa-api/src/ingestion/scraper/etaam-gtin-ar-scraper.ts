@@ -6,7 +6,7 @@ import { Page } from 'playwright';
 import { RobotsTxtService } from './robots-txt.service';
 import { ImageHashService } from '../image-hash.service';
 
-export interface EtaamProductMatch {
+export interface EtaamArProductMatch {
   name: string;
   url: string;
   similarity: number;
@@ -16,32 +16,37 @@ export interface EtaamProductMatch {
 }
 
 /**
- * First-word tokens that are generic descriptors, colors, or food categories —
- * NOT brand names. When the first meaningful word of a product name is in this
- * set, the brand guard is skipped and matching falls back to similarity scoring.
+ * Arabic brand guard stopwords — generic Arabic descriptors, colors, and food
+ * categories that should NOT be treated as brand tokens. When the first
+ * meaningful word of an Arabic product name is in this set, the brand guard is
+ * skipped and matching falls back to pure similarity scoring.
  */
-const BRAND_GUARD_STOPWORDS = new Set([
-  // Colors
-  'yellow', 'red', 'green', 'blue', 'white', 'black', 'golden', 'gold', 'brown', 'orange',
-  'pink', 'purple', 'grey', 'gray', 'silver',
-  // Generic adjectives
-  'classic', 'original', 'premium', 'fresh', 'pure', 'natural', 'organic',
-  'light', 'lite', 'extra', 'super', 'mini', 'big', 'large', 'small',
-  'new', 'old', 'traditional', 'special', 'regular', 'whole', 'full', 'low',
-  'fat', 'free', 'sugar', 'zero', 'diet', 'high', 'rich', 'smooth', 'crispy',
-  'deluxe', 'select', 'choice', 'finest', 'best', 'top', 'pro', 'plus', 'ultra',
-  // Arabic-rooted transliterations (not brand-specific)
-  'al', 'el',
-  // Food category words (not brands)
-  'milk', 'juice', 'water', 'oil', 'cheese', 'butter', 'cream', 'bread',
-  'chicken', 'beef', 'lamb', 'fish', 'rice', 'flour', 'salt', 'sugar', 'honey',
-  'banana', 'apple', 'mango', 'date', 'dates', 'tomato', 'potato', 'onion',
-  'egg', 'eggs', 'yoghurt', 'yogurt', 'laban', 'ghee', 'chocolate', 'coffee',
-  'tea', 'biscuit', 'cake', 'chips', 'snack', 'candy', 'gum',
+const BRAND_GUARD_STOPWORDS_AR = new Set([
+  // Colors (Arabic)
+  'أصفر', 'أحمر', 'أخضر', 'أزرق', 'أبيض', 'أسود', 'ذهبي', 'بني', 'برتقالي',
+  'وردي', 'بنفسجي', 'رمادي', 'فضي',
+  // Generic adjectives (Arabic)
+  'كلاسيكي', 'كلاسيك', 'أصلي', 'ممتاز', 'طازج', 'نقي', 'طبيعي', 'عضوي',
+  'خفيف', 'لايت', 'إكسترا', 'سوبر', 'ميني', 'كبير', 'صغير',
+  'جديد', 'قديم', 'تقليدي', 'خاص', 'عادي', 'كامل', 'منزوع', 'قليل',
+  'دسم', 'خالي', 'سكر', 'زيرو', 'دايت', 'عالي', 'غني', 'ناعم', 'مقرمش',
+  'فاخر', 'مختار', 'أفضل',
+  // Arabic articles / connectors
+  'ال', 'من', 'مع', 'في', 'بنكهة', 'نكهة', 'طعم',
+  // Food category words (Arabic)
+  'حليب', 'عصير', 'ماء', 'زيت', 'جبن', 'جبنة', 'زبدة', 'كريم', 'كريمة', 'خبز',
+  'دجاج', 'لحم', 'سمك', 'أرز', 'رز', 'طحين', 'ملح', 'سكر', 'عسل',
+  'موز', 'تفاح', 'مانجو', 'تمر', 'تمور', 'طماطم', 'بطاطس', 'بصل',
+  'بيض', 'زبادي', 'لبن', 'سمن', 'شوكولاتة', 'شوكولا', 'قهوة',
+  'شاي', 'بسكويت', 'كيك', 'شيبس', 'سناك', 'حلوى', 'علكة',
+  'معجون', 'صلصة', 'معكرونة', 'مكرونة', 'فول', 'حمص', 'فاصوليا',
+  // Generic packaging / format words
+  'علبة', 'كيس', 'عبوة', 'قطعة', 'حبة', 'قطع', 'حبات', 'جرام', 'غرام',
+  'مل', 'لتر', 'كغ', 'كيلو',
 ]);
 
 @Injectable()
-export class EtaamGtinScraper extends BaseScraper {
+export class EtaamGtinArScraper extends BaseScraper {
   
   constructor(
     protected readonly robotsTxtService: RobotsTxtService,
@@ -58,32 +63,35 @@ export class EtaamGtinScraper extends BaseScraper {
       scraperConfig.headless = true;
     }
 
-    scraperConfig.cookieSessionPath = scraperConfig.cookieSessionPath ?? './scraper-sessions/etaam';
+    scraperConfig.cookieSessionPath = scraperConfig.cookieSessionPath ?? './scraper-sessions/etaam-ar';
     scraperConfig.channel = scraperConfig.channel ?? 'chrome';
     scraperConfig.deviceProfile = scraperConfig.deviceProfile ?? 'desktop';
     super(robotsTxtService, scraperConfig);
   }
 
   async scrapeListingPage(categoryUrl: string, page: number): Promise<any[]> {
-    throw new Error('Method not implemented for EtaamGtinScraper.');
+    throw new Error('Method not implemented for EtaamGtinArScraper.');
   }
 
   async scrapeDetailPage(productUrl: string): Promise<any> {
-    throw new Error('Method not implemented for EtaamGtinScraper. Use scrapeGtinFromProductPage.');
+    throw new Error('Method not implemented for EtaamGtinArScraper. Use scrapeGtinFromProductPage.');
   }
 
+  /**
+   * Searches Etaam Express in ARABIC locale for the given Arabic product name.
+   * Uses /ar/search endpoint with Arabic query text.
+   */
   async searchAndGetBestMatch(
-    productName: string,
-    threshold: number = 0.8,
+    productNameAr: string,
+    threshold: number = 0.7,
     localHashes?: string[],
-  ): Promise<EtaamProductMatch | null> {
+  ): Promise<EtaamArProductMatch | null> {
     if (!this.context) throw new Error('Browser context not initialized');
 
     const page = await this.context.newPage();
     try {
-      const searchUrl = new URL('https://etaamexpress.com/en/search');
-      searchUrl.searchParams.set('q', productName);
-      searchUrl.searchParams.set('lang', 'en');
+      const searchUrl = new URL('https://etaamexpress.com/ar/search');
+      searchUrl.searchParams.set('q', productNameAr);
 
       await this.applyThrottling();
       // Salla uses client-side hydration. `load` ensures scripts have run and injected LD+JSON.
@@ -159,39 +167,39 @@ export class EtaamGtinScraper extends BaseScraper {
         return results;
       });
 
-      this.logger.debug(`Search for '${productName}' found ${searchResults.length} results via script parsing`);
+      this.logger.debug(`[AR] Search for '${productNameAr}' found ${searchResults.length} results via script parsing`);
 
       if (searchResults.length === 0) {
         return null;
       }
 
-      let bestMatch: EtaamProductMatch | null = null;
-      const normalizedQuery = productName.toLowerCase();
+      let bestMatch: EtaamArProductMatch | null = null;
 
-      // Brand-name guard: extract the first meaningful, non-generic word as the brand token.
-      // Tokens in BRAND_GUARD_STOPWORDS (colors, adjectives, food categories) are skipped
-      // so generic product names like "Yellow Banana" or "Classic Hummus" don't false-reject.
+      // Normalize Arabic text for comparison — strip diacritics (tashkeel)
+      const normalizedQuery = this.normalizeArabic(productNameAr);
+
+      // Arabic brand guard: extract the first meaningful, non-generic word as brand token
       const brandToken = normalizedQuery
         .split(/\s+/)
-        .find((w) => w.length >= 3 && !BRAND_GUARD_STOPWORDS.has(w)) ?? '';
+        .find((w) => w.length >= 2 && !BRAND_GUARD_STOPWORDS_AR.has(w)) ?? '';
 
-      const candidates: Array<EtaamProductMatch & { image?: string | null }> = [];
+      const candidates: Array<EtaamArProductMatch & { image?: string | null }> = [];
 
       for (const result of searchResults) {
-        const candidateName = result.name.toLowerCase();
+        const candidateName = this.normalizeArabic(result.name);
 
-        // Hard reject: brand must be present in candidate name
+        // Hard reject: brand token must be present in candidate name
         if (brandToken && !candidateName.includes(brandToken)) {
           this.logger.debug(
-            `Brand guard rejected '${result.name}' for query '${productName}' (brand token: '${brandToken}')`,
+            `[AR] Brand guard rejected '${result.name}' for query '${productNameAr}' (brand token: '${brandToken}')`,
           );
           continue;
         }
 
         // Size guard: reject if the unit size is in the same dimension but differs by > 10%
-        if (!this.sizeGuardPasses(productName, result.name)) {
+        if (!this.sizeGuardPasses(productNameAr, result.name)) {
           this.logger.debug(
-            `Size guard rejected '${result.name}' for query '${productName}'`,
+            `[AR] Size guard rejected '${result.name}' for query '${productNameAr}'`,
           );
           continue;
         }
@@ -208,7 +216,7 @@ export class EtaamGtinScraper extends BaseScraper {
           fastPathCandidates.sort((a, b) => b.similarity - a.similarity);
           const bestFast = fastPathCandidates[0];
           this.logger.log(
-            `[Fast Path Match] High-confidence text match resolved for "${productName}" -> "${bestFast.name}" (Similarity: ${bestFast.similarity.toFixed(2)})`
+            `[AR] [Fast Path Match] High-confidence text match resolved for "${productNameAr}" -> "${bestFast.name}" (Similarity: ${bestFast.similarity.toFixed(2)})`
           );
           return {
             ...bestFast,
@@ -218,16 +226,16 @@ export class EtaamGtinScraper extends BaseScraper {
 
         // No fast-path match: evaluate candidates with similarity between 0.50 and 0.85 visually
         const fuzzyCandidates = candidates.filter((c) => c.similarity >= 0.50 && c.similarity < 0.85);
-        const visualMatches: Array<EtaamProductMatch & { hammingDistance: number }> = [];
+        const visualMatches: Array<EtaamArProductMatch & { hammingDistance: number }> = [];
 
         for (const candidate of fuzzyCandidates) {
           if (!candidate.image) {
-            this.logger.debug(`Fuzzy candidate has no image, skipping visual matching: "${candidate.name}"`);
+            this.logger.debug(`[AR] Fuzzy candidate has no image, skipping visual matching: "${candidate.name}"`);
             continue;
           }
 
           try {
-            this.logger.debug(`[Visual Match] Downloading and hashing candidate image: ${candidate.image}`);
+            this.logger.debug(`[AR] [Visual Match] Downloading and hashing candidate image: ${candidate.image}`);
             const candidateHash = await this.imageHashService.generateHashFromUrl(candidate.image);
             
             let minDistance = 64;
@@ -238,11 +246,11 @@ export class EtaamGtinScraper extends BaseScraper {
               }
             }
 
-            this.logger.debug(`[Visual Match] Min Hamming distance for "${candidate.name}" is ${minDistance}`);
+            this.logger.debug(`[AR] [Visual Match] Min Hamming distance for "${candidate.name}" is ${minDistance}`);
 
             if (minDistance <= 6) {
               this.logger.log(
-                `[Image Match] Confident visual match found for "${productName}" -> "${candidate.name}" (Hamming Distance: ${minDistance}, Text Similarity: ${candidate.similarity.toFixed(2)})`
+                `[AR] [Image Match] Confident visual match found for "${productNameAr}" -> "${candidate.name}" (Hamming Distance: ${minDistance}, Text Similarity: ${candidate.similarity.toFixed(2)})`
               );
               visualMatches.push({
                 ...candidate,
@@ -251,7 +259,7 @@ export class EtaamGtinScraper extends BaseScraper {
               });
             }
           } catch (hashError) {
-            this.logger.warn(`Failed to process visual match for candidate "${candidate.name}" image: ${hashError.message}`);
+            this.logger.warn(`[AR] Failed to process visual match for candidate "${candidate.name}" image: ${hashError.message}`);
           }
         }
 
@@ -261,7 +269,7 @@ export class EtaamGtinScraper extends BaseScraper {
           return visualMatches[0];
         }
 
-        this.logger.debug(`No confident visual or fast path match found for "${productName}" using local hashes.`);
+        this.logger.debug(`[AR] No confident visual or fast path match found for "${productNameAr}" using local hashes.`);
         return null;
       } else {
         // Fallback: pure text-based matching using the original threshold
@@ -280,44 +288,80 @@ export class EtaamGtinScraper extends BaseScraper {
   }
 
   /**
+   * Normalizes Arabic text for comparison:
+   * - Strips tashkeel (diacritics: فَتْحَة، كَسْرَة، ضَمَّة، سُكُون، etc.)
+   * - Normalizes alef variants (أ إ آ ا → ا)
+   * - Normalizes taa marbouta (ة → ه)
+   * - Strips tatweel (ـ kashida)
+   * - Lowercases Latin characters mixed in
+   * - Collapses whitespace
+   */
+  private normalizeArabic(text: string): string {
+    return text
+      // Remove Arabic diacritics (tashkeel)
+      .replace(/[\u064B-\u065F\u0670]/g, '')
+      // Normalize alef variants → plain alef
+      .replace(/[أإآٱ]/g, 'ا')
+      // Normalize taa marbouta → haa
+      .replace(/ة/g, 'ه')
+      // Remove tatweel (kashida)
+      .replace(/ـ/g, '')
+      // Lowercase any Latin chars mixed in
+      .toLowerCase()
+      // Collapse whitespace
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  /**
    * Extracts and normalizes all size/weight tokens from a product name string.
-   * Handles: ml, mL, L, g, kg — and multi-pack notation like "18x185ml" (picks unit size).
-   * Returns an array of { normalized: number, dim: 'vol' | 'mass' }
+   * Handles Latin units (ml, L, g, kg) AND Arabic units (مل، لتر، جرام، غرام، كجم، كغ، كيلو).
+   * Also handles multi-pack notation like "18×185مل" (picks unit size).
    */
   private static extractSizes(
     text: string,
   ): Array<{ normalized: number; dim: 'vol' | 'mass' }> {
     const sizes: Array<{ normalized: number; dim: 'vol' | 'mass' }> = [];
-    // Match optional "NxM" multi-pack prefix then the numeric value and unit
-    const re = /(?:\d+x)?(\d+(?:[.,]\d+)?)\s*(ml|l|g|kg|oz)\b/gi;
+
+    // Latin units
+    const reLatin = /(?:\d+[x×])?([\d]+(?:[.,]\d+)?)\s*(ml|l|g|kg|oz)\b/gi;
     let m: RegExpExecArray | null;
-    while ((m = re.exec(text)) !== null) {
+    while ((m = reLatin.exec(text)) !== null) {
       const val = parseFloat(m[1].replace(',', '.'));
       const unit = m[2].toLowerCase();
-      if (unit === 'ml') {
+      if (unit === 'ml') sizes.push({ normalized: val, dim: 'vol' });
+      else if (unit === 'oz') sizes.push({ normalized: val * 29.574, dim: 'vol' });
+      else if (unit === 'l') sizes.push({ normalized: val * 1000, dim: 'vol' });
+      else if (unit === 'g') sizes.push({ normalized: val, dim: 'mass' });
+      else if (unit === 'kg') sizes.push({ normalized: val * 1000, dim: 'mass' });
+    }
+
+    // Arabic units
+    const reArabic = /(?:\d+[x×])?([\d]+(?:[.,]\d+)?)\s*(مل|ملل|لتر|جرام|غرام|غ|جم|كجم|كغ|كيلو|كيلوجرام|كيلوغرام)(?![a-zA-Z0-9\u0600-\u06FF])/g;
+    while ((m = reArabic.exec(text)) !== null) {
+      const val = parseFloat(m[1].replace(',', '.'));
+      const unit = m[2];
+      if (['مل', 'ملل'].includes(unit)) {
         sizes.push({ normalized: val, dim: 'vol' });
-      } else if (unit === 'oz') {
-        sizes.push({ normalized: val * 29.574, dim: 'vol' });
-      } else if (unit === 'l') {
+      } else if (unit === 'لتر') {
         sizes.push({ normalized: val * 1000, dim: 'vol' });
-      } else if (unit === 'g') {
+      } else if (['جرام', 'غرام', 'غ', 'جم'].includes(unit)) {
         sizes.push({ normalized: val, dim: 'mass' });
-      } else if (unit === 'kg') {
+      } else if (['كجم', 'كغ', 'كيلو', 'كيلوجرام', 'كيلوغرام'].includes(unit)) {
         sizes.push({ normalized: val * 1000, dim: 'mass' });
       }
     }
+
     return sizes;
   }
 
   /**
    * Size guard: returns true (allow) if the candidate size is compatible with the query size.
    * Hard-rejects when both have a size in the same dimension and they differ by > 10%.
-   * Examples that PASS: "1L" vs "18x1L" (multi-pack of same unit), "330ml" vs "320ml" (≤10% diff)
-   * Examples that FAIL: "400ml" vs "800ml" (100% diff), "500g" vs "1kg" (100% diff)
    */
   private sizeGuardPasses(query: string, candidate: string): boolean {
-    const qSizes = EtaamGtinScraper.extractSizes(query);
-    const cSizes = EtaamGtinScraper.extractSizes(candidate);
+    const qSizes = EtaamGtinArScraper.extractSizes(query);
+    const cSizes = EtaamGtinArScraper.extractSizes(candidate);
 
     for (const dim of ['vol', 'mass'] as const) {
       const qVals = qSizes.filter((s) => s.dim === dim).map((s) => s.normalized);
@@ -339,6 +383,10 @@ export class EtaamGtinScraper extends BaseScraper {
     return true;
   }
 
+  /**
+   * Scrapes the GTIN / barcode from a product detail page on Etaam Express.
+   * Identical logic to the English scraper — GTIN is language-agnostic on the page.
+   */
   async scrapeGtinFromProductPage(productUrl: string): Promise<string | null> {
     if (!this.context) throw new Error('Browser context not initialized');
 
@@ -381,8 +429,11 @@ export class EtaamGtinScraper extends BaseScraper {
           }
         
           const text = node.textContent?.toLowerCase() || '';
-          if (text.includes('رقم الموديل') || text.includes('model number') || text.includes('sku') || text.includes('barcode')) {
-             const valueMatch = text.replace('رقم الموديل', '').replace('model number', '').replace('sku', '').replace('barcode', '').replace(':', '').trim();
+          if (text.includes('رقم الموديل') || text.includes('model number') || text.includes('sku') || text.includes('barcode') || text.includes('باركود')) {
+             const valueMatch = text
+               .replace('رقم الموديل', '').replace('model number', '')
+               .replace('sku', '').replace('barcode', '').replace('باركود', '')
+               .replace(':', '').trim();
              if (valueMatch && valueMatch.length > 5 && /^\d+$/.test(valueMatch)) {
                return valueMatch;
              }

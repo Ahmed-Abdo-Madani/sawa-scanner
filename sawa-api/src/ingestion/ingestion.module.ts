@@ -30,6 +30,7 @@ import { EmbeddingShortlister } from './ai-match/embedding-shortlister';
 import { AiVerdictCache } from './ai-match/ai-verdict-cache';
 import { BrandAliasCache } from './ai-match/brand-alias-cache';
 import { EmbeddingCache } from './ai-match/embedding-cache';
+import { ImageHashService } from './image-hash.service';
 
 // Entities
 import { Product } from '../entities/product.entity';
@@ -52,6 +53,9 @@ import { HsCatalogScraperService } from './hs-catalog-scraper.service';
 import { EtaamGtinService } from './etaam-gtin.service';
 import { EtaamGtinProcessor } from './etaam-gtin.processor';
 import { EtaamGtinScraper } from './scraper/etaam-gtin-scraper';
+import { EtaamGtinArService } from './etaam-gtin-ar.service';
+import { EtaamGtinArProcessor } from './etaam-gtin-ar.processor';
+import { EtaamGtinArScraper } from './scraper/etaam-gtin-ar-scraper';
 
 @Module({
   imports: [
@@ -75,6 +79,9 @@ import { EtaamGtinScraper } from './scraper/etaam-gtin-scraper';
     BullModule.registerQueue({
       name: 'etaam-gtin-queue',
     }),
+    BullModule.registerQueue({
+      name: 'etaam-gtin-ar-queue',
+    }),
     ScanModule,
     PricesModule,
     StoresModule,
@@ -97,12 +104,16 @@ import { EtaamGtinScraper } from './scraper/etaam-gtin-scraper';
     EtaamGtinService,
     EtaamGtinProcessor,
     EtaamGtinScraper,
+    EtaamGtinArService,
+    EtaamGtinArProcessor,
+    EtaamGtinArScraper,
     GtinBackfillService,
     VertexGeminiGtinMatchProvider,
     OllamaGtinMatchProvider,
     GoogleAiGeminiGtinMatchProvider,
     GeminiEmbeddingProvider,
     OllamaEmbeddingProvider,
+    ImageHashService,
     {
       provide: EMBEDDING_PROVIDER_TOKEN,
       useFactory: (config: ConfigService, gemini: GeminiEmbeddingProvider, ollama: OllamaEmbeddingProvider) => {
@@ -118,7 +129,7 @@ import { EtaamGtinScraper } from './scraper/etaam-gtin-scraper';
     BrandAliasCache,
     EmbeddingCache,
   ],
-  exports: [IngestionService, OpenFoodFactsDumpService],
+  exports: [IngestionService, OpenFoodFactsDumpService, ImageHashService],
 })
 export class IngestionModule implements OnModuleInit {
   private readonly logger = new Logger(IngestionModule.name);

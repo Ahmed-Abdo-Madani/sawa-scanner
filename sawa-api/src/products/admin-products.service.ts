@@ -22,20 +22,25 @@ export class AdminProductsService {
     @InjectDataSource() private dataSource: DataSource,
   ) {}
 
-  async listMissingGtin(query: { page?: number; pageSize?: number; search?: string }) {
-    const page = query.page || 1;
-    const pageSize = query.pageSize || 50;
+  async listMissingGtin(query: { page?: any; pageSize?: any; search?: string }) {
+    const page = query.page ? parseInt(query.page.toString(), 10) : 1;
+    const pageSize = query.pageSize ? parseInt(query.pageSize.toString(), 10) : 50;
     const offset = (page - 1) * pageSize;
 
     const qb = this.reportRepo
       .createQueryBuilder('report')
       .select('report.gtin', 'gtin')
       .addSelect('COUNT(*)', 'count')
+      .addSelect("COALESCE(MAX(report.payload->>'name_en'), MAX(report.payload->>'name_ar'), '')", 'name')
+      .addSelect("COALESCE(MAX(report.payload->'images'->>'front'), '')", 'image_url')
       .leftJoin(Product, 'product', 'product.gtin = report.gtin')
       .where('product.id IS NULL');
 
     if (query.search) {
-      qb.andWhere('report.gtin LIKE :search', { search: `%${query.search}%` });
+      qb.andWhere(
+        "(report.gtin LIKE :search OR report.payload->>'name_en' ILIKE :search OR report.payload->>'name_ar' ILIKE :search)",
+        { search: `%${query.search}%` },
+      );
     }
 
     return qb
@@ -46,27 +51,50 @@ export class AdminProductsService {
       .getRawMany();
   }
 
-  async listProductsNeedingGtin(query: { page?: number; pageSize?: number; search?: string; category?: string }) {
-    const page = query.page || 1;
-    const pageSize = query.pageSize || 20;
+  async listProductsNeedingGtin(query: {
+    page?: any;
+    pageSize?: any;
+    search?: string;
+    category?: string;
+    brand?: string;
+    gtinStatus?: string;
+  }) {
+    const page = query.page ? parseInt(query.page.toString(), 10) : 1;
+    const pageSize = query.pageSize ? parseInt(query.pageSize.toString(), 10) : 20;
     const offset = (page - 1) * pageSize;
 
     const qb = this.productRepo
       .createQueryBuilder('product')
-      .leftJoinAndSelect('product.images', 'images')
-      .where('product.gtin IS NULL')
-      .andWhere('product.hs_product_id IS NOT NULL');
+      .leftJoinAndSelect('product.images', 'images');
+
+    // Handle gtinStatus: 'assigned' (with GTIN), 'unassigned' (needs GTIN), or 'all'
+    const status = query.gtinStatus || 'unassigned';
+    if (status === 'assigned') {
+      qb.where('product.gtin IS NOT NULL');
+    } else if (status === 'unassigned') {
+      qb.where('product.gtin IS NULL');
+    } else {
+      qb.where('1=1');
+    }
+
+    qb.andWhere('product.hs_product_id IS NOT NULL');
 
     if (query.search) {
       qb.andWhere(
-        '(product.name_en ILIKE :search OR product.name_ar ILIKE :search)',
+        '(product.name_en ILIKE :search OR product.name_ar ILIKE :search OR product.gtin ILIKE :search)',
         { search: `%${query.search}%` },
       );
     }
 
     if (query.category) {
-      qb.andWhere('product.category ILIKE :category', {
-        category: `%${query.category}%`,
+      qb.andWhere('product.category = :category', {
+        category: query.category,
+      });
+    }
+
+    if (query.brand) {
+      qb.andWhere('product.brand = :brand', {
+        brand: query.brand,
       });
     }
 
@@ -77,6 +105,27 @@ export class AdminProductsService {
       .getManyAndCount();
 
     return { items, total, page, pageSize };
+  }
+
+  async getFilterOptions() {
+    const categories = await this.productRepo
+      .createQueryBuilder('product')
+      .select('DISTINCT(product.category)', 'category')
+      .where('product.category IS NOT NULL AND product.category != :empty AND product.hs_product_id IS NOT NULL', { empty: '' })
+      .orderBy('category', 'ASC')
+      .getRawMany();
+
+    const brands = await this.productRepo
+      .createQueryBuilder('product')
+      .select('DISTINCT(product.brand)', 'brand')
+      .where('product.brand IS NOT NULL AND product.brand != :empty AND product.hs_product_id IS NOT NULL', { empty: '' })
+      .orderBy('brand', 'ASC')
+      .getRawMany();
+
+    return {
+      categories: categories.map((c) => c.category),
+      brands: brands.map((b) => b.brand),
+    };
   }
 
   async searchByGtinPrefix(prefix: string) {
