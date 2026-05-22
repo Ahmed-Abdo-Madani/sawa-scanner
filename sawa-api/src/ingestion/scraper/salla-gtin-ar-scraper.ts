@@ -92,6 +92,33 @@ export class SallaGtinArScraper extends BaseScraper {
     return '';
   }
 
+  private isValidSallaProductUrl(url: string): boolean {
+    if (!url) return false;
+    try {
+      const lower = url.toLowerCase();
+      if (lower.startsWith('mailto:') || lower.startsWith('tel:') || lower.startsWith('javascript:') || lower.startsWith('whatsapp:') || lower.startsWith('sms:')) {
+        return false;
+      }
+      if (!/[\/-]p\d+/.test(lower)) {
+        return false;
+      }
+      if (lower.includes('/c/') || lower.includes('/category/') || lower.includes('/categories/')) {
+        return false;
+      }
+      const blacklist = [
+        '/cart', '/checkout', '/wishlist', '/login', '/register', '/sign-in', '/sign-up', 
+        '/logout', '/profile', '/account', '/contact', '/about', '/terms', '/privacy', 
+        '/shipping', '/refund', '/faq', '/help', '/support', '/home', '/search'
+      ];
+      if (blacklist.some(term => lower.includes(term))) {
+        return false;
+      }
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
   private parseSallaJsonLd(html: string): any[] {
     const results: any[] = [];
     const matches = html.match(/<script\s+type="application\/ld\+json">([\s\S]*?)<\/script>/gi);
@@ -124,7 +151,7 @@ export class SallaGtinArScraper extends BaseScraper {
           if (obj['@type'] === 'ItemList' && Array.isArray(obj.itemListElement)) {
             for (const el of obj.itemListElement) {
               const product = el.item;
-              if (product && product.name && product.url) {
+              if (product && product.name && product.url && this.isValidSallaProductUrl(product.url)) {
                 results.push({
                   name: product.name,
                   url: product.url,
@@ -134,7 +161,7 @@ export class SallaGtinArScraper extends BaseScraper {
             }
           }
 
-          if (obj['@type'] === 'Product' && obj.name && obj.url) {
+          if (obj['@type'] === 'Product' && obj.name && obj.url && this.isValidSallaProductUrl(obj.url)) {
             results.push({
               name: obj.name,
               url: obj.url,
@@ -144,7 +171,7 @@ export class SallaGtinArScraper extends BaseScraper {
 
           if (Array.isArray(obj.itemListElement)) {
             for (const el of obj.itemListElement) {
-              if (el.item?.['@type'] === 'Product' && el.item.name && el.item.url) {
+              if (el.item?.['@type'] === 'Product' && el.item.name && el.item.url && this.isValidSallaProductUrl(el.item.url)) {
                 results.push({
                   name: el.item.name,
                   url: el.item.url,
@@ -159,16 +186,16 @@ export class SallaGtinArScraper extends BaseScraper {
     return results;
   }
 
-  async searchAndGetBestMatch(
+  async searchAndGetCandidates(
     productNameAr: string,
-    threshold: number = 0.7,
+    threshold: number = 0.5,
     localHashes?: string[],
     baseUrl: string = 'https://etaamexpress.com',
-  ): Promise<SallaArProductMatch | null> {
+  ): Promise<SallaArProductMatch[]> {
     const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
     let searchUrl = `${cleanBaseUrl}/ar/search?q=${encodeURIComponent(productNameAr)}`;
 
-    this.logger.log(`[Salla Scraper] Searching for "${productNameAr}" on store: ${baseUrl}...`);
+    this.logger.log(`[Salla Scraper] Gathering search candidates for "${productNameAr}" on store: ${baseUrl}...`);
 
     let searchResults: { name: string; url: string; image: string | null }[] = [];
 
@@ -208,6 +235,29 @@ export class SallaGtinArScraper extends BaseScraper {
             return null;
           }
 
+          function isValidSallaProductUrl(url: string): boolean {
+            if (!url) return false;
+            const lower = url.toLowerCase();
+            if (lower.startsWith('mailto:') || lower.startsWith('tel:') || lower.startsWith('javascript:') || lower.startsWith('whatsapp:') || lower.startsWith('sms:')) {
+              return false;
+            }
+            if (!/[\/-]p\d+/.test(lower)) {
+              return false;
+            }
+            if (lower.includes('/c/') || lower.includes('/category/') || lower.includes('/categories/')) {
+              return false;
+            }
+            const blacklist = [
+              '/cart', '/checkout', '/wishlist', '/login', '/register', '/sign-in', '/sign-up', 
+              '/logout', '/profile', '/account', '/contact', '/about', '/terms', '/privacy', 
+              '/shipping', '/refund', '/faq', '/help', '/support', '/home', '/search'
+            ];
+            if (blacklist.some(term => lower.includes(term))) {
+              return false;
+            }
+            return true;
+          }
+
           const results: { name: string; url: string; image: string | null }[] = [];
           const ldScripts = Array.from(document.querySelectorAll('script[type="application/ld+json"]'));
 
@@ -220,7 +270,7 @@ export class SallaGtinArScraper extends BaseScraper {
                 if (obj['@type'] === 'ItemList' && Array.isArray(obj.itemListElement)) {
                   for (const el of obj.itemListElement) {
                     const product = el.item;
-                    if (product && product.name && product.url) {
+                    if (product && product.name && product.url && isValidSallaProductUrl(product.url)) {
                       results.push({
                         name: product.name,
                         url: product.url,
@@ -230,7 +280,7 @@ export class SallaGtinArScraper extends BaseScraper {
                   }
                 }
 
-                if (obj['@type'] === 'Product' && obj.name && obj.url) {
+                if (obj['@type'] === 'Product' && obj.name && obj.url && isValidSallaProductUrl(obj.url)) {
                   results.push({
                     name: obj.name,
                     url: obj.url,
@@ -240,7 +290,7 @@ export class SallaGtinArScraper extends BaseScraper {
 
                 if (Array.isArray(obj.itemListElement)) {
                   for (const el of obj.itemListElement) {
-                    if (el.item?.['@type'] === 'Product' && el.item.name && el.item.url) {
+                    if (el.item?.['@type'] === 'Product' && el.item.name && el.item.url && isValidSallaProductUrl(el.item.url)) {
                       results.push({
                         name: el.item.name,
                         url: el.item.url,
@@ -252,6 +302,103 @@ export class SallaGtinArScraper extends BaseScraper {
               }
             } catch { /* ignore */ }
           }
+
+          if (results.length > 0) {
+            return results;
+          }
+
+          // 2. Direct DOM element selectors for Salla search page
+          // Look for custom Salla product cards
+          const productCards = document.querySelectorAll('salla-product-card, custom-salla-product-card');
+          for (const card of Array.from(productCards)) {
+            const linkEl = card.querySelector('a') as HTMLAnchorElement;
+            if (!linkEl) continue;
+            const url = linkEl.href;
+
+            const titleEl = card.querySelector('h1, h2, h3, h4, h5, .title, .name, [class*="title"], [class*="name"]');
+            const name = titleEl?.textContent?.trim() || linkEl.textContent?.trim() || card.textContent?.trim() || '';
+
+            let image: string | null = null;
+            const imgEl = card.querySelector('img');
+            if (imgEl) {
+              image = imgEl.src || imgEl.getAttribute('data-src') || imgEl.getAttribute('lazy-src') || null;
+            }
+
+            if (name && url && isValidSallaProductUrl(url)) {
+              results.push({ name, url, image });
+            }
+          }
+
+          if (results.length > 0) {
+            return results;
+          }
+
+          // 3. Fallback to salla-products-list
+          const listEl = document.querySelector('salla-products-list');
+          if (listEl) {
+            const anchors = listEl.querySelectorAll('a');
+            for (const a of Array.from(anchors)) {
+              const url = a.href;
+              if (!url || url.includes('/c/') || url.includes('/category/')) continue;
+
+              const name = a.textContent?.trim() || '';
+              let image: string | null = null;
+              const imgEl = a.querySelector('img') || a.parentElement?.querySelector('img');
+              if (imgEl) {
+                image = imgEl.src || imgEl.getAttribute('data-src') || null;
+              }
+
+              if (name && name.length > 3 && isValidSallaProductUrl(url)) {
+                results.push({ name, url, image });
+              }
+            }
+          }
+
+          if (results.length > 0) {
+            return results;
+          }
+
+          // 4. Fallback: Generic product item/card classes
+          const productItemEls = document.querySelectorAll('[class*="product-item"], [class*="product-card"], .product, .item');
+          for (const item of Array.from(productItemEls)) {
+            const linkEl = item.querySelector('a') as HTMLAnchorElement;
+            if (!linkEl) continue;
+            const url = linkEl.href;
+            if (!url || url.includes('/c/') || url.includes('/category/')) continue;
+
+            const name = linkEl.textContent?.trim() || item.textContent?.trim() || '';
+            let image: string | null = null;
+            const imgEl = item.querySelector('img');
+            if (imgEl) {
+              image = imgEl.src || imgEl.getAttribute('data-src') || null;
+            }
+
+            if (name && name.length > 3 && isValidSallaProductUrl(url)) {
+              results.push({ name, url, image });
+            }
+          }
+
+          if (results.length > 0) {
+            return results;
+          }
+
+          // 5. Ultimate fallback: Match any anchors pointing to potential product pages
+          const anchors = document.querySelectorAll('a');
+          for (const a of Array.from(anchors)) {
+            const url = a.href;
+            if (!url || url.includes('/c/') || url.includes('/category/') || url.includes('/page-') || url.includes('facebook') || url.includes('instagram')) continue;
+
+            const text = a.textContent?.trim() || '';
+            if (text.length > 5 && isValidSallaProductUrl(url)) {
+              let image: string | null = null;
+              const imgEl = a.querySelector('img') || a.parentElement?.querySelector('img');
+              if (imgEl) {
+                image = imgEl.src || imgEl.getAttribute('data-src') || null;
+              }
+              results.push({ name: text, url, image });
+            }
+          }
+
           return results;
         });
 
@@ -261,23 +408,24 @@ export class SallaGtinArScraper extends BaseScraper {
       }
     }
 
+    searchResults = searchResults.filter((r) => this.isValidSallaProductUrl(r.url));
+
     if (searchResults.length === 0) {
-      return null;
+      return [];
     }
 
     const isPureBarcode = /^\d{8,14}$/.test(productNameAr);
     if (isPureBarcode) {
-      this.logger.log(`[Barcode Bypass] Pure barcode query detected: ${productNameAr}. Returning first candidate.`);
-      return {
-        name: searchResults[0].name,
-        url: searchResults[0].url,
-        image: searchResults[0].image,
+      this.logger.log(`[Barcode Bypass] Pure barcode query detected: ${productNameAr}. Returning top ${Math.min(searchResults.length, 3)} candidate(s).`);
+      return searchResults.slice(0, 3).map((r) => ({
+        name: r.name,
+        url: r.url,
+        image: r.image,
         similarity: 1.0,
         matchMethod: 'text',
-      };
+      }));
     }
 
-    let bestMatch: SallaArProductMatch | null = null;
     const normalizedQuery = this.normalizeArabic(productNameAr);
     const brandToken = normalizedQuery
       .split(/\s+/)
@@ -303,7 +451,24 @@ export class SallaGtinArScraper extends BaseScraper {
       }
 
       const similarity = diceCoefficient(normalizedQuery, candidateName);
-      candidates.push({ ...result, similarity });
+      if (similarity >= threshold) {
+        candidates.push({ ...result, similarity, matchMethod: 'text' });
+      }
+    }
+
+    candidates.sort((a, b) => b.similarity - a.similarity);
+    return candidates;
+  }
+
+  async searchAndGetBestMatch(
+    productNameAr: string,
+    threshold: number = 0.7,
+    localHashes?: string[],
+    baseUrl: string = 'https://etaamexpress.com',
+  ): Promise<SallaArProductMatch | null> {
+    const candidates = await this.searchAndGetCandidates(productNameAr, threshold, localHashes, baseUrl);
+    if (candidates.length === 0) {
+      return null;
     }
 
     if (localHashes && localHashes.length > 0) {
@@ -363,14 +528,7 @@ export class SallaGtinArScraper extends BaseScraper {
       this.logger.debug(`No confident visual or fast path match found for "${productNameAr}" using local hashes.`);
       return null;
     } else {
-      for (const candidate of candidates) {
-        if (candidate.similarity >= threshold) {
-          if (!bestMatch || candidate.similarity > bestMatch.similarity) {
-            bestMatch = { ...candidate, matchMethod: 'text' };
-          }
-        }
-      }
-      return bestMatch;
+      return candidates[0];
     }
   }
 

@@ -1,4 +1,4 @@
-import { Logger, Module } from '@nestjs/common';
+import { Logger, Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { BullModule } from '@nestjs/bullmq';
 import { IngestionService } from './ingestion.service';
@@ -87,7 +87,7 @@ import { ZidGtinArScraper } from './scraper/zid-gtin-ar-scraper';
     ScanModule,
     PricesModule,
     StoresModule,
-    ProductsModule,
+    forwardRef(() => ProductsModule),
   ],
   controllers: [IngestionController],
   providers: [
@@ -139,6 +139,7 @@ import { ZidGtinArScraper } from './scraper/zid-gtin-ar-scraper';
     ImageHashService,
     SallaGtinArScraper,
     ZidGtinArScraper,
+    OpenFoodFactsService,
   ],
 })
 export class IngestionModule implements OnModuleInit {

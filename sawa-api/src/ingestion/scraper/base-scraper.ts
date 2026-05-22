@@ -18,6 +18,7 @@ export abstract class BaseScraper {
   protected readonly logger = new Logger(this.constructor.name);
   protected browser: Browser | null = null;
   protected context: BrowserContext | null = null;
+  protected launchPromise: Promise<void> | null = null;
 
   protected static lastAccessedHost: string | null = null;
   protected static lastAccessTime: number = 0;
@@ -80,10 +81,17 @@ export abstract class BaseScraper {
   /**
    * Launches the browser only if it is not already running.
    * Use this in processor jobs instead of raw launch() to enable browser reuse.
+   * Synchronized to prevent concurrent launch race conditions.
    */
   async ensureLaunched(): Promise<void> {
     if (this.isLaunched()) return;
-    await this.launch();
+    if (this.launchPromise) {
+      return this.launchPromise;
+    }
+    this.launchPromise = this.launch().finally(() => {
+      this.launchPromise = null;
+    });
+    return this.launchPromise;
   }
 
   async launch(): Promise<void> {
@@ -109,8 +117,9 @@ export abstract class BaseScraper {
     const userAgent = getRandomUA(isMobile ? 'mobile' : 'desktop');
 
     if (this.config.cookieSessionPath) {
+      const sessionPath = `${this.config.cookieSessionPath}-${process.pid}`;
       this.context = await chromium.launchPersistentContext(
-        this.config.cookieSessionPath,
+        sessionPath,
         {
           ...launchOptions,
           userAgent,

@@ -184,6 +184,38 @@ export class OpenFoodFactsService {
   }
 
   /**
+   * Fetch a product from OFF by its GTIN/barcode.
+   */
+  async findProductByGtin(
+    gtin: string,
+  ): Promise<{ label: StructuredLabelDto | null; allergens: string[] } | null> {
+    if (!gtin || !/^\d{8,14}$/.test(gtin)) {
+      return null;
+    }
+
+    try {
+      const url = `/api/v2/product/${gtin}.json`;
+      this.logger.debug(`Fetching OpenFoodFacts product by GTIN: ${gtin}`);
+      const response = await this.axiosInstance.get<any>(url);
+
+      if (
+        response.data &&
+        response.data.status === 1 &&
+        response.data.product
+      ) {
+        const product = response.data.product;
+        return this.mapOffProduct(product);
+      }
+    } catch (err: any) {
+      this.logger.warn(
+        `OpenFoodFacts GTIN fetch failed for "${gtin}": ${err.message}`,
+      );
+    }
+
+    return null;
+  }
+
+  /**
    * Extracts canonical data from an OFF product if it has a valid GTIN.
    */
   extractCanonical(product: any): OffCanonical | null {

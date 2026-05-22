@@ -92,6 +92,37 @@ export class ZidGtinArScraper extends BaseScraper {
     return '';
   }
 
+  private isValidZidProductUrl(url: string): boolean {
+    if (!url) return false;
+    try {
+      const lower = url.toLowerCase();
+      if (lower.startsWith('mailto:') || lower.startsWith('tel:') || lower.startsWith('javascript:') || lower.startsWith('whatsapp:') || lower.startsWith('sms:')) {
+        return false;
+      }
+      if (!lower.includes('/products/')) {
+        return false;
+      }
+      let path = lower;
+      if (lower.startsWith('http://') || lower.startsWith('https://')) {
+        path = new URL(lower).pathname;
+      }
+      if (path === '/products' || path === '/products/' || path.includes('/categories') || path.includes('/c/')) {
+        return false;
+      }
+      const blacklist = [
+        '/cart', '/checkout', '/wishlist', '/login', '/register', '/sign-in', '/sign-up', 
+        '/logout', '/profile', '/account', '/contact', '/about', '/terms', '/privacy', 
+        '/shipping', '/refund', '/faq', '/help', '/support', '/home', '/search'
+      ];
+      if (blacklist.some(term => lower.includes(term))) {
+        return false;
+      }
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
   /**
    * Helper to parse product cards from raw Zid HTML string.
    */
@@ -114,11 +145,14 @@ export class ZidGtinArScraper extends BaseScraper {
               for (const el of obj.itemListElement) {
                 const product = el.item;
                 if (product && product.name && product.url) {
-                  results.push({
-                    name: product.name,
-                    url: product.url.startsWith('http') ? product.url : `${origin}${product.url}`,
-                    image: product.image || (Array.isArray(product.image) ? product.image[0] : null),
-                  });
+                  const fullUrl = product.url.startsWith('http') ? product.url : `${origin}${product.url.startsWith('/') ? '' : '/'}${product.url}`;
+                  if (this.isValidZidProductUrl(fullUrl)) {
+                    results.push({
+                      name: product.name,
+                      url: fullUrl,
+                      image: product.image || (Array.isArray(product.image) ? product.image[0] : null),
+                    });
+                  }
                 }
               }
             }
@@ -145,6 +179,8 @@ export class ZidGtinArScraper extends BaseScraper {
       if (!url.startsWith('http')) {
         url = `${origin}${url.startsWith('/') ? '' : '/'}${url}`;
       }
+
+      if (!this.isValidZidProductUrl(url)) continue;
 
       // Extract image source (ignoring spinner/placeholders)
       let image: string | null = null;
@@ -183,16 +219,16 @@ export class ZidGtinArScraper extends BaseScraper {
     return results;
   }
 
-  async searchAndGetBestMatch(
+  async searchAndGetCandidates(
     productNameAr: string,
-    threshold: number = 0.7,
+    threshold: number = 0.5,
     localHashes?: string[],
     baseUrl: string = 'https://parkcentersa.com',
-  ): Promise<ZidArProductMatch | null> {
+  ): Promise<ZidArProductMatch[]> {
     const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
     let searchUrl = `${cleanBaseUrl}/products?q=${encodeURIComponent(productNameAr)}`;
 
-    this.logger.log(`[Zid Scraper] Searching for "${productNameAr}" on store: ${baseUrl}...`);
+    this.logger.log(`[Zid Scraper] Gathering search candidates for "${productNameAr}" on store: ${baseUrl}...`);
 
     let searchResults: { name: string; url: string; image: string | null }[] = [];
 
@@ -275,6 +311,26 @@ export class ZidGtinArScraper extends BaseScraper {
         await page.waitForTimeout(2000);
 
         searchResults = await page.evaluate(() => {
+          function isValidZidProductUrl(url: string): boolean {
+            if (!url) return false;
+            const lower = url.toLowerCase();
+            if (lower.startsWith('mailto:') || lower.startsWith('tel:') || lower.startsWith('javascript:') || lower.startsWith('whatsapp:') || lower.startsWith('sms:')) {
+              return false;
+            }
+            if (!lower.includes('/products/')) {
+              return false;
+            }
+            const blacklist = [
+              '/cart', '/checkout', '/wishlist', '/login', '/register', '/sign-in', '/sign-up', 
+              '/logout', '/profile', '/account', '/contact', '/about', '/terms', '/privacy', 
+              '/shipping', '/refund', '/faq', '/help', '/support', '/home', '/search'
+            ];
+            if (blacklist.some(term => lower.includes(term))) {
+              return false;
+            }
+            return true;
+          }
+
           const results: { name: string; url: string; image: string | null }[] = [];
           
           // Selectors matching product items or cards in Zid storefronts
@@ -285,6 +341,7 @@ export class ZidGtinArScraper extends BaseScraper {
             if (!linkEl) continue;
 
             const url = linkEl.href;
+            if (!isValidZidProductUrl(url)) continue;
             
             // Find non-gif product image
             let image: string | null = null;
@@ -314,23 +371,24 @@ export class ZidGtinArScraper extends BaseScraper {
       }
     }
 
+    searchResults = searchResults.filter((r) => this.isValidZidProductUrl(r.url));
+
     if (searchResults.length === 0) {
-      return null;
+      return [];
     }
 
     const isPureBarcode = /^\d{8,14}$/.test(productNameAr);
     if (isPureBarcode) {
-      this.logger.log(`[Barcode Bypass] Pure barcode query detected: ${productNameAr}. Returning first candidate.`);
-      return {
-        name: searchResults[0].name,
-        url: searchResults[0].url,
-        image: searchResults[0].image,
+      this.logger.log(`[Barcode Bypass] Pure barcode query detected: ${productNameAr}. Returning top ${Math.min(searchResults.length, 3)} candidate(s).`);
+      return searchResults.slice(0, 3).map((r) => ({
+        name: r.name,
+        url: r.url,
+        image: r.image,
         similarity: 1.0,
         matchMethod: 'text',
-      };
+      }));
     }
 
-    let bestMatch: ZidArProductMatch | null = null;
     const normalizedQuery = this.normalizeArabic(productNameAr);
     const brandToken = normalizedQuery
       .split(/\s+/)
@@ -356,7 +414,24 @@ export class ZidGtinArScraper extends BaseScraper {
       }
 
       const similarity = diceCoefficient(normalizedQuery, candidateName);
-      candidates.push({ ...result, similarity });
+      if (similarity >= threshold) {
+        candidates.push({ ...result, similarity, matchMethod: 'text' });
+      }
+    }
+
+    candidates.sort((a, b) => b.similarity - a.similarity);
+    return candidates;
+  }
+
+  async searchAndGetBestMatch(
+    productNameAr: string,
+    threshold: number = 0.7,
+    localHashes?: string[],
+    baseUrl: string = 'https://parkcentersa.com',
+  ): Promise<ZidArProductMatch | null> {
+    const candidates = await this.searchAndGetCandidates(productNameAr, threshold, localHashes, baseUrl);
+    if (candidates.length === 0) {
+      return null;
     }
 
     if (localHashes && localHashes.length > 0) {
@@ -416,6 +491,7 @@ export class ZidGtinArScraper extends BaseScraper {
       this.logger.debug(`No confident visual or fast path match found for "${productNameAr}" using local hashes.`);
       return null;
     } else {
+      let bestMatch: ZidArProductMatch | null = null;
       for (const candidate of candidates) {
         if (candidate.similarity >= threshold) {
           if (!bestMatch || candidate.similarity > bestMatch.similarity) {

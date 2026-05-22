@@ -44,6 +44,8 @@
 - [x] Swapped out the client-side fallback to OpenFoodFacts (OFF) for missing GTINs with a backend e-commerce live scraper that triggers parallel searches across 6 stores (Shonaksa, Yasmin, Mr Logman, Park Center, Menhal, Etaam Express).
 - [x] Redesigned the mobile scanning module's card overlay carousel to display a premium glassmorphic UI layout, featuring custom pulsing e-commerce search skeletons and elegant OLED card designs representing lowest, highest, and average prices with a responsive store matrix.
 - [x] Enforced absolute localization sync between Arabic and English .arb files, resolving all compilation errors and widget smoke tests.
+- [x] Relaxed barcode search restrictions in generalized e-commerce scrapers (`SallaGtinArScraper` and `ZidGtinArScraper`). Bypassed card limit filters when pure numeric barcode queries are detected to return candidates directly to downstream deterministic verification.
+- [x] Implemented dynamic parallel multi-store hybrid barcode resolution and database seeding in `ProductsService.findByGtin`, executing Direct Barcode Search first with fallback to OpenFoodFacts lexical Name Search. Successfully tested with user scanned GTIN `6281057030040` (Nadec Fresh Yoghurt 2 kg) across all e-commerce stores.
 
 ## Architecture Decisions
 - **Bypass Robots.txt Control**: Added `BYPASS_ROBOTS_TXT=true` toggle option to `RobotsTxtService` and `BaseScraper` to bypass strict local robots.txt blocks for administrative backfill jobs on domains that block general `/products?q=` routes (like `menhal.sa`), preventing task termination.
@@ -78,9 +80,11 @@
   - *Root Cause of OOM*: The system uses Redis Enterprise Cloud, which limits database size to 30MB on the entry tier. Since Salla and Zid scrapers run sequentially (concurrency 1) to bypass anti-bot shields, mass-enqueuing 40k+ tasks simultaneously creates massive waiting structures. BullMQ's automatic `removeOnComplete` and `removeOnFail` rules only purge jobs *after* they finish; waiting and active jobs stay in memory, leading to Redis OOM.
   - *Dynamic Backpressure*: The CLI trigger script dynamically polls the queue size via `ioredis` before enqueuing next chunks. It implements a high-water threshold of **500 waiting/active jobs**. If this limit is breached, the script sleeps for 30s before attempting to enqueue the next chunk.
   - *Stale Queue Draining*: Leveraged a dedicated script `clear-etaam-gtin-queues.ts` to obliterate stale or bulk-enqueued waiting states, instantly releasing memory (from 29.99MB back to ~6.6MB).
-
-
-
+- **Direct Barcode Resolution & Hybrid E-Commerce Search Fallback**:
+  - *Direct Barcode Search (Primary Path)*: Queries storefronts directly using raw numeric barcodes first, which yields exact matches, bypassing naming differences or translation discrepancies.
+  - *Lexical Name Fallback (Secondary Path)*: In case direct search on a store yields no candidate, pre-resolves the barcode via the OpenFoodFacts API and searches that store with the resolved Arabic or English product name.
+  - *Downstream SKU/GTIN Verification*: To prevent false positives from generic store category search results, both search paths pass candidates to a downstream verification layer that visits candidate pages and validates their scraped SKU/GTIN against the query using padding-tolerant matching.
+  - *Bypassing Search Card Thresholds for Barcodes*: Pure numeric barcode queries bypass the previous search result card count filters (which rejected pages with over 5 matches to avoid generic category lists), returning the top 3 candidates directly to the downstream verification layer, achieving extremely fast, exact, and robust dynamic database seeding from scanner inputs.
 
 ## Environment & Configuration
 Ensure you have updated the `.env` settings to match the optimizations:

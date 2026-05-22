@@ -8,6 +8,7 @@ import { Merchant } from '../entities/merchant.entity';
 import { ProductImage } from '../entities/product-image.entity';
 import { SallaGtinArScraper } from '../ingestion/scraper/salla-gtin-ar-scraper';
 import { ZidGtinArScraper } from '../ingestion/scraper/zid-gtin-ar-scraper';
+import { OpenFoodFactsService } from '../ingestion/open-food-facts.service';
 
 @Injectable()
 export class ProductsService {
@@ -26,7 +27,15 @@ export class ProductsService {
     private readonly productImageRepository: Repository<ProductImage>,
     private readonly sallaScraper: SallaGtinArScraper,
     private readonly zidScraper: ZidGtinArScraper,
+    private readonly openFoodFactsService: OpenFoodFactsService,
   ) {}
+
+  compareGtins(a: string, b: string): boolean {
+    if (!a || !b) return false;
+    const cleanA = a.replace(/\D/g, '').replace(/^0+/, '');
+    const cleanB = b.replace(/\D/g, '').replace(/^0+/, '');
+    return cleanA === cleanB && cleanA.length > 0;
+  }
 
   async findByGtin(gtin: string): Promise<Product> {
     let product = await this.productRepository.findOne({
@@ -51,26 +60,107 @@ export class ProductsService {
         { url: 'https://menhal.sa', platform: 'zid', nameAr: 'منهل', nameEn: 'Menhal' },
       ];
 
+      // Pre-resolve GTIN via OpenFoodFacts if it is a pure barcode
+      let resolvedName: string | null = null;
+      let offLabel: any = null;
+
+      const isPureBarcode = /^\d{8,14}$/.test(gtin);
+      if (isPureBarcode) {
+        try {
+          this.logger.log(`Pre-resolving barcode ${gtin} via OpenFoodFacts...`);
+          const offRes = await this.openFoodFactsService.findProductByGtin(gtin);
+          if (offRes && offRes.label) {
+            offLabel = offRes.label;
+            const queryName = offLabel.name_ar || offLabel.name_en;
+            if (queryName && queryName.trim().length > 0) {
+              resolvedName = queryName.trim();
+              this.logger.log(`Pre-resolved barcode ${gtin} to name: "${resolvedName}" (Arabic: "${offLabel.name_ar}", English: "${offLabel.name_en}")`);
+            } else {
+              this.logger.log(`OpenFoodFacts returned empty names for barcode ${gtin}`);
+            }
+          } else {
+            this.logger.log(`OpenFoodFacts did not find barcode ${gtin}`);
+          }
+        } catch (offErr: any) {
+          this.logger.warn(`Failed to pre-resolve barcode ${gtin} via OpenFoodFacts: ${offErr.message}`);
+        }
+      }
+
       const promises = storeConfigs.map(async (store) => {
         try {
           const scraper = store.platform === 'zid' ? this.zidScraper : this.sallaScraper;
           await scraper.ensureLaunched();
+
+          // Phase 1: Direct Barcode Search
+          this.logger.log(`[Direct Barcode Search] Querying ${store.url} with raw GTIN "${gtin}"...`);
+          const barcodeCandidates = await scraper.searchAndGetCandidates(gtin, 0.5, undefined, store.url);
           
-          this.logger.log(`Querying ${store.url} for GTIN ${gtin}...`);
-          const bestMatch = await scraper.searchAndGetBestMatch(gtin, 0.7, undefined, store.url);
-          if (!bestMatch) {
-            this.logger.log(`No match for GTIN ${gtin} on ${store.url}`);
-            return null;
+          if (barcodeCandidates && barcodeCandidates.length > 0) {
+            const topCandidates = barcodeCandidates.slice(0, 3);
+            this.logger.log(`[Direct Barcode Search] Scraping top ${topCandidates.length} detail pages from ${store.url} for GTIN/SKU verification...`);
+            
+            const detailScrapes = await Promise.allSettled(
+              topCandidates.map(async (cand) => {
+                const details = await scraper.scrapeProductDetails(cand.url);
+                return { details, cand };
+              })
+            );
+
+            for (const scrapeRes of detailScrapes) {
+              if (scrapeRes.status === 'fulfilled' && scrapeRes.value && scrapeRes.value.details) {
+                const { details, cand } = scrapeRes.value;
+                const scrapedSkuOrGtin = details.gtin || '';
+
+                if (isPureBarcode) {
+                  if (scrapedSkuOrGtin && this.compareGtins(scrapedSkuOrGtin, gtin)) {
+                    this.logger.log(`[Direct Barcode Search] Deterministic match found on ${store.url}! Scraped GTIN/SKU: ${scrapedSkuOrGtin} matches scanned barcode: ${gtin}. Product: "${details.name}"`);
+                    return { store, details, matchUrl: cand.url };
+                  }
+                } else {
+                  if (details.price !== null) {
+                    this.logger.log(`[Direct Barcode Search] Text match accepted on ${store.url} for query "${gtin}". Product: "${details.name}"`);
+                    return { store, details, matchUrl: cand.url };
+                  }
+                }
+              }
+            }
           }
 
-          this.logger.log(`Found match on ${store.url}: ${bestMatch.name}. Scraping details...`);
-          const details = await scraper.scrapeProductDetails(bestMatch.url);
-          if (!details || details.price === null) {
-            this.logger.log(`Failed to scrape details or price is empty on ${store.url}`);
-            return null;
+          this.logger.log(`[Direct Barcode Search] No verified barcode match for raw GTIN on ${store.url}`);
+
+          // Phase 2: Fallback Name Search (if Direct Barcode Search failed/empty, and we have a resolved name)
+          if (isPureBarcode && resolvedName) {
+            this.logger.log(`[Fallback Name Search] Querying ${store.url} with resolved name "${resolvedName}"...`);
+            const nameCandidates = await scraper.searchAndGetCandidates(resolvedName, 0.5, undefined, store.url);
+            
+            if (nameCandidates && nameCandidates.length > 0) {
+              const topCandidates = nameCandidates.slice(0, 3);
+              this.logger.log(`[Fallback Name Search] Scraping top ${topCandidates.length} detail pages from ${store.url} for GTIN/SKU verification...`);
+              
+              const detailScrapes = await Promise.allSettled(
+                topCandidates.map(async (cand) => {
+                  const details = await scraper.scrapeProductDetails(cand.url);
+                  return { details, cand };
+                })
+              );
+
+              for (const scrapeRes of detailScrapes) {
+                if (scrapeRes.status === 'fulfilled' && scrapeRes.value && scrapeRes.value.details) {
+                  const { details, cand } = scrapeRes.value;
+                  const scrapedSkuOrGtin = details.gtin || '';
+
+                  if (scrapedSkuOrGtin && this.compareGtins(scrapedSkuOrGtin, gtin)) {
+                    this.logger.log(`[Fallback Name Search] Deterministic match found on ${store.url}! Scraped GTIN/SKU: ${scrapedSkuOrGtin} matches scanned barcode: ${gtin}. Product: "${details.name}"`);
+                    return { store, details, matchUrl: cand.url };
+                  }
+                }
+              }
+            }
+            this.logger.log(`[Fallback Name Search] No verified barcode match for name "${resolvedName}" on ${store.url}`);
           }
 
-          return { store, details, matchUrl: bestMatch.url };
+          this.logger.log(`No verified barcode/price match found for query on ${store.url}`);
+          return null;
         } catch (e: any) {
           this.logger.warn(`Error querying ${store.url} for GTIN ${gtin}: ${e.message}`);
           return null;
@@ -90,10 +180,15 @@ export class ProductsService {
       this.logger.log(`Live seeding succeeded with ${successfulMatches.length} matching stores! Creating Product entity...`);
       
       const firstMatch = successfulMatches[0];
+      
+      // If we got offLabel (OpenFoodFacts description), we can enrich our database product with it!
+      const finalNameAr = firstMatch.details.name || (offLabel ? offLabel.name_ar : undefined);
+      const finalNameEn = firstMatch.details.name || (offLabel ? offLabel.name_en : undefined);
+
       const newProduct = this.productRepository.create({
         gtin,
-        name_ar: firstMatch.details.name || undefined,
-        name_en: firstMatch.details.name || undefined,
+        name_ar: finalNameAr || undefined,
+        name_en: finalNameEn || undefined,
         image_front_url: firstMatch.details.image || undefined,
         data_source: 'scraped_live',
         data_completeness_score: 0.1,
