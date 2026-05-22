@@ -338,10 +338,27 @@ class PriceInfoModel extends PriceInfo {
   });
 
   factory PriceInfoModel.fromJson(Map<String, dynamic> json) {
+    final merchantObj = json['merchant'];
+    String merchantEn = 'Unknown';
+    String merchantAr = '';
+    String? logoUrl = json['logo_url']?.toString() ?? json['merchant_logo_url']?.toString();
+
+    if (merchantObj is Map) {
+      merchantEn = merchantObj['name_en']?.toString() ?? merchantObj['name']?.toString() ?? 'Unknown';
+      merchantAr = merchantObj['name_ar']?.toString() ?? '';
+      logoUrl = logoUrl ?? merchantObj['logo_url']?.toString();
+    } else if (merchantObj != null) {
+      merchantEn = merchantObj.toString();
+      merchantAr = json['merchant_ar']?.toString() ?? json['merchant_name_ar'] ?? '';
+    } else {
+      merchantEn = json['merchant_name_en']?.toString() ?? 'Unknown';
+      merchantAr = json['merchant_name_ar']?.toString() ?? '';
+    }
+
     return PriceInfoModel(
-      merchant: json['merchant']?.toString() ?? json['merchant_name_en'] ?? 'Unknown',
-      merchantAr: json['merchant_ar']?.toString() ?? json['merchant_name_ar'] ?? '',
-      logoUrl: json['logo_url']?.toString() ?? json['merchant_logo_url']?.toString(),
+      merchant: merchantEn,
+      merchantAr: merchantAr,
+      logoUrl: logoUrl,
       sourceUrl: json['source_url']?.toString(),
       priceSarInclVat: (json['price_sar_incl_vat'] as num?)?.toDouble() ?? 0.0,
       promoPriceSar: (json['promo_price_sar'] as num?)?.toDouble(),

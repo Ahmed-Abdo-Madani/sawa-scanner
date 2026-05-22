@@ -65,7 +65,7 @@ class ProductRepositoryImpl implements ProductRepository {
     }
 
     try {
-      // Tier 1: Try Sawa
+      // Try Sawa remote API
       try {
         final sawaModel = await remoteDataSource.fetchProductByGtin(gtin);
         
@@ -109,52 +109,7 @@ class ProductRepositoryImpl implements ProductRepository {
         await localDataSource.cacheProduct(_toEntity(merged));
         return (merged, false);
       } on ProductNotFoundException {
-        // Tier 2: Fall back to OpenFoodFacts
-        try {
-          final offModel = await openFoodFactsDataSource.getProductByBarcode(gtin);
-          if (offModel != null) {
-            // Merge: prefer OFF values for structured fields, but keep AI nutrition if present
-            final merged = ProductModel(
-              id: offModel.id,
-              gtin: offModel.gtin,
-              nameAr: offModel.nameAr.isNotEmpty ? offModel.nameAr : base.nameAr,
-              nameEn: offModel.nameEn.isNotEmpty ? offModel.nameEn : base.nameEn,
-              brand: offModel.brand.isNotEmpty ? offModel.brand : base.brand,
-              category: offModel.category,
-              subcategory: offModel.subcategory,
-              descriptionAr: offModel.descriptionAr,
-              descriptionEn: offModel.descriptionEn,
-              nutriScoreGrade: offModel.nutriScoreGrade,
-              novaGroup: offModel.novaGroup,
-              sfdaRegistrationStatus: offModel.sfdaRegistrationStatus,
-              halalCertified: offModel.halalCertified,
-              netWeightValue: offModel.netWeightValue,
-              netUnit: offModel.netUnit,
-              nutritionFact: base.nutritionFact ?? offModel.nutritionFact,
-              ingredients: offModel.ingredients.isNotEmpty ? offModel.ingredients : base.ingredients,
-              allergenDetails: offModel.allergenDetails,
-              prices: offModel.prices,
-              images: offModel.images,
-              ecoScore: offModel.ecoScore,
-              allergens: offModel.allergens,
-              allergenTags: offModel.allergenTags,
-              ingredientTags: offModel.ingredientTags,
-              allergensDataAvailable: offModel.allergensDataAvailable,
-              categories: offModel.categories,
-              ingredientsText: offModel.ingredientsText?.isNotEmpty == true ? offModel.ingredientsText : base.ingredientsText,
-              imageFrontUrl: offModel.imageFrontUrl,
-              imageNutritionUrl: offModel.imageNutritionUrl,
-              nutritionDataComplete: offModel.nutritionDataComplete,
-              source: base.source,
-              sawaDbAvailable: false,
-            );
-            return (merged, true);
-          }
-        } catch (_) {
-          // Swallow OFF errors
-        }
-        
-        // OFF returned null or errored; return base unchanged
+        // No client-side fallback; return base unchanged
         return (base, false);
       }
     } catch (_) {
@@ -174,15 +129,6 @@ class ProductRepositoryImpl implements ProductRepository {
       return cached;
     }
 
-    // Track whether each remote definitively said "not found".
-    bool sawaNotFound = false;
-    bool offNotFound = false;
-
-    // Track specific failures to provide granular diagnostic feedback.
-    Object? sawaError;
-    Object? offError;
-
-
     // Tier 2 ── Sawa remote API.
     try {
       final product = await remoteDataSource.fetchProductByGtin(gtin);
@@ -191,59 +137,14 @@ class ProductRepositoryImpl implements ProductRepository {
       await localDataSource.cacheProduct(entity);
       return entity;
     } on ProductNotFoundException {
-      sawaNotFound = true;
-    } on NetworkTimeoutException {
-      // Fast-fail: if we timeout, immediately check if we have a stale cache
-      if (cached != null) return cached;
-      sawaError = NetworkTimeoutException('Sawa service timed out');
-    } catch (e) {
-      // Record the primary failure (likely a BackendUnavailableException-equivalent)
-      sawaError = e;
-    }
-
-    // Tier 3 ── OpenFoodFacts fallback.
-    try {
-      final offProduct =
-          await openFoodFactsDataSource.getProductByBarcode(gtin);
-      if (offProduct != null) {
-        final entity = _toEntity(offProduct);
-        await localDataSource.cacheProduct(entity);
-        return entity;
-      }
-      offNotFound = true;
-    } on FallbackConfigurationException catch (e) {
-      offError = e;
-    } catch (e) {
-      offError = FallbackUnavailableException(e.toString());
-    }
-
-    // Tier 4 ── Stale cache (graceful degradation).
-    if (cached != null) {
-      return cached;
-    }
-
-    // Reachable if both failed or were not found.
-    if (sawaNotFound && offNotFound) {
       throw ProductNotFoundException('Product not found for GTIN: $gtin');
+    } on NetworkTimeoutException catch (e) {
+      if (cached != null) return cached;
+      throw BackendUnavailableException('Sawa service timed out: ${e.toString()}');
+    } catch (e) {
+      if (cached != null) return cached;
+      throw BackendUnavailableException(e.toString());
     }
-
-    // If we're here, we failed to fulfill the request. Distinguish why.
-    if (offError is FallbackConfigurationException) {
-      throw offError;
-    }
-    
-    // If the primary failed but the fallback didn't have the product (offNotFound),
-    // then the ultimate reason the user didn't get results was the backend failure.
-    if (sawaError != null) {
-      throw BackendUnavailableException(sawaError.toString());
-    }
-
-    if (offError != null) {
-      throw FallbackUnavailableException(offError.toString());
-    }
-
-    throw ServerException('Unable to retrieve product for GTIN: $gtin');
-
   }
 
 

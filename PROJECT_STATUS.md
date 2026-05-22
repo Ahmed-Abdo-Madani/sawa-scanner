@@ -40,6 +40,10 @@
 - [x] Optimize Multi-Store GTIN Scrapers: Integrated high-speed Zid storefront API fast path via Axios initial state extraction and relaxed Playwright navigation wait states to 'domcontentloaded' for both Zid and Salla, resolving all browser hangs and timeouts.
 - [x] Execute and validate direct 5-store dry run (`dryrun-5stores.ts`) sequentially processing Arabic products with custom `BYPASS_ROBOTS_TXT=true` control, confirming excellent anti-bot evasion and database robustness.
 - [x] Implement and validate **Interleaved Multi-Store GTIN Scraping & Host-Based Smart Throttling** which round-robins product matching tasks across different domains in BullMQ and reduces consecutive different-host delays from 3000ms to 200-500ms jitter, achieving up to a 10x backfill throughput speedup.
+- [x] Resolve Redis Cloud memory saturation (OOM "command not allowed") by implementing a dynamic backpressured progressive enqueuing loop and a dedicated queue obliteration script, keeping active Redis RAM under 7MB (well below the 30MB Redis Labs limit).
+- [x] Swapped out the client-side fallback to OpenFoodFacts (OFF) for missing GTINs with a backend e-commerce live scraper that triggers parallel searches across 6 stores (Shonaksa, Yasmin, Mr Logman, Park Center, Menhal, Etaam Express).
+- [x] Redesigned the mobile scanning module's card overlay carousel to display a premium glassmorphic UI layout, featuring custom pulsing e-commerce search skeletons and elegant OLED card designs representing lowest, highest, and average prices with a responsive store matrix.
+- [x] Enforced absolute localization sync between Arabic and English .arb files, resolving all compilation errors and widget smoke tests.
 
 ## Architecture Decisions
 - **Bypass Robots.txt Control**: Added `BYPASS_ROBOTS_TXT=true` toggle option to `RobotsTxtService` and `BaseScraper` to bypass strict local robots.txt blocks for administrative backfill jobs on domains that block general `/products?q=` routes (like `menhal.sa`), preventing task termination.
@@ -70,6 +74,12 @@
   - *Interleaved Dispatch*: Instead of enqueuing all products for store A and then all products for store B (which causes sequential backend workers to hit the same store repeatedly), we fetch products lacking GTINs once, and enqueue their search tasks round-robin (Product 1 Store A, Product 1 Store B... Product 2 Store A...).
   - *Host-Based Smart Throttling*: BaseScraper tracks the last-accessed domain and timestamp statically. Consecutive requests to the **same** host are subjected to the standard `ETAAM_SCRAPER_REQUEST_DELAY_MS` delay (e.g. 3s + jitter). Consecutive requests to a **different** host bypass this delay and sleep for a tiny organic jitter (200-500ms). This yields up to a **10x speedup** on multi-store queues without triggering rate limiting or anti-bot blocks.
   - *Instant Skipping*: Once a GTIN is successfully discovered and committed for a product, any subsequent interleaved jobs for that same product on other stores immediately detect the newly added GTIN in the DB and complete in under 1ms, preventing duplicate network requests.
+- **Redis Queue Memory Management & Backpressure**:
+  - *Root Cause of OOM*: The system uses Redis Enterprise Cloud, which limits database size to 30MB on the entry tier. Since Salla and Zid scrapers run sequentially (concurrency 1) to bypass anti-bot shields, mass-enqueuing 40k+ tasks simultaneously creates massive waiting structures. BullMQ's automatic `removeOnComplete` and `removeOnFail` rules only purge jobs *after* they finish; waiting and active jobs stay in memory, leading to Redis OOM.
+  - *Dynamic Backpressure*: The CLI trigger script dynamically polls the queue size via `ioredis` before enqueuing next chunks. It implements a high-water threshold of **500 waiting/active jobs**. If this limit is breached, the script sleeps for 30s before attempting to enqueue the next chunk.
+  - *Stale Queue Draining*: Leveraged a dedicated script `clear-etaam-gtin-queues.ts` to obliterate stale or bulk-enqueued waiting states, instantly releasing memory (from 29.99MB back to ~6.6MB).
+
+
 
 
 ## Environment & Configuration

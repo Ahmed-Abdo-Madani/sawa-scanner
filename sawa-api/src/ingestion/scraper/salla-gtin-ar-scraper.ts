@@ -265,6 +265,18 @@ export class SallaGtinArScraper extends BaseScraper {
       return null;
     }
 
+    const isPureBarcode = /^\d{8,14}$/.test(productNameAr);
+    if (isPureBarcode) {
+      this.logger.log(`[Barcode Bypass] Pure barcode query detected: ${productNameAr}. Returning first candidate.`);
+      return {
+        name: searchResults[0].name,
+        url: searchResults[0].url,
+        image: searchResults[0].image,
+        similarity: 1.0,
+        matchMethod: 'text',
+      };
+    }
+
     let bestMatch: SallaArProductMatch | null = null;
     const normalizedQuery = this.normalizeArabic(productNameAr);
     const brandToken = normalizedQuery
@@ -546,5 +558,176 @@ export class SallaGtinArScraper extends BaseScraper {
     return true;
   }
 
+  private parseProductDetailsFromHtml(html: string): { gtin: string | null; price: number | null; name: string | null; image: string | null } | null {
+    const ldMatches = html.match(/<script\s+type="application\/ld\+json">([\s\S]*?)<\/script>/gi);
+    let name: string | null = null;
+    let image: string | null = null;
+    let gtin: string | null = null;
+    let price: number | null = null;
 
+    if (ldMatches) {
+      for (const script of ldMatches) {
+        try {
+          const jsonText = script
+            .replace(/<script\s+type="application\/ld\+json">/i, '')
+            .replace(/<\/script>/i, '')
+            .trim();
+          const json = JSON.parse(jsonText);
+          const products = Array.isArray(json) ? json : [json];
+          const product = products.find((i: any) => i['@type'] === 'Product');
+          if (product) {
+            if (!name && product.name) name = String(product.name);
+            if (!image && product.image) {
+              if (typeof product.image === 'string') image = product.image;
+              else if (Array.isArray(product.image) && product.image.length > 0) {
+                image = typeof product.image[0] === 'string' ? product.image[0] : (product.image[0]?.url || null);
+              } else if (typeof product.image === 'object') {
+                image = product.image.url || null;
+              }
+            }
+            if (!gtin) {
+              gtin = product.gtin13 || product.sku || product.gtin12 || product.gtin || null;
+            }
+            if (price === null && product.offers) {
+              const offers = product.offers;
+              if (typeof offers.price !== 'undefined') {
+                price = parseFloat(String(offers.price));
+              } else if (typeof offers.lowPrice !== 'undefined') {
+                price = parseFloat(String(offers.lowPrice));
+              } else if (Array.isArray(offers) && offers.length > 0) {
+                price = parseFloat(String(offers[0].price));
+              }
+            }
+          }
+        } catch { /* ignore */ }
+      }
+    }
+
+    if (!gtin) {
+      gtin = this.parseGtinFromHtml(html);
+    }
+    if (!name) {
+      const ogTitle = html.match(/<meta\s+property="og:title"\s+content="([^"]+)"/i) ||
+                    html.match(/<meta\s+name="twitter:title"\s+content="([^"]+)"/i);
+      if (ogTitle) name = ogTitle[1];
+      else {
+        const titleMatch = html.match(/<title>([\s\S]*?)<\/title>/i);
+        if (titleMatch) name = titleMatch[1].trim();
+      }
+    }
+    if (!image) {
+      const ogImage = html.match(/<meta\s+property="og:image"\s+content="([^"]+)"/i);
+      if (ogImage) image = ogImage[1];
+    }
+    if (price === null) {
+      const priceMeta = html.match(/<meta\s+property="product:price:amount"\s+content="([^"]+)"/i) ||
+                        html.match(/<meta\s+name="twitter:data1"\s+content="([^"]+)"/i) ||
+                        html.match(/class="[^"]*price[^"]*"[^>]*>\s*([\d.]+)/i) ||
+                        html.match(/"price"\s*:\s*"([\d.]+)"/i) ||
+                        html.match(/"price"\s*:\s*([\d.]+)"/i);
+      if (priceMeta) {
+        const parsed = parseFloat(priceMeta[1]);
+        if (!isNaN(parsed)) price = parsed;
+      }
+    }
+
+    if (name || gtin || price !== null || image) {
+      return { gtin, price, name, image };
+    }
+    return null;
+  }
+
+  async scrapeProductDetails(productUrl: string): Promise<{ gtin: string | null; price: number | null; name: string | null; image: string | null } | null> {
+    const html = await this.fetchHtmlWithAxios(productUrl);
+    if (html) {
+      const details = this.parseProductDetailsFromHtml(html);
+      if (details && details.gtin && details.price !== null && details.name) {
+        this.logger.log(`[Fast Path Axios] Successfully resolved product details for ${productUrl}!`);
+        return details;
+      }
+    }
+
+    this.logger.log(`[Fallback Path] Axios details retrieval incomplete or failed. Loading Playwright page...`);
+    await this.ensureLaunched();
+    if (!this.context) throw new Error('Browser context not initialized');
+
+    const page = await this.context.newPage();
+    try {
+      await this.applyHostThrottling(productUrl);
+      await this.navigateWithEvasion(page, productUrl, 'domcontentloaded', 60000, 400, 1200);
+      await page.waitForTimeout(2000);
+
+      const details = await page.evaluate(() => {
+        let name: string | null = null;
+        let image: string | null = null;
+        let gtin: string | null = null;
+        let price: number | null = null;
+
+        try {
+          const ldScripts = Array.from(document.querySelectorAll('script[type="application/ld+json"]'));
+          for (const script of ldScripts) {
+            const json = JSON.parse(script.textContent || '{}');
+            const products = Array.isArray(json) ? json : [json];
+            const product = products.find((i: any) => i['@type'] === 'Product');
+            if (product) {
+              if (!name && product.name) name = String(product.name);
+              if (!image && product.image) {
+                if (typeof product.image === 'string') image = product.image;
+                else if (Array.isArray(product.image) && product.image.length > 0) {
+                  image = typeof product.image[0] === 'string' ? product.image[0] : (product.image[0]?.url || null);
+                } else if (typeof product.image === 'object') {
+                  image = product.image.url || null;
+                }
+              }
+              if (!gtin) {
+                gtin = product.gtin13 || product.sku || product.gtin12 || product.gtin || null;
+              }
+              if (price === null && product.offers) {
+                const offers = product.offers;
+                if (typeof offers.price !== 'undefined') {
+                  price = parseFloat(String(offers.price));
+                } else if (typeof offers.lowPrice !== 'undefined') {
+                  price = parseFloat(String(offers.lowPrice));
+                }
+              }
+            }
+          }
+        } catch (e) { /* ignore */ }
+
+        if (!name) {
+          const titleHeader = document.querySelector('h1, .product-title, .title');
+          name = titleHeader?.textContent?.trim() || document.title || null;
+        }
+
+        if (!image) {
+          const mainImg = document.querySelector('.product-image img, .main-image img, img.product-main-image');
+          image = mainImg?.getAttribute('src') || mainImg?.getAttribute('data-src') || null;
+        }
+
+        if (!gtin) {
+          const skuDiv = document.querySelector('div.div-product-sku, .product-sku, .sku-label');
+          if (skuDiv?.textContent) {
+            const cleanedSku = skuDiv.textContent.replace(/[^\d]/g, '').trim();
+            if (cleanedSku && cleanedSku.length >= 8) {
+              gtin = cleanedSku;
+            }
+          }
+        }
+
+        if (price === null) {
+          const priceEl = document.querySelector('.product-price, .price, [class*="price"]');
+          if (priceEl?.textContent) {
+            const match = priceEl.textContent.match(/[\d.]+/);
+            if (match) price = parseFloat(match[0]);
+          }
+        }
+
+        return { gtin, price, name, image };
+      });
+
+      return details;
+    } finally {
+      await page.close().catch((err) => this.logger.warn(`Failed to close product details page: ${err.message}`));
+    }
+  }
 }

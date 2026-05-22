@@ -829,4 +829,41 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get enterGtinManually => 'إدخال الباركود يدوياً';
+
+  @override
+  String get lowestPrice => 'أقل سعر';
+
+  @override
+  String get averagePrice => 'متوسط السعر';
+
+  @override
+  String get highestPrice => 'أعلى سعر';
+
+  @override
+  String get scannedProductNotFoundTitle => 'المنتج غير موجود';
+
+  @override
+  String get scannedProductNotFoundDesc =>
+      'بحثنا في ٦ متاجر محلية كبرى في الوقت الفعلي ولم نعثر على هذا الباركود. هل ترغب في المحاولة مجدداً، أو إدخال البيانات يدوياً، أو الإبلاغ عن المنتج؟';
+
+  @override
+  String get retryScan => 'إعادة المسح';
+
+  @override
+  String get manualCorrectionPlaceholder => 'أدخل الباركود الصحيح...';
+
+  @override
+  String get reportMissingProduct => 'الإبلاغ عن منتج مفقود';
+
+  @override
+  String get searchByText => 'البحث بالاسم';
+
+  @override
+  String get submittingReport => 'جاري إرسال البلاغ...';
+
+  @override
+  String get reportSubmitted => 'تم إرسال البلاغ بنجاح!';
+
+  @override
+  String get searchingLiveStores => 'جاري البحث في المتاجر المحلية...';
 }

@@ -1,5 +1,7 @@
 import axios from 'axios';
 import * as dotenv from 'dotenv';
+import IORedis from 'ioredis';
+import { Queue } from 'bullmq';
 dotenv.config();
 
 const API_BASE_URL = process.env.API_BASE_URL || 'http://localhost:3000';
@@ -14,8 +16,35 @@ const targetStores = [
   { url: 'https://etaamexpress.com', platform: 'salla' },
 ];
 
+async function getQueueSize(): Promise<number> {
+  const connection = new IORedis({
+    host: process.env.REDIS_HOST || 'localhost',
+    port: parseInt(process.env.REDIS_PORT || '15087', 10),
+    username: process.env.REDIS_USERNAME,
+    password: process.env.REDIS_PASSWORD,
+    tls: process.env.REDIS_TLS === 'true' ? {} : undefined,
+  });
+
+  const queue = new Queue('etaam-gtin-ar-queue', { connection });
+  try {
+    const [waiting, active, delayed, prioritized] = await Promise.all([
+      queue.getWaitingCount(),
+      queue.getActiveCount(),
+      queue.getDelayedCount(),
+      queue.getPrioritizedCount(),
+    ]);
+    return waiting + active + delayed + prioritized;
+  } catch (err: any) {
+    console.error(`⚠️ Error reading queue size from Redis:`, err.message);
+    return 9999; // Return high number to wait if Redis is down/unreachable
+  } finally {
+    await queue.close();
+    connection.disconnect();
+  }
+}
+
 async function triggerMultiStoreGtinArScrape() {
-  console.log('🛒 Triggering Multi-Store Arabic GTIN Enrichment Pipeline...');
+  console.log('🛒 Triggering Backpressured Multi-Store Arabic GTIN Enrichment Pipeline...');
 
   // Parse command-line arguments
   const args = process.argv.slice(2);
@@ -54,40 +83,88 @@ async function triggerMultiStoreGtinArScrape() {
   console.log('Parsed configuration:', JSON.stringify(parsedFlags, null, 2));
 
   console.log(`\n----------------------------------------`);
-  console.log(`🚀 Dispatching interleaved jobs for stores: ${JSON.stringify(targetStores.map(s => s.url))}`);
+  console.log(`🚀 Dispatching interleaved jobs sequentially in chunks...`);
   
+  let offset = 0;
+  const CHUNK_SIZE = 200; // 200 products * 6 stores = 1200 jobs at a time
+  let hasMore = true;
+  let totalEnqueued = 0;
+  let totalSkipped = 0;
+
   try {
-    const payload = {
-      ...parsedFlags,
-      stores: targetStores,
-    };
+    while (hasMore) {
+      // 1. Check current queue size to avoid OOM
+      const currentQueueSize = await getQueueSize();
+      console.log(`📊 Current queue size (active/waiting/delayed): ${currentQueueSize} jobs`);
 
-    const res = await axios.post(
-      `${API_BASE_URL}/ingestion/etaam-gtin-ar/multistore`,
-      payload,
-      {
-        headers: {
-          'x-dev-admin-secret': devSecret,
+      // We set a high-water threshold of 500 jobs (e.g. less than 1 chunk remaining) before adding more
+      if (currentQueueSize > 500) {
+        console.log(`⏳ Queue size (${currentQueueSize}) exceeds safety threshold (500). Sleeping for 30 seconds...`);
+        await new Promise(resolve => setTimeout(resolve, 30000));
+        continue;
+      }
+
+      // If we have reached the user-defined limit, truncate the next chunk size
+      const remainingLimit = parsedFlags.limit - (totalEnqueued / targetStores.length);
+      if (remainingLimit <= 0) {
+        console.log(`🎉 Reached user-defined product limit (${parsedFlags.limit}). Stopping enqueue loop.`);
+        break;
+      }
+      const nextChunkLimit = Math.min(CHUNK_SIZE, remainingLimit);
+
+      console.log(`🚀 Enqueuing chunk: offset=${offset}, limit=${nextChunkLimit} products...`);
+
+      const payload = {
+        ...parsedFlags,
+        limit: nextChunkLimit,
+        offset,
+        stores: targetStores,
+      };
+
+      const res = await axios.post(
+        `${API_BASE_URL}/ingestion/etaam-gtin-ar/multistore`,
+        payload,
+        {
+          headers: {
+            'x-dev-admin-secret': devSecret,
+          },
         },
-      },
-    );
+      );
 
-    const { enqueued, skipped } = res.data;
-    console.log(`✅ Success: enqueued=${enqueued}, skipped=${skipped}`);
+      const { enqueued, skipped } = res.data;
+      console.log(`   └─ Response: enqueued=${enqueued}, skipped=${skipped}`);
+
+      totalEnqueued += enqueued;
+      totalSkipped += skipped;
+
+      // If enqueued is less than requested chunk limit, database has no more products
+      if (enqueued < nextChunkLimit * targetStores.length) {
+        console.log(`🎉 All products in database successfully enqueued.`);
+        hasMore = false;
+        break;
+      }
+
+      // Move to next page offset
+      offset += nextChunkLimit;
+
+      // Rest for 5 seconds between enqueues to let BullMQ settle
+      await new Promise(resolve => setTimeout(resolve, 5000));
+    }
+
     console.log(`\n========================================`);
     console.log(`🎉 Pipeline Dispatch Complete!`);
-    console.log(`📈 Total Enqueued: ${enqueued}`);
-    console.log(`⚠️ Total Skipped:  ${skipped}`);
+    console.log(`📈 Total Enqueued: ${totalEnqueued}`);
+    console.log(`⚠️ Total Skipped:  ${totalSkipped}`);
     console.log(`📊 Monitor the Bull Board at ${API_BASE_URL}/admin/queues to track progress.`);
   } catch (error: any) {
     console.error(`❌ Failed to trigger interleaved enrichment:`);
-    console.error('Full Error:', error);
-    if (error.response?.status === 401 || error.response?.status === 403) {
-      console.error(
-        'ℹ️  Authentication failed. Check DEV_ADMIN_SECRET in .env',
-      );
-      process.exit(1);
+    if (error.response) {
+      console.error(`   └─ Status: ${error.response.status}`);
+      console.error(`   └─ Data:`, error.response.data);
+    } else {
+      console.error(error.message);
     }
+    process.exit(1);
   }
 }
 

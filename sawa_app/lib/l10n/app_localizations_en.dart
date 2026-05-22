@@ -829,4 +829,41 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get enterGtinManually => 'Enter GTIN Manually';
+
+  @override
+  String get lowestPrice => 'Lowest Price';
+
+  @override
+  String get averagePrice => 'Average Price';
+
+  @override
+  String get highestPrice => 'Highest Price';
+
+  @override
+  String get scannedProductNotFoundTitle => 'Product Not Found';
+
+  @override
+  String get scannedProductNotFoundDesc =>
+      'We searched 6 major local stores in real-time but couldn\'t find this barcode. Would you like to try again, enter the details manually, or report it?';
+
+  @override
+  String get retryScan => 'Scan Again';
+
+  @override
+  String get manualCorrectionPlaceholder => 'Enter correct barcode...';
+
+  @override
+  String get reportMissingProduct => 'Report Missing Product';
+
+  @override
+  String get searchByText => 'Search by Text';
+
+  @override
+  String get submittingReport => 'Submitting report...';
+
+  @override
+  String get reportSubmitted => 'Report submitted successfully!';
+
+  @override
+  String get searchingLiveStores => 'Searching local stores in real-time...';
 }

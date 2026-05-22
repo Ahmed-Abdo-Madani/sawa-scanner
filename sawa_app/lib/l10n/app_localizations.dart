@@ -1639,6 +1639,78 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Enter GTIN Manually'**
   String get enterGtinManually;
+
+  /// No description provided for @lowestPrice.
+  ///
+  /// In en, this message translates to:
+  /// **'Lowest Price'**
+  String get lowestPrice;
+
+  /// No description provided for @averagePrice.
+  ///
+  /// In en, this message translates to:
+  /// **'Average Price'**
+  String get averagePrice;
+
+  /// No description provided for @highestPrice.
+  ///
+  /// In en, this message translates to:
+  /// **'Highest Price'**
+  String get highestPrice;
+
+  /// No description provided for @scannedProductNotFoundTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Product Not Found'**
+  String get scannedProductNotFoundTitle;
+
+  /// No description provided for @scannedProductNotFoundDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'We searched 6 major local stores in real-time but couldn\'t find this barcode. Would you like to try again, enter the details manually, or report it?'**
+  String get scannedProductNotFoundDesc;
+
+  /// No description provided for @retryScan.
+  ///
+  /// In en, this message translates to:
+  /// **'Scan Again'**
+  String get retryScan;
+
+  /// No description provided for @manualCorrectionPlaceholder.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter correct barcode...'**
+  String get manualCorrectionPlaceholder;
+
+  /// No description provided for @reportMissingProduct.
+  ///
+  /// In en, this message translates to:
+  /// **'Report Missing Product'**
+  String get reportMissingProduct;
+
+  /// No description provided for @searchByText.
+  ///
+  /// In en, this message translates to:
+  /// **'Search by Text'**
+  String get searchByText;
+
+  /// No description provided for @submittingReport.
+  ///
+  /// In en, this message translates to:
+  /// **'Submitting report...'**
+  String get submittingReport;
+
+  /// No description provided for @reportSubmitted.
+  ///
+  /// In en, this message translates to:
+  /// **'Report submitted successfully!'**
+  String get reportSubmitted;
+
+  /// No description provided for @searchingLiveStores.
+  ///
+  /// In en, this message translates to:
+  /// **'Searching local stores in real-time...'**
+  String get searchingLiveStores;
 }
 
 class _AppLocalizationsDelegate

@@ -323,5 +323,17 @@
   },
   "allBrands": "كل العلامات التجارية",
   "allCategories": "كل الفئات",
-  "enterGtinManually": "إدخال الباركود يدوياً"
+  "enterGtinManually": "إدخال الباركود يدوياً",
+  "lowestPrice": "أقل سعر",
+  "averagePrice": "متوسط السعر",
+  "highestPrice": "أعلى سعر",
+  "scannedProductNotFoundTitle": "المنتج غير موجود",
+  "scannedProductNotFoundDesc": "بحثنا في ٦ متاجر محلية كبرى في الوقت الفعلي ولم نعثر على هذا الباركود. هل ترغب في المحاولة مجدداً، أو إدخال البيانات يدوياً، أو الإبلاغ عن المنتج؟",
+  "retryScan": "إعادة المسح",
+  "manualCorrectionPlaceholder": "أدخل الباركود الصحيح...",
+  "reportMissingProduct": "الإبلاغ عن منتج مفقود",
+  "searchByText": "البحث بالاسم",
+  "submittingReport": "جاري إرسال البلاغ...",
+  "reportSubmitted": "تم إرسال البلاغ بنجاح!",
+  "searchingLiveStores": "جاري البحث في المتاجر المحلية..."
 }

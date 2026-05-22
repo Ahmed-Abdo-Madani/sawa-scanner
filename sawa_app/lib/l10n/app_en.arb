@@ -323,5 +323,17 @@
   },
   "allBrands": "All Brands",
   "allCategories": "All Categories",
-  "enterGtinManually": "Enter GTIN Manually"
+  "enterGtinManually": "Enter GTIN Manually",
+  "lowestPrice": "Lowest Price",
+  "averagePrice": "Average Price",
+  "highestPrice": "Highest Price",
+  "scannedProductNotFoundTitle": "Product Not Found",
+  "scannedProductNotFoundDesc": "We searched 6 major local stores in real-time but couldn't find this barcode. Would you like to try again, enter the details manually, or report it?",
+  "retryScan": "Scan Again",
+  "manualCorrectionPlaceholder": "Enter correct barcode...",
+  "reportMissingProduct": "Report Missing Product",
+  "searchByText": "Search by Text",
+  "submittingReport": "Submitting report...",
+  "reportSubmitted": "Report submitted successfully!",
+  "searchingLiveStores": "Searching local stores in real-time..."
 }

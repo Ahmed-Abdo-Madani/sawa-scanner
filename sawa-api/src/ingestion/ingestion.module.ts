@@ -133,7 +133,13 @@ import { ZidGtinArScraper } from './scraper/zid-gtin-ar-scraper';
     BrandAliasCache,
     EmbeddingCache,
   ],
-  exports: [IngestionService, OpenFoodFactsDumpService, ImageHashService],
+  exports: [
+    IngestionService,
+    OpenFoodFactsDumpService,
+    ImageHashService,
+    SallaGtinArScraper,
+    ZidGtinArScraper,
+  ],
 })
 export class IngestionModule implements OnModuleInit {
   private readonly logger = new Logger(IngestionModule.name);

@@ -120,6 +120,7 @@ export class EtaamGtinArService {
     similarityThreshold: number = 0.7,
     dryRun: boolean = false,
     stores: Array<{ url: string; platform: 'salla' | 'zid' }> = [],
+    offset: number = 0,
   ): Promise<{ enqueued: number; skipped: number }> {
     let merchantIds: string[] = [];
     if (merchantName) {
@@ -153,10 +154,12 @@ export class EtaamGtinArService {
       );
     }
 
-    query.limit(limit);
+    query.orderBy('product.id', 'ASC')
+         .limit(limit)
+         .offset(offset);
 
     const products = await query.getMany();
-    this.logger.log(`[AR-Interleaved] Found ${products.length} products with Arabic names and no GTIN for merchant ${merchantName}`);
+    this.logger.log(`[AR-Interleaved] Found ${products.length} products with Arabic names and no GTIN for merchant ${merchantName} (offset: ${offset}, limit: ${limit})`);
 
     const targetStores = stores.length > 0 ? stores : [
       { url: 'https://parkcentersa.com', platform: 'zid' as const },

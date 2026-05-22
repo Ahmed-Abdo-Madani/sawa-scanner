@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ProductsService } from './products.service';
 import { ProductsController } from './products.controller';
@@ -15,6 +15,7 @@ import { ProductMergeLog } from '../entities/product-merge-log.entity';
 import { AdminProductsController } from './admin-products.controller';
 import { AdminProductsService } from './admin-products.service';
 import { ProductMergeService } from './product-merge.service';
+import { IngestionModule } from '../ingestion/ingestion.module';
 
 @Module({
   imports: [
@@ -29,6 +30,7 @@ import { ProductMergeService } from './product-merge.service';
       Merchant,
       ProductMergeLog,
     ]),
+    forwardRef(() => IngestionModule),
   ],
   controllers: [ProductsController, AdminProductsController],
   providers: [ProductsService, AdminProductsService, ProductMergeService],

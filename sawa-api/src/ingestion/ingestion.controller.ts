@@ -166,6 +166,7 @@ export class IngestionController {
       threshold?: number;
       dryRun?: boolean;
       stores?: Array<{ url: string; platform: 'salla' | 'zid' }>;
+      offset?: number;
     },
   ) {
     const {
@@ -174,6 +175,7 @@ export class IngestionController {
       threshold = 0.7,
       dryRun = false,
       stores = [],
+      offset = 0,
     } = body;
     return this.etaamGtinArService.enqueueMissingGtinsInterleaved(
       limit,
@@ -181,6 +183,7 @@ export class IngestionController {
       threshold,
       dryRun,
       stores,
+      offset,
     );
   }
 
