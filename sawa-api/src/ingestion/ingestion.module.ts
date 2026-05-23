@@ -58,6 +58,11 @@ import { EtaamGtinArProcessor } from './etaam-gtin-ar.processor';
 import { EtaamGtinArScraper } from './scraper/etaam-gtin-ar-scraper';
 import { SallaGtinArScraper } from './scraper/salla-gtin-ar-scraper';
 import { ZidGtinArScraper } from './scraper/zid-gtin-ar-scraper';
+import { ShonaksaGtinArScraper } from './scraper/shonaksa-gtin-ar-scraper';
+import { YasminGtinArScraper } from './scraper/yasmin-gtin-ar-scraper';
+import { MrLogmanGtinArScraper } from './scraper/mrlogman-gtin-ar-scraper';
+import { ParkCenterGtinArScraper } from './scraper/parkcenter-gtin-ar-scraper';
+import { MenhalGtinArScraper } from './scraper/menhal-gtin-ar-scraper';
 
 @Module({
   imports: [
@@ -111,6 +116,11 @@ import { ZidGtinArScraper } from './scraper/zid-gtin-ar-scraper';
     EtaamGtinArScraper,
     SallaGtinArScraper,
     ZidGtinArScraper,
+    ShonaksaGtinArScraper,
+    YasminGtinArScraper,
+    MrLogmanGtinArScraper,
+    ParkCenterGtinArScraper,
+    MenhalGtinArScraper,
     GtinBackfillService,
     VertexGeminiGtinMatchProvider,
     OllamaGtinMatchProvider,
@@ -139,6 +149,12 @@ import { ZidGtinArScraper } from './scraper/zid-gtin-ar-scraper';
     ImageHashService,
     SallaGtinArScraper,
     ZidGtinArScraper,
+    ShonaksaGtinArScraper,
+    YasminGtinArScraper,
+    MrLogmanGtinArScraper,
+    ParkCenterGtinArScraper,
+    MenhalGtinArScraper,
+    EtaamGtinArScraper,
     OpenFoodFactsService,
   ],
 })

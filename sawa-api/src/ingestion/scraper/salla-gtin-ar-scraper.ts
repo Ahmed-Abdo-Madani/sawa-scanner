@@ -17,6 +17,22 @@ export interface SallaArProductMatch {
   hammingDistance?: number;
 }
 
+export function isGenericButtonOrLabel(name: string): boolean {
+  if (!name) return true;
+  const clean = name.trim().replace(/\s+/g, ' ').toLowerCase();
+  const blacklisted = [
+    'اضف الى السلة', 'أضف إلى السلة', 'اضف للسلة', 'أضف للسلة',
+    'اضافة للسلة', 'إضافة للسلة', 'اضافة الى السلة', 'إضافة إلى السلة',
+    'اشتر الآن', 'اشتري الآن', 'شراء الآن', 'نفدت الكمية', 'نفذت الكمية',
+    'غير متوفر', 'تفاصيل المنتج', 'عرض المنتج', 'قراءة المزيد', 'تفاصيل',
+    'المزيد', 'سلة المشتريات', 'أضف للمقارنة', 'أضف للمفضلة', 'معاينة', 'سريع',
+    'add to cart', 'add to basket', 'buy now', 'out of stock', 'sold out',
+    'read more', 'details', 'view product', 'quick view', 'add to wishlist',
+    'add to compare', 'go to cart'
+  ];
+  return clean.length <= 2 || blacklisted.some(term => clean === term);
+}
+
 const BRAND_GUARD_STOPWORDS_AR = new Set([
   // Colors (Arabic)
   'أصفر', 'أحمر', 'أخضر', 'أزرق', 'أبيض', 'أسود', 'ذهبي', 'بني', 'برتقالي',
@@ -92,14 +108,11 @@ export class SallaGtinArScraper extends BaseScraper {
     return '';
   }
 
-  private isValidSallaProductUrl(url: string): boolean {
+  private isValidSallaProductUrl(url: string, baseUrl?: string): boolean {
     if (!url) return false;
     try {
       const lower = url.toLowerCase();
       if (lower.startsWith('mailto:') || lower.startsWith('tel:') || lower.startsWith('javascript:') || lower.startsWith('whatsapp:') || lower.startsWith('sms:')) {
-        return false;
-      }
-      if (!/[\/-]p\d+/.test(lower)) {
         return false;
       }
       if (lower.includes('/c/') || lower.includes('/category/') || lower.includes('/categories/')) {
@@ -108,12 +121,41 @@ export class SallaGtinArScraper extends BaseScraper {
       const blacklist = [
         '/cart', '/checkout', '/wishlist', '/login', '/register', '/sign-in', '/sign-up', 
         '/logout', '/profile', '/account', '/contact', '/about', '/terms', '/privacy', 
-        '/shipping', '/refund', '/faq', '/help', '/support', '/home', '/search'
+        '/shipping', '/refund', '/faq', '/help', '/support', '/home', '/search', '/pages/'
       ];
       if (blacklist.some(term => lower.includes(term))) {
         return false;
       }
-      return true;
+
+      if (url.startsWith('http://') || url.startsWith('https://')) {
+        const parsed = new URL(url);
+        if (baseUrl) {
+          const baseParsed = new URL(baseUrl);
+          if (parsed.host !== baseParsed.host) {
+            return false;
+          }
+        } else {
+          const host = parsed.host.toLowerCase();
+          if (host.includes('wa.me') || host.includes('whatsapp') || host.includes('facebook') || host.includes('instagram') || host.includes('twitter') || host.includes('youtube') || host.includes('snapchat')) {
+            return false;
+          }
+        }
+      }
+
+      // Standard Salla route with p followed by ID
+      if (/[\/-]p\d+/.test(lower)) {
+        return true;
+      }
+      // Clean SEO URL suffix containing SKU barcode prefix
+      const lastSegment = lower.split('/').pop() || '';
+      if (/^\d{6,}/.test(lastSegment)) {
+        return true;
+      }
+      // Generic fallback for any URLs containing a barcode digits pattern
+      if (/\b\d{8,14}\b/.test(lower)) {
+        return true;
+      }
+      return false;
     } catch {
       return false;
     }
@@ -192,8 +234,9 @@ export class SallaGtinArScraper extends BaseScraper {
     localHashes?: string[],
     baseUrl: string = 'https://etaamexpress.com',
   ): Promise<SallaArProductMatch[]> {
+    productNameAr = productNameAr.trim();
     const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
-    let searchUrl = `${cleanBaseUrl}/ar/search?q=${encodeURIComponent(productNameAr)}`;
+    let searchUrl = `${cleanBaseUrl}/search?q=${encodeURIComponent(productNameAr)}`;
 
     this.logger.log(`[Salla Scraper] Gathering search candidates for "${productNameAr}" on store: ${baseUrl}...`);
 
@@ -202,7 +245,8 @@ export class SallaGtinArScraper extends BaseScraper {
     // --- Fast Path: Axios ---
     const html = await this.fetchHtmlWithAxios(searchUrl);
     if (html) {
-      searchResults = this.parseSallaJsonLd(html);
+      const parsed = this.parseSallaJsonLd(html);
+      searchResults = parsed.filter(r => !isGenericButtonOrLabel(r.name));
       if (searchResults.length > 0) {
         this.logger.log(`[Fast Path Axios] Successfully scraped ${searchResults.length} search candidates via Axios!`);
       }
@@ -218,7 +262,15 @@ export class SallaGtinArScraper extends BaseScraper {
       try {
         await this.applyHostThrottling(searchUrl);
         await this.navigateWithEvasion(page, searchUrl, 'domcontentloaded', 60000, 400, 1200);
-        await page.waitForTimeout(2000);
+        
+        try {
+          await page.waitForSelector('custom-salla-product-card a, salla-product-card a, salla-products-list a, .product-block a, .product-card a, salla-empty-state, .s-infinite-scroll-empty, .no-results', {
+            timeout: 3000,
+          });
+        } catch (e) {
+          this.logger.debug(`[Salla Scraper] Timeout waiting for product selectors on search page: ${e.message}`);
+        }
+        await page.waitForTimeout(500);
 
         searchResults = await page.evaluate(() => {
           function parseImageUrl(imageField: any): string | null {
@@ -237,25 +289,56 @@ export class SallaGtinArScraper extends BaseScraper {
 
           function isValidSallaProductUrl(url: string): boolean {
             if (!url) return false;
-            const lower = url.toLowerCase();
-            if (lower.startsWith('mailto:') || lower.startsWith('tel:') || lower.startsWith('javascript:') || lower.startsWith('whatsapp:') || lower.startsWith('sms:')) {
+            try {
+              const parsed = new URL(url, window.location.href);
+              if (parsed.host !== window.location.host) {
+                return false; // MUST be on the same domain
+              }
+              const lower = parsed.pathname.toLowerCase();
+              if (lower.includes('/c/') || lower.includes('/category/') || lower.includes('/categories/')) {
+                return false;
+              }
+              const blacklist = [
+                '/cart', '/checkout', '/wishlist', '/login', '/register', '/sign-in', '/sign-up', 
+                '/logout', '/profile', '/account', '/contact', '/about', '/terms', '/privacy', 
+                '/shipping', '/refund', '/faq', '/help', '/support', '/home', '/search', '/pages/'
+              ];
+              if (blacklist.some(term => lower.includes(term))) {
+                return false;
+              }
+              // Standard Salla route with p followed by ID
+              if (/[\/-]p\d+/.test(lower)) {
+                return true;
+              }
+              // Clean SEO URL suffix containing SKU barcode prefix
+              const lastSegment = lower.split('/').pop() || '';
+              if (/^\d{6,}/.test(lastSegment)) {
+                return true;
+              }
+              // Generic fallback for any URLs containing a barcode digits pattern
+              if (/\b\d{8,14}\b/.test(lower)) {
+                return true;
+              }
+              return false;
+            } catch {
               return false;
             }
-            if (!/[\/-]p\d+/.test(lower)) {
-              return false;
-            }
-            if (lower.includes('/c/') || lower.includes('/category/') || lower.includes('/categories/')) {
-              return false;
-            }
-            const blacklist = [
-              '/cart', '/checkout', '/wishlist', '/login', '/register', '/sign-in', '/sign-up', 
-              '/logout', '/profile', '/account', '/contact', '/about', '/terms', '/privacy', 
-              '/shipping', '/refund', '/faq', '/help', '/support', '/home', '/search'
+          }
+
+          function isGenericButtonOrLabel(name: string): boolean {
+            if (!name) return true;
+            const clean = name.trim().replace(/\s+/g, ' ').toLowerCase();
+            const blacklisted = [
+              'اضف الى السلة', 'أضف إلى السلة', 'اضف للسلة', 'أضف للسلة',
+              'اضافة للسلة', 'إضافة للسلة', 'اضافة الى السلة', 'إضافة إلى السلة',
+              'اشتر الآن', 'اشتري الآن', 'شراء الآن', 'نفدت الكمية', 'نفذت الكمية',
+              'غير متوفر', 'تفاصيل المنتج', 'عرض المنتج', 'قراءة المزيد', 'تفاصيل',
+              'المزيد', 'سلة المشتريات', 'أضف للمقارنة', 'أضف للمفضلة', 'معاينة', 'سريع',
+              'add to cart', 'add to basket', 'buy now', 'out of stock', 'sold out',
+              'read more', 'details', 'view product', 'quick view', 'add to wishlist',
+              'add to compare', 'go to cart'
             ];
-            if (blacklist.some(term => lower.includes(term))) {
-              return false;
-            }
-            return true;
+            return clean.length <= 2 || blacklisted.some(term => clean === term);
           }
 
           const results: { name: string; url: string; image: string | null }[] = [];
@@ -270,7 +353,7 @@ export class SallaGtinArScraper extends BaseScraper {
                 if (obj['@type'] === 'ItemList' && Array.isArray(obj.itemListElement)) {
                   for (const el of obj.itemListElement) {
                     const product = el.item;
-                    if (product && product.name && product.url && isValidSallaProductUrl(product.url)) {
+                    if (product && product.name && product.url && isValidSallaProductUrl(product.url) && !isGenericButtonOrLabel(product.name)) {
                       results.push({
                         name: product.name,
                         url: product.url,
@@ -280,7 +363,7 @@ export class SallaGtinArScraper extends BaseScraper {
                   }
                 }
 
-                if (obj['@type'] === 'Product' && obj.name && obj.url && isValidSallaProductUrl(obj.url)) {
+                if (obj['@type'] === 'Product' && obj.name && obj.url && isValidSallaProductUrl(obj.url) && !isGenericButtonOrLabel(obj.name)) {
                   results.push({
                     name: obj.name,
                     url: obj.url,
@@ -290,7 +373,7 @@ export class SallaGtinArScraper extends BaseScraper {
 
                 if (Array.isArray(obj.itemListElement)) {
                   for (const el of obj.itemListElement) {
-                    if (el.item?.['@type'] === 'Product' && el.item.name && el.item.url && isValidSallaProductUrl(el.item.url)) {
+                    if (el.item?.['@type'] === 'Product' && el.item.name && el.item.url && isValidSallaProductUrl(el.item.url) && !isGenericButtonOrLabel(el.item.name)) {
                       results.push({
                         name: el.item.name,
                         url: el.item.url,
@@ -324,7 +407,7 @@ export class SallaGtinArScraper extends BaseScraper {
               image = imgEl.src || imgEl.getAttribute('data-src') || imgEl.getAttribute('lazy-src') || null;
             }
 
-            if (name && url && isValidSallaProductUrl(url)) {
+            if (name && url && isValidSallaProductUrl(url) && !isGenericButtonOrLabel(name)) {
               results.push({ name, url, image });
             }
           }
@@ -348,7 +431,7 @@ export class SallaGtinArScraper extends BaseScraper {
                 image = imgEl.src || imgEl.getAttribute('data-src') || null;
               }
 
-              if (name && name.length > 3 && isValidSallaProductUrl(url)) {
+              if (name && name.length > 3 && isValidSallaProductUrl(url) && !isGenericButtonOrLabel(name)) {
                 results.push({ name, url, image });
               }
             }
@@ -373,7 +456,7 @@ export class SallaGtinArScraper extends BaseScraper {
               image = imgEl.src || imgEl.getAttribute('data-src') || null;
             }
 
-            if (name && name.length > 3 && isValidSallaProductUrl(url)) {
+            if (name && name.length > 3 && isValidSallaProductUrl(url) && !isGenericButtonOrLabel(name)) {
               results.push({ name, url, image });
             }
           }
@@ -389,7 +472,7 @@ export class SallaGtinArScraper extends BaseScraper {
             if (!url || url.includes('/c/') || url.includes('/category/') || url.includes('/page-') || url.includes('facebook') || url.includes('instagram')) continue;
 
             const text = a.textContent?.trim() || '';
-            if (text.length > 5 && isValidSallaProductUrl(url)) {
+            if (text.length > 5 && isValidSallaProductUrl(url) && !isGenericButtonOrLabel(text)) {
               let image: string | null = null;
               const imgEl = a.querySelector('img') || a.parentElement?.querySelector('img');
               if (imgEl) {
@@ -408,7 +491,7 @@ export class SallaGtinArScraper extends BaseScraper {
       }
     }
 
-    searchResults = searchResults.filter((r) => this.isValidSallaProductUrl(r.url));
+    searchResults = searchResults.filter((r) => this.isValidSallaProductUrl(r.url, baseUrl));
 
     if (searchResults.length === 0) {
       return [];
@@ -552,7 +635,12 @@ export class SallaGtinArScraper extends BaseScraper {
     try {
       await this.applyHostThrottling(productUrl);
       await this.navigateWithEvasion(page, productUrl, 'domcontentloaded', 60000, 400, 1200);
-      await page.waitForTimeout(2000);
+      try {
+        await page.waitForSelector('h1, .product-title, .title, script[type="application/ld+json"]', { timeout: 5000 });
+      } catch (e) {
+        this.logger.debug(`[Salla Scraper] Timeout waiting for selectors on product page: ${e.message}`);
+      }
+      await page.waitForTimeout(500);
 
       const gtin = await page.evaluate(() => {
         try {
@@ -612,7 +700,13 @@ export class SallaGtinArScraper extends BaseScraper {
   }
 
   private parseGtinFromHtml(html: string): string | null {
-    // 1. Regex over application/ld+json matches
+    // 1. Try matching the text-unicode class or sicon-barcode structure in Salla HTML (our most direct and reliable barcode element)
+    const textUnicodeMatch = html.match(/class="[^"]*text-unicode[^"]*"[^>]*>\s*(\d{8,14})\s*</i);
+    if (textUnicodeMatch && textUnicodeMatch[1]) {
+      return textUnicodeMatch[1].trim();
+    }
+
+    // 2. Regex over application/ld+json matches, accepting only numeric barcodes
     const ldMatches = html.match(/<script\s+type="application\/ld\+json">([\s\S]*?)<\/script>/gi);
     if (ldMatches) {
       for (const script of ldMatches) {
@@ -624,18 +718,24 @@ export class SallaGtinArScraper extends BaseScraper {
           const json = JSON.parse(jsonText);
           const products = Array.isArray(json) ? json : [json];
           const product = products.find((i: any) => i['@type'] === 'Product');
-          if (product && (product.gtin13 || product.sku || product.gtin12 || product.gtin)) {
-            return String(product.gtin13 || product.sku || product.gtin12 || product.gtin);
+          if (product) {
+            const possible = product.gtin13 || product.sku || product.gtin12 || product.gtin;
+            if (possible) {
+              const cleaned = String(possible).trim();
+              if (/^\d{8,14}$/.test(cleaned)) {
+                return cleaned;
+              }
+            }
           }
         } catch { /* ignore */ }
       }
     }
 
-    // 2. Direct SKU match inside JavaScript script elements
+    // 3. Direct SKU match inside JavaScript script elements if pure numeric
     const scriptMatches = html.match(/<script\b[^>]*>([\s\S]*?)<\/script>/gi);
     if (scriptMatches) {
       for (const script of scriptMatches) {
-        const match = script.match(/"sku"\s*:\s*"(\d{8,})"/);
+        const match = script.match(/"sku"\s*:\s*"(\d{8,14})"/);
         if (match && match[1]) {
           return match[1];
         }
@@ -723,6 +823,15 @@ export class SallaGtinArScraper extends BaseScraper {
     let gtin: string | null = null;
     let price: number | null = null;
 
+    // 1. Try meta tag product:sale_price:amount FIRST to prioritize the active promotional offer price
+    const salePriceMeta = html.match(/<meta\s+property="product:sale_price:amount"\s+content="([^"]+)"/i);
+    if (salePriceMeta) {
+      const parsed = parseFloat(salePriceMeta[1]);
+      if (!isNaN(parsed)) {
+        price = parsed;
+      }
+    }
+
     if (ldMatches) {
       for (const script of ldMatches) {
         try {
@@ -731,7 +840,9 @@ export class SallaGtinArScraper extends BaseScraper {
             .replace(/<\/script>/i, '')
             .trim();
           const json = JSON.parse(jsonText);
-          const products = Array.isArray(json) ? json : [json];
+          let products = Array.isArray(json) ? json : [json];
+          const graphItems = products.filter((item: any) => Array.isArray(item['@graph'])).flatMap((item: any) => item['@graph']);
+          products = [...products, ...graphItems];
           const product = products.find((i: any) => i['@type'] === 'Product');
           if (product) {
             if (!name && product.name) name = String(product.name);
@@ -744,7 +855,14 @@ export class SallaGtinArScraper extends BaseScraper {
               }
             }
             if (!gtin) {
-              gtin = product.gtin13 || product.sku || product.gtin12 || product.gtin || null;
+              const possible = product.gtin13 || product.sku || product.gtin12 || product.gtin || null;
+              if (possible) {
+                const cleaned = String(possible).trim();
+                // Reject non-numeric slugs and paths (only accept numeric barcodes)
+                if (/^\d{8,14}$/.test(cleaned)) {
+                  gtin = cleaned;
+                }
+              }
             }
             if (price === null && product.offers) {
               const offers = product.offers;
@@ -813,7 +931,12 @@ export class SallaGtinArScraper extends BaseScraper {
     try {
       await this.applyHostThrottling(productUrl);
       await this.navigateWithEvasion(page, productUrl, 'domcontentloaded', 60000, 400, 1200);
-      await page.waitForTimeout(2000);
+      try {
+        await page.waitForSelector('h1, .product-title, .title, script[type="application/ld+json"]', { timeout: 5000 });
+      } catch (e) {
+        this.logger.debug(`[Salla Scraper] Timeout waiting for selectors on details page: ${e.message}`);
+      }
+      await page.waitForTimeout(500);
 
       const details = await page.evaluate(() => {
         let name: string | null = null;
@@ -821,11 +944,20 @@ export class SallaGtinArScraper extends BaseScraper {
         let gtin: string | null = null;
         let price: number | null = null;
 
+        // 1. Prioritize sale price meta tag first
+        const saleMeta = document.querySelector('meta[property="product:sale_price:amount"]');
+        if (saleMeta) {
+          const parsed = parseFloat(saleMeta.getAttribute('content') || '');
+          if (!isNaN(parsed)) price = parsed;
+        }
+
         try {
           const ldScripts = Array.from(document.querySelectorAll('script[type="application/ld+json"]'));
           for (const script of ldScripts) {
             const json = JSON.parse(script.textContent || '{}');
-            const products = Array.isArray(json) ? json : [json];
+            let products = Array.isArray(json) ? json : [json];
+            const graphItems = products.filter((item: any) => Array.isArray(item['@graph'])).flatMap((item: any) => item['@graph']);
+            products = [...products, ...graphItems];
             const product = products.find((i: any) => i['@type'] === 'Product');
             if (product) {
               if (!name && product.name) name = String(product.name);
@@ -838,7 +970,13 @@ export class SallaGtinArScraper extends BaseScraper {
                 }
               }
               if (!gtin) {
-                gtin = product.gtin13 || product.sku || product.gtin12 || product.gtin || null;
+                const possible = product.gtin13 || product.sku || product.gtin12 || product.gtin || null;
+                if (possible) {
+                  const cleaned = String(possible).trim();
+                  if (/^\d{8,14}$/.test(cleaned)) {
+                    gtin = cleaned;
+                  }
+                }
               }
               if (price === null && product.offers) {
                 const offers = product.offers;
@@ -863,10 +1001,20 @@ export class SallaGtinArScraper extends BaseScraper {
         }
 
         if (!gtin) {
+          const textUnicodeEl = document.querySelector('.text-unicode');
+          if (textUnicodeEl?.textContent) {
+            const cleaned = textUnicodeEl.textContent.trim();
+            if (/^\d{8,14}$/.test(cleaned)) {
+              gtin = cleaned;
+            }
+          }
+        }
+
+        if (!gtin) {
           const skuDiv = document.querySelector('div.div-product-sku, .product-sku, .sku-label');
           if (skuDiv?.textContent) {
             const cleanedSku = skuDiv.textContent.replace(/[^\d]/g, '').trim();
-            if (cleanedSku && cleanedSku.length >= 8) {
+            if (cleanedSku && cleanedSku.length >= 8 && cleanedSku.length <= 14) {
               gtin = cleanedSku;
             }
           }

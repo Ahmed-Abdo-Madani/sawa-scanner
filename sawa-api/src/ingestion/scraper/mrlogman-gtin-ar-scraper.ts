@@ -5,7 +5,7 @@ import { ImageHashService } from '../image-hash.service';
 import { SallaGtinArScraper, SallaArProductMatch } from './salla-gtin-ar-scraper';
 
 @Injectable()
-export class EtaamGtinArScraper extends SallaGtinArScraper {
+export class MrLogmanGtinArScraper extends SallaGtinArScraper {
   constructor(
     protected readonly robotsTxtService: RobotsTxtService,
     configService: ConfigService,
@@ -13,11 +13,11 @@ export class EtaamGtinArScraper extends SallaGtinArScraper {
   ) {
     super(robotsTxtService, configService, imageHashService);
     // Isolate session cookies to prevent parallel file lock conflicts
-    this.config.cookieSessionPath = './scraper-sessions/etaam-ar';
+    this.config.cookieSessionPath = './scraper-sessions/mrlogman-ar';
   }
 
   /**
-   * Searches the Arabic locale of Etaam Express (etaamexpress.com).
+   * Searches Mr Logman locale (mrlogman.com).
    */
   override async searchAndGetBestMatch(
     productNameAr: string,
@@ -28,7 +28,16 @@ export class EtaamGtinArScraper extends SallaGtinArScraper {
       productNameAr,
       threshold,
       localHashes,
-      'https://etaamexpress.com',
+      'https://mrlogman.com',
     );
+  }
+
+  override async searchAndGetCandidates(
+    productNameAr: string,
+    threshold: number = 0.5,
+    localHashes?: string[],
+    baseUrl: string = 'https://mrlogman.com',
+  ): Promise<SallaArProductMatch[]> {
+    return super.searchAndGetCandidates(productNameAr, threshold, localHashes, baseUrl);
   }
 }

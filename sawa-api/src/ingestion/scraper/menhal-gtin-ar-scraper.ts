@@ -2,10 +2,10 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { RobotsTxtService } from './robots-txt.service';
 import { ImageHashService } from '../image-hash.service';
-import { SallaGtinArScraper, SallaArProductMatch } from './salla-gtin-ar-scraper';
+import { ZidGtinArScraper, ZidArProductMatch } from './zid-gtin-ar-scraper';
 
 @Injectable()
-export class EtaamGtinArScraper extends SallaGtinArScraper {
+export class MenhalGtinArScraper extends ZidGtinArScraper {
   constructor(
     protected readonly robotsTxtService: RobotsTxtService,
     configService: ConfigService,
@@ -13,22 +13,31 @@ export class EtaamGtinArScraper extends SallaGtinArScraper {
   ) {
     super(robotsTxtService, configService, imageHashService);
     // Isolate session cookies to prevent parallel file lock conflicts
-    this.config.cookieSessionPath = './scraper-sessions/etaam-ar';
+    this.config.cookieSessionPath = './scraper-sessions/menhal-ar';
   }
 
   /**
-   * Searches the Arabic locale of Etaam Express (etaamexpress.com).
+   * Searches Menhal locale (menhal.sa).
    */
   override async searchAndGetBestMatch(
     productNameAr: string,
     threshold: number = 0.7,
     localHashes?: string[],
-  ): Promise<SallaArProductMatch | null> {
+  ): Promise<ZidArProductMatch | null> {
     return super.searchAndGetBestMatch(
       productNameAr,
       threshold,
       localHashes,
-      'https://etaamexpress.com',
+      'https://menhal.sa',
     );
+  }
+
+  override async searchAndGetCandidates(
+    productNameAr: string,
+    threshold: number = 0.5,
+    localHashes?: string[],
+    baseUrl: string = 'https://menhal.sa',
+  ): Promise<ZidArProductMatch[]> {
+    return super.searchAndGetCandidates(productNameAr, threshold, localHashes, baseUrl);
   }
 }

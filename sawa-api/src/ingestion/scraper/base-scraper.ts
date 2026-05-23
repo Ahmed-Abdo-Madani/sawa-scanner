@@ -34,48 +34,25 @@ export abstract class BaseScraper {
   ) {}
 
   protected async applyHostThrottling(targetUrl: string): Promise<void> {
-    try {
-      const targetHost = new URL(targetUrl).hostname;
-      const delayBase = parseInt(process.env.ETAAM_SCRAPER_REQUEST_DELAY_MS || '3000', 10);
-      const now = Date.now();
-
-      if (BaseScraper.lastAccessedHost === targetHost) {
-        // Same host! We must throttle to protect this specific store.
-        const elapsed = now - BaseScraper.lastAccessTime;
-        const jitterFactor = 0.8 + Math.random() * 0.4;
-        const requiredDelay = Math.round(delayBase * jitterFactor);
-
-        if (elapsed < requiredDelay) {
-          const remainingDelay = requiredDelay - elapsed;
-          this.logger.debug(
-            `[Throttling] Same host "${targetHost}" detected. Elapsed: ${elapsed}ms. Sleeping for remaining ${remainingDelay}ms...`,
-          );
-          await new Promise((resolve) => setTimeout(resolve, remainingDelay));
-        } else {
-          this.logger.debug(
-            `[Throttling] Same host "${targetHost}" detected. But elapsed (${elapsed}ms) >= required delay (${requiredDelay}ms). No sleep needed.`,
-          );
-        }
-      } else {
-        // Different host! Just sleep for a very brief natural jitter (200-500ms)
-        const minorJitter = Math.round(200 + Math.random() * 300);
-        this.logger.debug(
-          `[Throttling] Switch host: "${BaseScraper.lastAccessedHost || 'None'}" -> "${targetHost}". Fast path: sleeping only ${minorJitter}ms jitter...`,
-        );
-        await new Promise((resolve) => setTimeout(resolve, minorJitter));
-      }
-
-      // Update tracking state
-      BaseScraper.lastAccessedHost = targetHost;
-      BaseScraper.lastAccessTime = Date.now();
-    } catch (err: any) {
-      this.logger.warn(`Failed to apply host throttling: ${err.message}`);
-    }
+    // Throttling disabled for live on-demand barcode scanning to ensure fast response times
+    return Promise.resolve();
   }
 
   /** Returns true when the browser context is alive and usable. */
   isLaunched(): boolean {
-    return this.context !== null;
+    if (this.context === null) return false;
+    try {
+      // pages() is synchronous in Playwright. If context/browser is closed, it will throw.
+      this.context.pages();
+      return true;
+    } catch (err: any) {
+      this.logger.warn(
+        `Sanity check failed: Browser context is closed or crashed (${err.message}). Resetting references.`,
+      );
+      this.context = null;
+      this.browser = null;
+      return false;
+    }
   }
 
   /**
@@ -116,28 +93,51 @@ export abstract class BaseScraper {
       : { width: 1280, height: 800 };
     const userAgent = getRandomUA(isMobile ? 'mobile' : 'desktop');
 
-    if (this.config.cookieSessionPath) {
-      const sessionPath = `${this.config.cookieSessionPath}-${process.pid}`;
-      this.context = await chromium.launchPersistentContext(
-        sessionPath,
-        {
-          ...launchOptions,
+    try {
+      if (this.config.cookieSessionPath) {
+        const sessionPath = `${this.config.cookieSessionPath}-${process.pid}`;
+        this.context = await chromium.launchPersistentContext(
+          sessionPath,
+          {
+            ...launchOptions,
+            userAgent,
+            viewport,
+            deviceScaleFactor: isMobile ? 3 : 1,
+            isMobile,
+            hasTouch: isMobile,
+          },
+        );
+      } else {
+        this.browser = await chromium.launch(launchOptions);
+        this.context = await this.browser.newContext({
           userAgent,
           viewport,
           deviceScaleFactor: isMobile ? 3 : 1,
           isMobile,
           hasTouch: isMobile,
-        },
-      );
-    } else {
-      this.browser = await chromium.launch(launchOptions);
-      this.context = await this.browser.newContext({
-        userAgent,
-        viewport,
-        deviceScaleFactor: isMobile ? 3 : 1,
-        isMobile,
-        hasTouch: isMobile,
-      });
+        });
+      }
+
+      if (this.context) {
+        this.context.on('close', () => {
+          this.logger.warn('Browser context closed. Resetting references.');
+          this.context = null;
+          this.browser = null;
+        });
+      }
+
+      if (this.browser) {
+        this.browser.on('disconnected', () => {
+          this.logger.warn('Browser disconnected. Resetting references.');
+          this.context = null;
+          this.browser = null;
+        });
+      }
+    } catch (err: any) {
+      this.logger.error(`Failed to launch browser/context: ${err.message}`);
+      this.context = null;
+      this.browser = null;
+      throw err;
     }
 
     // Block unnecessary resources to massively speed up page loads

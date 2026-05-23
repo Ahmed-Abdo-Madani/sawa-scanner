@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:sawa_app/l10n/app_localizations.dart';
 import 'package:image_picker/image_picker.dart';
+import 'dart:async';
 import '../../providers/scanner_provider.dart';
 import '../../providers/product_provider.dart';
 import '../../providers/scan_history_provider.dart';
@@ -11,12 +12,14 @@ import '../../widgets/scan_frame_overlay.dart';
 import '../../widgets/surface_card.dart';
 import '../product_detail/product_detail_screen.dart';
 import '../../../domain/entities/product.dart';
+import '../../../domain/entities/product_image.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../providers/search_provider.dart';
 import '../search/search_screen.dart';
 import '../../widgets/nutri_score_badge.dart';
 import '../../../core/exceptions.dart';
+import '../../../data/models/product_model.dart';
 
 
 
@@ -42,6 +45,10 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> with WidgetsBindi
   bool _isLoadingProduct = false;
   String? _loadingGtin;
   String? _scannedProductError;
+  StreamSubscription<Map<String, dynamic>>? _streamSubscription;
+  Product? _streamingProduct;
+  final Map<String, double> _storePrices = {};
+  final Set<String> _failedStores = {};
 
   @override
   void initState() {
@@ -81,6 +88,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> with WidgetsBindi
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _streamSubscription?.cancel();
     _cameraController.dispose();
     _pageController.dispose();
     super.dispose();
@@ -105,6 +113,9 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> with WidgetsBindi
           _isLoadingProduct = true;
           _loadingGtin = code;
           _scannedProductError = null;
+          _streamingProduct = null;
+          _storePrices.clear();
+          _failedStores.clear();
         });
         ref.read(scannedGtinProvider.notifier).state = code;
 
@@ -116,33 +127,95 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> with WidgetsBindi
         );
 
         try {
-          final product = await ref.read(productRepositoryProvider).getProductByGtin(code);
-          final locale = Localizations.localeOf(context);
+          await _streamSubscription?.cancel();
+          _streamSubscription = ref.read(productRemoteDataSourceProvider)
+              .fetchProductScanStream(code)
+              .listen(
+            (event) {
+              if (!mounted) return;
+              final type = event['type']?.toString();
+              final payload = event['payload'];
 
-          // Record to history
-          ref.read(scanHistoryProvider.notifier).addEntry(
-                ScanHistoryEntry(
-                  barcode: product.gtin,
-                  productName: locale.languageCode == 'ar' ? product.nameAr : product.nameEn,
-                  brand: product.brand,
-                  nutriScore: product.nutriScoreGrade,
-                  imageUrl: product.images.firstOrNull?.url,
-                  scannedAt: DateTime.now(),
-                ),
-              );
+              if (type == 'product_details' && payload != null) {
+                setState(() {
+                  _streamingProduct = Product(
+                    id: '',
+                    gtin: code,
+                    nameAr: payload['name_ar']?.toString() ?? '',
+                    nameEn: payload['name_en']?.toString() ?? '',
+                    brand: payload['brand']?.toString() ?? '',
+                    imageFrontUrl: payload['image_front_url']?.toString(),
+                    nutriScoreGrade: null,
+                    novaGroup: null,
+                    sfdaRegistrationStatus: null,
+                    halalCertified: null,
+                    ingredients: const [],
+                    prices: const [],
+                    images: payload['image_front_url'] != null
+                        ? [ProductImage(url: payload['image_front_url'].toString(), imageType: 'primary')]
+                        : const [],
+                  );
+                });
+              } else if (type == 'price_match' && payload != null) {
+                final merchant = payload['merchant']?.toString() ?? '';
+                final price = (payload['price'] as num?)?.toDouble() ?? 0.0;
+                setState(() {
+                  _storePrices[merchant] = price;
+                });
+              } else if (type == 'store_failed' && payload != null) {
+                final merchant = payload['merchant']?.toString() ?? '';
+                setState(() {
+                  _failedStores.add(merchant);
+                });
+              } else if ((type == 'product' || type == 'done') && payload != null) {
+                final ProductModel fullProduct = ProductModel.fromJson(payload as Map<String, dynamic>);
+                final locale = Localizations.localeOf(context);
 
-          if (!mounted) return;
+                // Record to history
+                ref.read(scanHistoryProvider.notifier).addEntry(
+                      ScanHistoryEntry(
+                        barcode: fullProduct.gtin,
+                        productName: locale.languageCode == 'ar' ? fullProduct.nameAr : fullProduct.nameEn,
+                        brand: fullProduct.brand,
+                        nutriScore: fullProduct.nutriScoreGrade,
+                        imageUrl: fullProduct.images.firstOrNull?.url,
+                        scannedAt: DateTime.now(),
+                      ),
+                    );
 
-          setState(() {
-            final existingIndex = _scannedProducts.indexWhere((p) => p.gtin == product.gtin);
-            if (existingIndex != -1) {
-              _scannedProducts.removeAt(existingIndex);
-            }
-            _scannedProducts.insert(0, product);
-            _isProcessing = false;
-            _isLoadingProduct = false;
-            _loadingGtin = null;
-          });
+                setState(() {
+                  final existingIndex = _scannedProducts.indexWhere((p) => p.gtin == fullProduct.gtin);
+                  if (existingIndex != -1) {
+                    _scannedProducts.removeAt(existingIndex);
+                  }
+                  _scannedProducts.insert(0, fullProduct);
+                  _isProcessing = false;
+                  _isLoadingProduct = false;
+                  _loadingGtin = null;
+                });
+
+                _streamSubscription?.cancel();
+              } else if (type == 'error') {
+                final message = payload is Map ? payload['message']?.toString() : payload?.toString();
+                setState(() {
+                  _isProcessing = false;
+                  _isLoadingProduct = false;
+                  _scannedProductError = message ?? 'Product not found';
+                });
+                _streamSubscription?.cancel();
+              }
+            },
+            onError: (err) {
+              if (!mounted) return;
+              setState(() {
+                _isProcessing = false;
+                _isLoadingProduct = false;
+                _scannedProductError = err.toString();
+              });
+              _streamSubscription?.cancel();
+            },
+            cancelOnError: true,
+          );
         } catch (e) {
           if (!mounted) return;
           setState(() {
@@ -615,7 +688,12 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> with WidgetsBindi
                           carouselChildren.add(
                             Padding(
                               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                              child: _ScannedProductLoadingCard(gtin: _loadingGtin!),
+                              child: _ScannedProductLoadingCard(
+                                gtin: _loadingGtin!,
+                                streamingProduct: _streamingProduct,
+                                storePrices: _storePrices,
+                                failedStores: _failedStores,
+                              ),
                             ),
                           );
                         } else if (_scannedProductError != null) {
@@ -1250,7 +1328,16 @@ class _ScannedProductCard extends StatelessWidget {
 
 class _ScannedProductLoadingCard extends StatefulWidget {
   final String gtin;
-  const _ScannedProductLoadingCard({required this.gtin});
+  final Product? streamingProduct;
+  final Map<String, double> storePrices;
+  final Set<String> failedStores;
+
+  const _ScannedProductLoadingCard({
+    required this.gtin,
+    this.streamingProduct,
+    required this.storePrices,
+    required this.failedStores,
+  });
 
   @override
   State<_ScannedProductLoadingCard> createState() => _ScannedProductLoadingCardState();
@@ -1266,9 +1353,9 @@ class _ScannedProductLoadingCardState extends State<_ScannedProductLoadingCard>
     super.initState();
     _pulseController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1000),
+      duration: const Duration(milliseconds: 1200),
     )..repeat(reverse: true);
-    _pulseAnimation = Tween<double>(begin: 0.3, end: 0.8).animate(
+    _pulseAnimation = Tween<double>(begin: 0.4, end: 0.85).animate(
       CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
     );
   }
@@ -1282,109 +1369,252 @@ class _ScannedProductLoadingCardState extends State<_ScannedProductLoadingCard>
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.85),
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: Colors.white12, width: 1.5),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.4),
-            blurRadius: 16,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          // Pulse image shape
-          AnimatedBuilder(
-            animation: _pulseAnimation,
-            builder: (context, child) {
-              return Opacity(
-                opacity: _pulseAnimation.value,
+    final locale = Localizations.localeOf(context);
+    final isAr = locale.languageCode == 'ar';
+
+    final stores = [
+      {'en': 'Yasmin Store', 'ar': 'متجر ياسمين'},
+      {'en': 'Shonaksa', 'ar': 'شوناكسا'},
+      {'en': 'Mr Logman', 'ar': 'مستر لوقمان'},
+      {'en': 'Park Center', 'ar': 'بارك سنتر'},
+      {'en': 'Menhal', 'ar': 'منهل'},
+      {'en': 'Etaam Express', 'ar': 'إطعام إكسبريس'},
+    ];
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(24),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.black.withOpacity(0.75),
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: Colors.white12, width: 1.5),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.4),
+              blurRadius: 20,
+              offset: const Offset(0, 10),
+            ),
+          ],
+        ),
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            // Product info or Pulsing storefront icon
+            if (widget.streamingProduct != null) ...[
+              ClipRRect(
+                borderRadius: BorderRadius.circular(16),
                 child: Container(
-                  width: 80,
-                  height: 80,
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: const Icon(
-                    Icons.storefront_outlined,
-                    size: 40,
-                    color: Colors.white54,
-                  ),
+                  color: Colors.white,
+                  width: 90,
+                  height: 90,
+                  child: widget.streamingProduct!.imageFrontUrl != null &&
+                          widget.streamingProduct!.imageFrontUrl!.isNotEmpty
+                      ? Image.network(
+                          widget.streamingProduct!.imageFrontUrl!,
+                          fit: BoxFit.contain,
+                          errorBuilder: (context, error, stackTrace) => const Icon(
+                            Icons.broken_image_outlined,
+                            size: 40,
+                            color: Colors.grey,
+                          ),
+                        )
+                      : const Icon(
+                          Icons.shopping_bag_outlined,
+                          size: 40,
+                          color: Colors.grey,
+                        ),
                 ),
-              );
-            },
-          ),
-          const SizedBox(height: 20),
-          // Pulsing text line
-          Text(
-            l10n.searchingLiveStores,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
+              ),
+              const SizedBox(height: 16),
+              Text(
+                isAr
+                    ? widget.streamingProduct!.nameAr
+                    : widget.streamingProduct!.nameEn,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+              if (widget.streamingProduct!.brand.isNotEmpty) ...[
+                const SizedBox(height: 4),
+                Text(
+                  widget.streamingProduct!.brand,
+                  style: const TextStyle(
+                    color: Colors.white54,
+                    fontSize: 13,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ] else ...[
+              AnimatedBuilder(
+                animation: _pulseAnimation,
+                builder: (context, child) {
+                  return Opacity(
+                    opacity: _pulseAnimation.value,
+                    child: Container(
+                      width: 80,
+                      height: 80,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: const Icon(
+                        Icons.storefront_outlined,
+                        size: 40,
+                        color: Colors.white54,
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ],
+            const SizedBox(height: 20),
+            // Pulsing text line
+            Text(
+              l10n.searchingLiveStores,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 15,
+                fontWeight: FontWeight.bold,
+              ),
+              textAlign: TextAlign.center,
             ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 6),
-          Text(
-            "${l10n.gtinBarcode}: ${widget.gtin}",
-            style: const TextStyle(
-              color: Colors.white38,
-              fontSize: 12,
+            const SizedBox(height: 6),
+            Text(
+              "${l10n.gtinBarcode}: ${widget.gtin}",
+              style: const TextStyle(
+                color: Colors.white38,
+                fontSize: 12,
+              ),
+              textAlign: TextAlign.center,
             ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 20),
-          // Parallel search store badges pulsing
-          AnimatedBuilder(
-            animation: _pulseAnimation,
-            builder: (context, child) {
-              return Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                alignment: WrapAlignment.center,
-                children: [
-                  _buildStorePill("Yasmin", _pulseAnimation.value),
-                  _buildStorePill("Shonaksa", _pulseAnimation.value),
-                  _buildStorePill("Mr Logman", _pulseAnimation.value),
-                  _buildStorePill("Park Center", _pulseAnimation.value),
-                  _buildStorePill("Menhal", _pulseAnimation.value),
-                  _buildStorePill("Etaam Express", _pulseAnimation.value),
-                ],
-              );
-            },
-          ),
-        ],
+            const SizedBox(height: 24),
+            // Parallel search store badges pulsing
+            AnimatedBuilder(
+              animation: _pulseAnimation,
+              builder: (context, child) {
+                return Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  alignment: WrapAlignment.center,
+                  children: stores.map((store) {
+                    final storeNameEn = store['en']!;
+                    final storeNameAr = store['ar']!;
+                    final displayName = isAr ? storeNameAr : storeNameEn;
+
+                    if (widget.storePrices.containsKey(storeNameEn)) {
+                      // Matched state
+                      final price = widget.storePrices[storeNameEn]!;
+                      return _buildStorePill(
+                        displayName,
+                        priceSar: price,
+                        status: 'matched',
+                        pulseOpacity: 1.0,
+                        isAr: isAr,
+                      );
+                    } else if (widget.failedStores.contains(storeNameEn)) {
+                      // Failed state
+                      return _buildStorePill(
+                        displayName,
+                        status: 'failed',
+                        pulseOpacity: 1.0,
+                        isAr: isAr,
+                      );
+                    } else {
+                      // Pending state
+                      return _buildStorePill(
+                        displayName,
+                        status: 'pending',
+                        pulseOpacity: _pulseAnimation.value,
+                        isAr: isAr,
+                      );
+                    }
+                  }).toList(),
+                );
+              },
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildStorePill(String name, double opacity) {
+  Widget _buildStorePill(
+    String name, {
+    double? priceSar,
+    required String status,
+    required double pulseOpacity,
+    required bool isAr,
+  }) {
+    Color bg;
+    Color border;
+    Color textCol;
+    Widget? icon;
+
+    if (status == 'matched') {
+      bg = Colors.green.withOpacity(0.25);
+      border = Colors.green.withOpacity(0.6);
+      textCol = Colors.greenAccent;
+      icon = const Padding(
+        padding: EdgeInsets.only(right: 4, left: 4),
+        child: Icon(Icons.check_circle_outline, size: 12, color: Colors.greenAccent),
+      );
+    } else if (status == 'failed') {
+      bg = Colors.white.withOpacity(0.04);
+      border = Colors.white12;
+      textCol = Colors.white30;
+      icon = const Padding(
+        padding: EdgeInsets.only(right: 4, left: 4),
+        child: Icon(Icons.remove_circle_outline, size: 12, color: Colors.white24),
+      );
+    } else {
+      bg = AppColors.primary.withOpacity(pulseOpacity * 0.15);
+      border = AppColors.primary.withOpacity(pulseOpacity * 0.35);
+      textCol = Colors.white70;
+      icon = const Padding(
+        padding: EdgeInsets.only(right: 4, left: 4),
+        child: SizedBox(
+          width: 10,
+          height: 10,
+          child: CircularProgressIndicator(
+            strokeWidth: 1.5,
+            valueColor: AlwaysStoppedAnimation<Color>(Colors.white38),
+          ),
+        ),
+      );
+    }
+
+    final priceText = priceSar != null ? " ${priceSar.toStringAsFixed(2)} ${isAr ? 'ر.س' : 'SAR'}" : "";
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: AppColors.primary.withOpacity(opacity * 0.2),
+        color: bg,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: AppColors.primary.withOpacity(opacity * 0.4),
-          width: 1,
-        ),
+        border: Border.all(color: border, width: 1),
       ),
-      child: Text(
-        name,
-        style: const TextStyle(
-          color: Colors.white70,
-          fontSize: 11,
-          fontWeight: FontWeight.w500,
-        ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (icon != null && isAr) icon,
+          Text(
+            name + priceText,
+            style: TextStyle(
+              color: textCol,
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              decoration: status == 'failed' ? TextDecoration.lineThrough : null,
+            ),
+          ),
+          if (icon != null && !isAr) icon,
+        ],
       ),
     );
   }

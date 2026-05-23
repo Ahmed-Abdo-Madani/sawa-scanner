@@ -17,6 +17,22 @@ export interface ZidArProductMatch {
   hammingDistance?: number;
 }
 
+export function isGenericButtonOrLabel(name: string): boolean {
+  if (!name) return true;
+  const clean = name.trim().replace(/\s+/g, ' ').toLowerCase();
+  const blacklisted = [
+    'اضف الى السلة', 'أضف إلى السلة', 'اضف للسلة', 'أضف للسلة',
+    'اضافة للسلة', 'إضافة للسلة', 'اضافة الى السلة', 'إضافة إلى السلة',
+    'اشتر الآن', 'اشتري الآن', 'شراء الآن', 'نفدت الكمية', 'نفذت الكمية',
+    'غير متوفر', 'تفاصيل المنتج', 'عرض المنتج', 'قراءة المزيد', 'تفاصيل',
+    'المزيد', 'سلة المشتريات', 'أضف للمقارنة', 'أضف للمفضلة', 'معاينة', 'سريع',
+    'add to cart', 'add to basket', 'buy now', 'out of stock', 'sold out',
+    'read more', 'details', 'view product', 'quick view', 'add to wishlist',
+    'add to compare', 'go to cart'
+  ];
+  return clean.length <= 2 || blacklisted.some(term => clean === term);
+}
+
 const BRAND_GUARD_STOPWORDS_AR = new Set([
   // Colors (Arabic)
   'أصفر', 'أحمر', 'أخضر', 'أزرق', 'أبيض', 'أسود', 'ذهبي', 'بني', 'برتقالي',
@@ -92,7 +108,7 @@ export class ZidGtinArScraper extends BaseScraper {
     return '';
   }
 
-  private isValidZidProductUrl(url: string): boolean {
+  private isValidZidProductUrl(url: string, baseUrl?: string): boolean {
     if (!url) return false;
     try {
       const lower = url.toLowerCase();
@@ -102,6 +118,22 @@ export class ZidGtinArScraper extends BaseScraper {
       if (!lower.includes('/products/')) {
         return false;
       }
+
+      if (url.startsWith('http://') || url.startsWith('https://')) {
+        const parsed = new URL(url);
+        if (baseUrl) {
+          const baseParsed = new URL(baseUrl);
+          if (parsed.host !== baseParsed.host) {
+            return false;
+          }
+        } else {
+          const host = parsed.host.toLowerCase();
+          if (host.includes('wa.me') || host.includes('whatsapp') || host.includes('facebook') || host.includes('instagram') || host.includes('twitter') || host.includes('youtube') || host.includes('snapchat')) {
+            return false;
+          }
+        }
+      }
+
       let path = lower;
       if (lower.startsWith('http://') || lower.startsWith('https://')) {
         path = new URL(lower).pathname;
@@ -146,7 +178,7 @@ export class ZidGtinArScraper extends BaseScraper {
                 const product = el.item;
                 if (product && product.name && product.url) {
                   const fullUrl = product.url.startsWith('http') ? product.url : `${origin}${product.url.startsWith('/') ? '' : '/'}${product.url}`;
-                  if (this.isValidZidProductUrl(fullUrl)) {
+                  if (this.isValidZidProductUrl(fullUrl) && !isGenericButtonOrLabel(product.name)) {
                     results.push({
                       name: product.name,
                       url: fullUrl,
@@ -211,7 +243,7 @@ export class ZidGtinArScraper extends BaseScraper {
         }
       }
 
-      if (name && url) {
+      if (name && url && !isGenericButtonOrLabel(name)) {
         results.push({ name, url, image });
       }
     }
@@ -225,8 +257,11 @@ export class ZidGtinArScraper extends BaseScraper {
     localHashes?: string[],
     baseUrl: string = 'https://parkcentersa.com',
   ): Promise<ZidArProductMatch[]> {
+    productNameAr = productNameAr.trim();
     const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
-    let searchUrl = `${cleanBaseUrl}/products?q=${encodeURIComponent(productNameAr)}`;
+    const isMenhal = baseUrl.includes('menhal.sa');
+    const searchParam = isMenhal ? 'q' : 'search';
+    let searchUrl = `${cleanBaseUrl}/products?${searchParam}=${encodeURIComponent(productNameAr)}`;
 
     this.logger.log(`[Zid Scraper] Gathering search candidates for "${productNameAr}" on store: ${baseUrl}...`);
 
@@ -262,7 +297,7 @@ export class ZidGtinArScraper extends BaseScraper {
                 'X-Store-ID': String(storeId),
               };
               
-              const apiUrl = `${cleanBaseUrl}/api/v1/products?q=${encodeURIComponent(productNameAr)}`;
+              const apiUrl = `${cleanBaseUrl}/api/v1/products?${searchParam}=${encodeURIComponent(productNameAr)}`;
               const apiRes = await axios.get(apiUrl, {
                 headers: apiHeaders as any,
                 timeout: 10000,
@@ -277,11 +312,13 @@ export class ZidGtinArScraper extends BaseScraper {
                     if (p.images && p.images.length > 0) {
                       imgUrl = p.images[0]?.image?.large || p.images[0]?.image?.small || p.images[0]?.image?.full_size || null;
                     }
-                    searchResults.push({
-                      name: p.name,
-                      url: productUrl,
-                      image: imgUrl,
-                    });
+                    if (!isGenericButtonOrLabel(p.name)) {
+                      searchResults.push({
+                        name: p.name,
+                        url: productUrl,
+                        image: imgUrl,
+                      });
+                    }
                   }
                 }
                 this.logger.log(`[Fast Path Zid API] Successfully scraped ${searchResults.length} search candidates via API!`);
@@ -308,27 +345,57 @@ export class ZidGtinArScraper extends BaseScraper {
       try {
         await this.applyHostThrottling(searchUrl);
         await this.navigateWithEvasion(page, searchUrl, 'domcontentloaded', 60000, 400, 1200);
-        await page.waitForTimeout(2000);
+        try {
+          try {
+            await page.waitForSelector('.product-item a, .product-card a, [class*="product-card"] a, [class*="product-item"] a, .no-results, .empty-page, .empty-state, .empty-search, .no-products', { timeout: 3000 });
+          } catch (e) {
+            this.logger.debug(`[Zid Scraper] Timeout waiting for product selectors on search page: ${e.message}`);
+          }
+        } catch (e) {
+          this.logger.debug(`[Zid Scraper] Timeout waiting for product selectors on search page: ${e.message}`);
+        }
+        await page.waitForTimeout(1000);
 
         searchResults = await page.evaluate(() => {
+          function isGenericButtonOrLabel(name: string): boolean {
+            if (!name) return true;
+            const clean = name.trim().replace(/\s+/g, ' ').toLowerCase();
+            const blacklisted = [
+              'اضف الى السلة', 'أضف إلى السلة', 'اضف للسلة', 'أضف للسلة',
+              'اضافة للسلة', 'إضافة للسلة', 'اضافة الى السلة', 'إضافة إلى السلة',
+              'اشتر الآن', 'اشتري الآن', 'شراء الآن', 'نفدت الكمية', 'نفذت الكمية',
+              'غير متوفر', 'تفاصيل المنتج', 'عرض المنتج', 'قراءة المزيد', 'تفاصيل',
+              'المزيد', 'سلة المشتريات', 'أضف للمقارنة', 'أضف للمفضلة', 'معاينة', 'سريع',
+              'add to cart', 'add to basket', 'buy now', 'out of stock', 'sold out',
+              'read more', 'details', 'view product', 'quick view', 'add to wishlist',
+              'add to compare', 'go to cart'
+            ];
+            return clean.length <= 2 || blacklisted.some(term => clean === term);
+          }
+
           function isValidZidProductUrl(url: string): boolean {
             if (!url) return false;
-            const lower = url.toLowerCase();
-            if (lower.startsWith('mailto:') || lower.startsWith('tel:') || lower.startsWith('javascript:') || lower.startsWith('whatsapp:') || lower.startsWith('sms:')) {
+            try {
+              const parsed = new URL(url, window.location.href);
+              if (parsed.host !== window.location.host) {
+                return false; // MUST be on the same domain
+              }
+              const lower = parsed.pathname.toLowerCase();
+              if (!lower.includes('/products/')) {
+                return false;
+              }
+              const blacklist = [
+                '/cart', '/checkout', '/wishlist', '/login', '/register', '/sign-in', '/sign-up', 
+                '/logout', '/profile', '/account', '/contact', '/about', '/terms', '/privacy', 
+                '/shipping', '/refund', '/faq', '/help', '/support', '/home', '/search'
+              ];
+              if (blacklist.some(term => lower.includes(term))) {
+                return false;
+              }
+              return true;
+            } catch {
               return false;
             }
-            if (!lower.includes('/products/')) {
-              return false;
-            }
-            const blacklist = [
-              '/cart', '/checkout', '/wishlist', '/login', '/register', '/sign-in', '/sign-up', 
-              '/logout', '/profile', '/account', '/contact', '/about', '/terms', '/privacy', 
-              '/shipping', '/refund', '/faq', '/help', '/support', '/home', '/search'
-            ];
-            if (blacklist.some(term => lower.includes(term))) {
-              return false;
-            }
-            return true;
           }
 
           const results: { name: string; url: string; image: string | null }[] = [];
@@ -358,7 +425,7 @@ export class ZidGtinArScraper extends BaseScraper {
             const titleEl = card.querySelector('.product-title, .title, h3, h4, span.product-name');
             const name = titleEl?.textContent?.trim() || linkEl.textContent?.trim() || '';
 
-            if (name && url) {
+            if (name && url && !isGenericButtonOrLabel(name)) {
               results.push({ name, url, image });
             }
           }
@@ -371,7 +438,7 @@ export class ZidGtinArScraper extends BaseScraper {
       }
     }
 
-    searchResults = searchResults.filter((r) => this.isValidZidProductUrl(r.url));
+    searchResults = searchResults.filter((r) => this.isValidZidProductUrl(r.url, baseUrl));
 
     if (searchResults.length === 0) {
       return [];
@@ -523,7 +590,12 @@ export class ZidGtinArScraper extends BaseScraper {
     try {
       await this.applyHostThrottling(productUrl);
       await this.navigateWithEvasion(page, productUrl, 'domcontentloaded', 60000, 400, 1200);
-      await page.waitForTimeout(2000);
+      try {
+        await page.waitForSelector('h1, .product-title, .title, script[type="application/ld+json"]', { timeout: 5000 });
+      } catch (e) {
+        this.logger.debug(`[Zid Scraper] Timeout waiting for selectors on product page: ${e.message}`);
+      }
+      await page.waitForTimeout(500);
 
       const gtin = await page.evaluate(() => {
         // 1. Try standard JSON-LD
@@ -566,7 +638,13 @@ export class ZidGtinArScraper extends BaseScraper {
   }
 
   private parseGtinFromHtml(html: string): string | null {
-    // 1. Regex over application/ld+json matches
+    // 1. Try matching the text-unicode class in HTML (our most direct and reliable barcode element)
+    const textUnicodeMatch = html.match(/class="[^"]*text-unicode[^"]*"[^>]*>\s*(\d{8,14})\s*</i);
+    if (textUnicodeMatch && textUnicodeMatch[1]) {
+      return textUnicodeMatch[1].trim();
+    }
+
+    // 2. Regex over application/ld+json matches, accepting only numeric barcodes
     const ldMatches = html.match(/<script\s+type="application\/ld\+json">([\s\S]*?)<\/script>/gi);
     if (ldMatches) {
       for (const script of ldMatches) {
@@ -578,16 +656,22 @@ export class ZidGtinArScraper extends BaseScraper {
           const json = JSON.parse(jsonText);
           const products = Array.isArray(json) ? json : [json];
           const product = products.find((i: any) => i['@type'] === 'Product');
-          if (product && (product.sku || product.gtin13 || product.gtin || product.gtin12)) {
-            return String(product.sku || product.gtin13 || product.gtin || product.gtin12);
+          if (product) {
+            const possible = product.gtin13 || product.sku || product.gtin12 || product.gtin;
+            if (possible) {
+              const cleaned = String(possible).trim();
+              if (/^\d{8,14}$/.test(cleaned)) {
+                return cleaned;
+              }
+            }
           }
         } catch { /* ignore */ }
       }
     }
 
-    // 2. Direct SKU matching from div-product-sku DOM element matching
-    const skuMatch = html.match(/class="[^"]*div-product-sku[^"]*"[^>]*>\s*([\d]+)\s*<\/div>/i) ||
-                     html.match(/class="[^"]*product-sku[^"]*"[^>]*>\s*([\d]+)\s*<\/div>/i);
+    // 3. Direct SKU matching from div-product-sku DOM element matching
+    const skuMatch = html.match(/class="[^"]*div-product-sku[^"]*"[^>]*>\s*(\d{8,14})\s*<\/div>/i) ||
+                     html.match(/class="[^"]*product-sku[^"]*"[^>]*>\s*(\d{8,14})\s*<\/div>/i);
     if (skuMatch && skuMatch[1]) {
       return skuMatch[1];
     }
@@ -673,6 +757,15 @@ export class ZidGtinArScraper extends BaseScraper {
     let gtin: string | null = null;
     let price: number | null = null;
 
+    // 1. Try meta tag product:sale_price:amount FIRST to prioritize the active promotional offer price
+    const salePriceMeta = html.match(/<meta\s+property="product:sale_price:amount"\s+content="([^"]+)"/i);
+    if (salePriceMeta) {
+      const parsed = parseFloat(salePriceMeta[1]);
+      if (!isNaN(parsed)) {
+        price = parsed;
+      }
+    }
+
     if (ldMatches) {
       for (const script of ldMatches) {
         try {
@@ -681,7 +774,9 @@ export class ZidGtinArScraper extends BaseScraper {
             .replace(/<\/script>/i, '')
             .trim();
           const json = JSON.parse(jsonText);
-          const products = Array.isArray(json) ? json : [json];
+          let products = Array.isArray(json) ? json : [json];
+          const graphItems = products.filter((item: any) => Array.isArray(item['@graph'])).flatMap((item: any) => item['@graph']);
+          products = [...products, ...graphItems];
           const product = products.find((i: any) => i['@type'] === 'Product');
           if (product) {
             if (!name && product.name) name = String(product.name);
@@ -694,7 +789,14 @@ export class ZidGtinArScraper extends BaseScraper {
               }
             }
             if (!gtin) {
-              gtin = product.gtin13 || product.sku || product.gtin12 || product.gtin || null;
+              const possible = product.gtin13 || product.sku || product.gtin12 || product.gtin || null;
+              if (possible) {
+                const cleaned = String(possible).trim();
+                // Reject non-numeric slugs and paths (only accept numeric barcodes)
+                if (/^\d{8,14}$/.test(cleaned)) {
+                  gtin = cleaned;
+                }
+              }
             }
             if (price === null && product.offers) {
               const offers = product.offers;
@@ -763,7 +865,12 @@ export class ZidGtinArScraper extends BaseScraper {
     try {
       await this.applyHostThrottling(productUrl);
       await this.navigateWithEvasion(page, productUrl, 'domcontentloaded', 60000, 400, 1200);
-      await page.waitForTimeout(2000);
+      try {
+        await page.waitForSelector('h1, .product-title, .title, script[type="application/ld+json"]', { timeout: 5000 });
+      } catch (e) {
+        this.logger.debug(`[Zid Scraper] Timeout waiting for selectors on details page: ${e.message}`);
+      }
+      await page.waitForTimeout(500);
 
       const details = await page.evaluate(() => {
         let name: string | null = null;
@@ -771,11 +878,20 @@ export class ZidGtinArScraper extends BaseScraper {
         let gtin: string | null = null;
         let price: number | null = null;
 
+        // 1. Prioritize sale price meta tag first
+        const saleMeta = document.querySelector('meta[property="product:sale_price:amount"]');
+        if (saleMeta) {
+          const parsed = parseFloat(saleMeta.getAttribute('content') || '');
+          if (!isNaN(parsed)) price = parsed;
+        }
+
         try {
           const ldScripts = Array.from(document.querySelectorAll('script[type="application/ld+json"]'));
           for (const script of ldScripts) {
             const json = JSON.parse(script.textContent || '{}');
-            const products = Array.isArray(json) ? json : [json];
+            let products = Array.isArray(json) ? json : [json];
+            const graphItems = products.filter((item: any) => Array.isArray(item['@graph'])).flatMap((item: any) => item['@graph']);
+            products = [...products, ...graphItems];
             const product = products.find((i: any) => i['@type'] === 'Product');
             if (product) {
               if (!name && product.name) name = String(product.name);
@@ -788,7 +904,13 @@ export class ZidGtinArScraper extends BaseScraper {
                 }
               }
               if (!gtin) {
-                gtin = product.gtin13 || product.sku || product.gtin12 || product.gtin || null;
+                const possible = product.gtin13 || product.sku || product.gtin12 || product.gtin || null;
+                if (possible) {
+                  const cleaned = String(possible).trim();
+                  if (/^\d{8,14}$/.test(cleaned)) {
+                    gtin = cleaned;
+                  }
+                }
               }
               if (price === null && product.offers) {
                 const offers = product.offers;
@@ -813,10 +935,20 @@ export class ZidGtinArScraper extends BaseScraper {
         }
 
         if (!gtin) {
+          const textUnicodeEl = document.querySelector('.text-unicode');
+          if (textUnicodeEl?.textContent) {
+            const cleaned = textUnicodeEl.textContent.trim();
+            if (/^\d{8,14}$/.test(cleaned)) {
+              gtin = cleaned;
+            }
+          }
+        }
+
+        if (!gtin) {
           const skuDiv = document.querySelector('div.div-product-sku, .product-sku, .sku-label');
           if (skuDiv?.textContent) {
             const cleanedSku = skuDiv.textContent.replace(/[^\d]/g, '').trim();
-            if (cleanedSku && cleanedSku.length >= 8) {
+            if (cleanedSku && cleanedSku.length >= 8 && cleanedSku.length <= 14) {
               gtin = cleanedSku;
             }
           }

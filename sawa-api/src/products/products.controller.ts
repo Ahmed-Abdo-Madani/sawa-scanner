@@ -8,6 +8,8 @@ import {
   UseInterceptors,
   UploadedFiles,
   BadRequestException,
+  Sse,
+  MessageEvent,
 } from '@nestjs/common';
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
@@ -15,38 +17,65 @@ import { extname } from 'path';
 import { ProductsService } from './products.service';
 import { Public } from '../auth/public.decorator';
 import { OptionalAuth } from '../auth/optional-auth.decorator';
+import { Observable } from 'rxjs';
+import { map } from 'rxjs/operators';
 
 @Controller('products')
 export class ProductsController {
   constructor(private readonly productsService: ProductsService) {}
 
   @Public()
+  @Sse(':gtin/scan-stream')
+  getProductScanStream(@Param('gtin') gtin: string): Observable<MessageEvent> {
+    return this.productsService.streamFindByGtin(gtin).pipe(
+      map((event) => {
+        const data = event.data as any;
+        if (data && (data.type === 'product' || data.type === 'done')) {
+          if (data.payload) {
+            return {
+              data: {
+                type: data.type,
+                payload: this.formatProduct(data.payload),
+              },
+            };
+          }
+        }
+        return event;
+      }),
+    );
+  }
+
+  @Public()
   @Get(':gtin')
   async getProductByGtin(@Param('gtin') gtin: string) {
     const product = await this.productsService.findByGtin(gtin);
+    return this.formatProduct(product);
+  }
 
+  private formatProduct(product: any) {
+    const crypto = require('crypto');
     return {
-      id: product.id,
+      id: product.id || crypto.randomUUID(),
       gtin: product.gtin,
-      name_ar: product.name_ar,
-      name_en: product.name_en,
-      brand: product.brand,
-      category: product.category,
-      subcategory: product.subcategory,
-      description_ar: product.description_ar,
-      description_en: product.description_en,
-      sfda_registration_status: product.sfda_registration_status,
-      halal_certified: product.halal_certified,
-      nutri_score_grade: product.nutri_score_grade,
-      nova_group: product.nova_group,
-      sfda_npm_score: product.sfda_npm_score,
-      net_weight_value: product.net_weight_value,
-      net_unit: product.net_unit,
-      allergen_tags: product.allergen_tags,
-      ingredient_tags: product.ingredient_tags,
-      image_front_url: product.image_front_url,
-      image_nutrition_url: product.image_nutrition_url,
-      nutrition_data_complete: product.nutrition_data_complete,
+      name_ar: product.name_ar || null,
+      name_en: product.name_en || null,
+      brand: product.brand || null,
+      category: product.category || null,
+      subcategory: product.subcategory || null,
+      description_ar: product.description_ar || null,
+      description_en: product.description_en || null,
+      sfda_registration_status: product.sfda_registration_status || null,
+      halal_certified: product.halal_certified ?? null,
+      nutri_score_grade: product.nutri_score_grade || null,
+      nova_group: product.nova_group ?? null,
+      sfda_npm_score: product.sfda_npm_score ?? null,
+      net_weight_value: product.net_weight_value ?? null,
+      net_unit: product.net_unit || null,
+      allergen_tags: product.allergen_tags || [],
+      ingredient_tags: product.ingredient_tags || [],
+      image_front_url: product.image_front_url || null,
+      image_nutrition_url: product.image_nutrition_url || null,
+      nutrition_data_complete: product.nutrition_data_complete ?? false,
       nutrition: product.nutritionFact
         ? {
             energy_kcal: product.nutritionFact.energy_kcal,
@@ -60,7 +89,7 @@ export class ProductsController {
             serving_size_g: product.nutritionFact.serving_size_g,
           }
         : null,
-      ingredients: product.ingredients.map((i) => ({
+      ingredients: (product.ingredients || []).map((i) => ({
         name_ar: i.name_ar,
         name_en: i.name_en,
         e_number: i.e_number,
@@ -72,12 +101,12 @@ export class ProductsController {
         name_en: a.name_en,
         source: a.source,
       })),
-      prices: product.prices.map((p) => ({
+      prices: (product.prices || []).map((p) => ({
         merchant: p.merchant?.name_en || 'Unknown',
         price_sar_incl_vat: p.price_sar_incl_vat,
         scraped_at: p.scraped_at,
       })),
-      images: product.images?.map((i) => ({
+      images: (product.images || []).map((i) => ({
         url: i.url,
         image_type: i.image_type,
       })),

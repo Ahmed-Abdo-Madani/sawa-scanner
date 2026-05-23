@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
 import 'package:image_picker/image_picker.dart';
@@ -17,14 +18,77 @@ class ProductRemoteDataSource {
     this.baseUrl = ApiConfig.baseUrl,
   });
 
+  Stream<Map<String, dynamic>> fetchProductScanStream(String gtin) {
+    final controller = StreamController<Map<String, dynamic>>();
+
+    () async {
+      try {
+        final client = HttpClient();
+        client.connectionTimeout = const Duration(seconds: 15);
+        
+        final url = Uri.parse('$baseUrl/products/$gtin/scan-stream');
+        final request = await client.getUrl(url);
+        
+        request.headers.set('bypass-tunnel-reminder', 'true');
+        request.headers.set('ngrok-skip-browser-warning', 'true');
+        request.headers.set('Accept', 'text/event-stream');
+        request.headers.set('Cache-Control', 'no-cache');
+        
+        final response = await request.close();
+        
+        if (response.statusCode != 200) {
+          controller.addError(ServerException('Failed to connect to stream: ${response.statusCode}'));
+          controller.close();
+          return;
+        }
+        
+        response
+            .transform(utf8.decoder)
+            .transform(const LineSplitter())
+            .listen(
+          (line) {
+            if (line.startsWith('data: ')) {
+              final jsonStr = line.substring(6).trim();
+              if (jsonStr.isNotEmpty) {
+                try {
+                  final payload = json.decode(jsonStr) as Map<String, dynamic>;
+                  controller.add(payload);
+                } catch (e) {
+                  // Silently ignore malformed SSE frames
+                }
+              }
+            }
+          },
+          onError: (err) {
+            controller.addError(err);
+            controller.close();
+          },
+          onDone: () {
+            controller.close();
+          },
+          cancelOnError: true,
+        );
+      } catch (e) {
+        controller.addError(ServerException(e.toString()));
+        controller.close();
+      }
+    }();
+
+    return controller.stream;
+  }
+
   Future<ProductModel> fetchProductByGtin(String gtin) async {
     ApiConfig.validate();
     try {
 
       final response = await client.get(
         Uri.parse('$baseUrl/products/$gtin'),
-        headers: {'Content-Type': 'application/json'},
-      ).timeout(const Duration(seconds: 10));
+        headers: {
+          'Content-Type': 'application/json',
+          'bypass-tunnel-reminder': 'true',
+          'ngrok-skip-browser-warning': 'true',
+        },
+      ).timeout(const Duration(seconds: 35));
 
       if (response.statusCode == 200) {
         return ProductModel.fromJson(json.decode(response.body));
@@ -47,7 +111,11 @@ class ProductRemoteDataSource {
 
       final response = await client.post(
         Uri.parse('$baseUrl/scan/label'),
-        headers: {'Content-Type': 'application/json'},
+        headers: {
+          'Content-Type': 'application/json',
+          'bypass-tunnel-reminder': 'true',
+          'ngrok-skip-browser-warning': 'true',
+        },
         body: json.encode({
           'image': base64Image,
           if (gtin != null) 'gtin': gtin,
@@ -95,7 +163,11 @@ class ProductRemoteDataSource {
 
       final response = await client.get(
         Uri.parse('$baseUrl/products/$gtin/prices'),
-        headers: {'Content-Type': 'application/json'},
+        headers: {
+          'Content-Type': 'application/json',
+          'bypass-tunnel-reminder': 'true',
+          'ngrok-skip-browser-warning': 'true',
+        },
       ).timeout(const Duration(seconds: 10));
 
       if (response.statusCode == 200) {
@@ -118,7 +190,11 @@ class ProductRemoteDataSource {
 
       final response = await client.get(
         Uri.parse('$baseUrl/products/$gtin/prices/history'),
-        headers: {'Content-Type': 'application/json'},
+        headers: {
+          'Content-Type': 'application/json',
+          'bypass-tunnel-reminder': 'true',
+          'ngrok-skip-browser-warning': 'true',
+        },
       ).timeout(const Duration(seconds: 10));
 
       if (response.statusCode == 200) {
@@ -150,6 +226,8 @@ class ProductRemoteDataSource {
 
       final uri = Uri.parse('$baseUrl/products/$gtin/reports/images');
       final request = http.MultipartRequest('POST', uri);
+      request.headers['bypass-tunnel-reminder'] = 'true';
+      request.headers['ngrok-skip-browser-warning'] = 'true';
 
       for (final entry in photos.entries) {
         final bytes = await entry.value.readAsBytes();
@@ -204,7 +282,11 @@ class ProductRemoteDataSource {
 
       final response = await client.post(
         Uri.parse('$baseUrl/products/$gtin/reports'),
-        headers: {'Content-Type': 'application/json'},
+        headers: {
+          'Content-Type': 'application/json',
+          'bypass-tunnel-reminder': 'true',
+          'ngrok-skip-browser-warning': 'true',
+        },
         body: json.encode(body),
       ).timeout(const Duration(seconds: 10));
 
@@ -239,7 +321,11 @@ class ProductRemoteDataSource {
 
       final response = await client.get(
         uri,
-        headers: {'Content-Type': 'application/json'},
+        headers: {
+          'Content-Type': 'application/json',
+          'bypass-tunnel-reminder': 'true',
+          'ngrok-skip-browser-warning': 'true',
+        },
       ).timeout(const Duration(seconds: 10));
 
       if (response.statusCode == 200) {
@@ -276,7 +362,11 @@ class ProductRemoteDataSource {
 
       final response = await client.get(
         uri,
-        headers: {'Content-Type': 'application/json'},
+        headers: {
+          'Content-Type': 'application/json',
+          'bypass-tunnel-reminder': 'true',
+          'ngrok-skip-browser-warning': 'true',
+        },
       ).timeout(const Duration(seconds: 10));
 
       if (response.statusCode == 200) {
@@ -307,7 +397,11 @@ class ProductRemoteDataSource {
 
       final response = await client.get(
         uri,
-        headers: {'Content-Type': 'application/json'},
+        headers: {
+          'Content-Type': 'application/json',
+          'bypass-tunnel-reminder': 'true',
+          'ngrok-skip-browser-warning': 'true',
+        },
       ).timeout(const Duration(seconds: 10));
 
       if (response.statusCode == 200) {
@@ -340,7 +434,11 @@ class ProductRemoteDataSource {
 
       final response = await client.get(
         uri,
-        headers: {'Content-Type': 'application/json'},
+        headers: {
+          'Content-Type': 'application/json',
+          'bypass-tunnel-reminder': 'true',
+          'ngrok-skip-browser-warning': 'true',
+        },
       ).timeout(const Duration(seconds: 10));
 
       if (response.statusCode == 200) {
