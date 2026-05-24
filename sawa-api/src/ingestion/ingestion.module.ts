@@ -63,6 +63,19 @@ import { YasminGtinArScraper } from './scraper/yasmin-gtin-ar-scraper';
 import { MrLogmanGtinArScraper } from './scraper/mrlogman-gtin-ar-scraper';
 import { ParkCenterGtinArScraper } from './scraper/parkcenter-gtin-ar-scraper';
 import { MenhalGtinArScraper } from './scraper/menhal-gtin-ar-scraper';
+import { HsdShGtinArScraper } from './scraper/hsd-sh-gtin-ar-scraper';
+import { NwshaGtinArScraper } from './scraper/nwsha-gtin-ar-scraper';
+import { AlaqialMarketsGtinArScraper } from './scraper/alaqialmarkets-gtin-ar-scraper';
+import { ShamlGtinArScraper } from './scraper/shaml-gtin-ar-scraper';
+import { AliaqtisadiaGtinArScraper } from './scraper/aliaqtisadia-gtin-ar-scraper';
+import { Mo3enGtinArScraper } from './scraper/mo3en-gtin-ar-scraper';
+import { Mo0o0natGtinArScraper } from './scraper/mo0o0nat-gtin-ar-scraper';
+import { NarjsGtinArScraper } from './scraper/narjs-gtin-ar-scraper';
+import { TalbatukGtinArScraper } from './scraper/talbatuk-gtin-ar-scraper';
+import { DukanExpressGtinArScraper } from './scraper/dukanexpress-gtin-ar-scraper';
+import { EanaabGtinArScraper } from './scraper/eanaab-gtin-ar-scraper';
+import { AtayibGtinArScraper } from './scraper/atayib-gtin-ar-scraper';
+import { MubarkiyahGtinArScraper } from './scraper/mubarkiyah-gtin-ar-scraper';
 
 @Module({
   imports: [
@@ -121,6 +134,19 @@ import { MenhalGtinArScraper } from './scraper/menhal-gtin-ar-scraper';
     MrLogmanGtinArScraper,
     ParkCenterGtinArScraper,
     MenhalGtinArScraper,
+    HsdShGtinArScraper,
+    NwshaGtinArScraper,
+    AlaqialMarketsGtinArScraper,
+    ShamlGtinArScraper,
+    AliaqtisadiaGtinArScraper,
+    Mo3enGtinArScraper,
+    Mo0o0natGtinArScraper,
+    NarjsGtinArScraper,
+    TalbatukGtinArScraper,
+    DukanExpressGtinArScraper,
+    EanaabGtinArScraper,
+    AtayibGtinArScraper,
+    MubarkiyahGtinArScraper,
     GtinBackfillService,
     VertexGeminiGtinMatchProvider,
     OllamaGtinMatchProvider,
@@ -154,6 +180,19 @@ import { MenhalGtinArScraper } from './scraper/menhal-gtin-ar-scraper';
     MrLogmanGtinArScraper,
     ParkCenterGtinArScraper,
     MenhalGtinArScraper,
+    HsdShGtinArScraper,
+    NwshaGtinArScraper,
+    AlaqialMarketsGtinArScraper,
+    ShamlGtinArScraper,
+    AliaqtisadiaGtinArScraper,
+    Mo3enGtinArScraper,
+    Mo0o0natGtinArScraper,
+    NarjsGtinArScraper,
+    TalbatukGtinArScraper,
+    DukanExpressGtinArScraper,
+    EanaabGtinArScraper,
+    AtayibGtinArScraper,
+    MubarkiyahGtinArScraper,
     EtaamGtinArScraper,
     OpenFoodFactsService,
   ],

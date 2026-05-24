@@ -17,6 +17,8 @@ import { AdminProductsService } from './admin-products.service';
 import { ProductMergeService } from './product-merge.service';
 import { IngestionModule } from '../ingestion/ingestion.module';
 
+import { PricesModule } from '../prices/prices.module';
+
 @Module({
   imports: [
     TypeOrmModule.forFeature([
@@ -31,6 +33,7 @@ import { IngestionModule } from '../ingestion/ingestion.module';
       ProductMergeLog,
     ]),
     forwardRef(() => IngestionModule),
+    PricesModule,
   ],
   controllers: [ProductsController, AdminProductsController],
   providers: [ProductsService, AdminProductsService, ProductMergeService],

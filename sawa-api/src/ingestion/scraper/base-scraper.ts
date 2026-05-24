@@ -23,6 +23,71 @@ export abstract class BaseScraper {
   protected static lastAccessedHost: string | null = null;
   protected static lastAccessTime: number = 0;
 
+  protected pagePool: Page[] = [];
+  protected static hostLatencies: Record<string, number[]> = {};
+
+  protected static recordHostLatency(host: string, durationMs: number): void {
+    if (!BaseScraper.hostLatencies[host]) {
+      BaseScraper.hostLatencies[host] = [];
+    }
+    BaseScraper.hostLatencies[host].push(durationMs);
+    if (BaseScraper.hostLatencies[host].length > 5) {
+      BaseScraper.hostLatencies[host].shift();
+    }
+  }
+
+  protected getAdaptiveSelectorTimeout(urlOrHost: string): number {
+    try {
+      let host = urlOrHost;
+      if (urlOrHost.startsWith('http://') || urlOrHost.startsWith('https://')) {
+        host = new URL(urlOrHost).host;
+      }
+      const latencies = BaseScraper.hostLatencies[host];
+      if (!latencies || latencies.length < 2) {
+        return 3000;
+      }
+      const avg = latencies.reduce((sum, val) => sum + val, 0) / latencies.length;
+      const adaptive = Math.max(1200, Math.min(3000, Math.round(avg * 1.5)));
+      this.logger.debug(`[Adaptive Timeout] Host: ${host}, Avg Latency: ${Math.round(avg)}ms -> Selector Timeout: ${adaptive}ms`);
+      return adaptive;
+    } catch {
+      return 3000;
+    }
+  }
+
+  protected async acquirePage(): Promise<Page> {
+    if (!this.context) {
+      throw new Error('Browser context is not launched');
+    }
+    while (this.pagePool.length > 0) {
+      const page = this.pagePool.pop()!;
+      try {
+        await page.evaluate(() => 1);
+        this.logger.debug('Reused pre-warmed page from pool');
+        return page;
+      } catch (err) {
+        this.logger.debug('Pooled page was closed or dead, discarding...');
+        await page.close().catch(() => {});
+      }
+    }
+    this.logger.debug('Creating new page (pool was empty)');
+    return await this.context.newPage();
+  }
+
+  protected async releasePage(page: Page): Promise<void> {
+    try {
+      if (this.pagePool.length < 3) {
+        await page.goto('about:blank', { timeout: 5000 }).catch(() => {});
+        this.pagePool.push(page);
+        this.logger.debug(`Released page back to pool (pool size: ${this.pagePool.length})`);
+      } else {
+        await page.close().catch(() => {});
+      }
+    } catch (err) {
+      await page.close().catch(() => {});
+    }
+  }
+
   constructor(
     protected readonly robotsTxtService: RobotsTxtService,
     protected readonly config: {
@@ -188,6 +253,7 @@ export abstract class BaseScraper {
 
 
     let navigationResponse: PlaywrightResponse | null = null;
+    const startTime = Date.now();
     await withRetry(async () => {
       this.logger.debug(`Navigating to: ${url}`);
       const response = await page.goto(url, { waitUntil, timeout });
@@ -204,6 +270,12 @@ export abstract class BaseScraper {
         throw err;
       }
     });
+
+    const duration = Date.now() - startTime;
+    try {
+      const host = new URL(url).host;
+      BaseScraper.recordHostLatency(host, duration);
+    } catch { /* ignore */ }
 
     await this.dismissConsentModals(page);
     return navigationResponse;
@@ -268,6 +340,10 @@ export abstract class BaseScraper {
   async close(): Promise<void> {
     this.logger.log('Closing browser and cleaning up resources...');
     try {
+      for (const page of this.pagePool) {
+        await page.close().catch(() => {});
+      }
+      this.pagePool = [];
       if (this.context) {
         await this.context.close();
       }

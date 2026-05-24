@@ -258,14 +258,14 @@ export class SallaGtinArScraper extends BaseScraper {
       await this.ensureLaunched();
       if (!this.context) throw new Error('Browser context not initialized');
 
-      const page = await this.context.newPage();
+      const page = await this.acquirePage();
       try {
         await this.applyHostThrottling(searchUrl);
         await this.navigateWithEvasion(page, searchUrl, 'domcontentloaded', 60000, 400, 1200);
         
         try {
           await page.waitForSelector('custom-salla-product-card a, salla-product-card a, salla-products-list a, .product-block a, .product-card a, salla-empty-state, .s-infinite-scroll-empty, .no-results', {
-            timeout: 3000,
+            timeout: this.getAdaptiveSelectorTimeout(baseUrl),
           });
         } catch (e) {
           this.logger.debug(`[Salla Scraper] Timeout waiting for product selectors on search page: ${e.message}`);
@@ -487,7 +487,7 @@ export class SallaGtinArScraper extends BaseScraper {
 
         this.logger.log(`[Fallback Playwright] Scraped ${searchResults.length} candidates.`);
       } finally {
-        await page.close().catch((err) => this.logger.warn(`Failed to close search page: ${err.message}`));
+        await this.releasePage(page);
       }
     }
 
@@ -499,8 +499,8 @@ export class SallaGtinArScraper extends BaseScraper {
 
     const isPureBarcode = /^\d{8,14}$/.test(productNameAr);
     if (isPureBarcode) {
-      this.logger.log(`[Barcode Bypass] Pure barcode query detected: ${productNameAr}. Returning top ${Math.min(searchResults.length, 3)} candidate(s).`);
-      return searchResults.slice(0, 3).map((r) => ({
+      this.logger.log(`[Barcode Bypass] Pure barcode query detected: ${productNameAr}. Returning top ${Math.min(searchResults.length, 12)} candidate(s).`);
+      return searchResults.slice(0, 12).map((r) => ({
         name: r.name,
         url: r.url,
         image: r.image,
@@ -631,12 +631,12 @@ export class SallaGtinArScraper extends BaseScraper {
     await this.ensureLaunched();
     if (!this.context) throw new Error('Browser context not initialized');
 
-    const page = await this.context.newPage();
+    const page = await this.acquirePage();
     try {
       await this.applyHostThrottling(productUrl);
       await this.navigateWithEvasion(page, productUrl, 'domcontentloaded', 60000, 400, 1200);
       try {
-        await page.waitForSelector('h1, .product-title, .title, script[type="application/ld+json"]', { timeout: 5000 });
+        await page.waitForSelector('h1, .product-title, .title', { timeout: 5000 });
       } catch (e) {
         this.logger.debug(`[Salla Scraper] Timeout waiting for selectors on product page: ${e.message}`);
       }
@@ -694,9 +694,9 @@ export class SallaGtinArScraper extends BaseScraper {
       });
 
       return gtin || null;
-    } finally {
-      await page.close().catch((err) => this.logger.warn(`Failed to close product page: ${err.message}`));
-    }
+      } finally {
+        await this.releasePage(page);
+      }
   }
 
   private parseGtinFromHtml(html: string): string | null {
@@ -932,7 +932,7 @@ export class SallaGtinArScraper extends BaseScraper {
       await this.applyHostThrottling(productUrl);
       await this.navigateWithEvasion(page, productUrl, 'domcontentloaded', 60000, 400, 1200);
       try {
-        await page.waitForSelector('h1, .product-title, .title, script[type="application/ld+json"]', { timeout: 5000 });
+        await page.waitForSelector('h1, .product-title, .title', { timeout: 5000 });
       } catch (e) {
         this.logger.debug(`[Salla Scraper] Timeout waiting for selectors on details page: ${e.message}`);
       }

@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, Logger, MessageEvent } from '@nestjs/common';
+import { Injectable, NotFoundException, Logger, MessageEvent, Inject } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Product } from '../entities/product.entity';
@@ -12,8 +12,22 @@ import { MrLogmanGtinArScraper } from '../ingestion/scraper/mrlogman-gtin-ar-scr
 import { EtaamGtinArScraper } from '../ingestion/scraper/etaam-gtin-ar-scraper';
 import { ParkCenterGtinArScraper } from '../ingestion/scraper/parkcenter-gtin-ar-scraper';
 import { MenhalGtinArScraper } from '../ingestion/scraper/menhal-gtin-ar-scraper';
+import { HsdShGtinArScraper } from '../ingestion/scraper/hsd-sh-gtin-ar-scraper';
+import { NwshaGtinArScraper } from '../ingestion/scraper/nwsha-gtin-ar-scraper';
+import { AlaqialMarketsGtinArScraper } from '../ingestion/scraper/alaqialmarkets-gtin-ar-scraper';
+import { ShamlGtinArScraper } from '../ingestion/scraper/shaml-gtin-ar-scraper';
+import { AliaqtisadiaGtinArScraper } from '../ingestion/scraper/aliaqtisadia-gtin-ar-scraper';
+import { Mo3enGtinArScraper } from '../ingestion/scraper/mo3en-gtin-ar-scraper';
+import { Mo0o0natGtinArScraper } from '../ingestion/scraper/mo0o0nat-gtin-ar-scraper';
+import { NarjsGtinArScraper } from '../ingestion/scraper/narjs-gtin-ar-scraper';
+import { TalbatukGtinArScraper } from '../ingestion/scraper/talbatuk-gtin-ar-scraper';
+import { DukanExpressGtinArScraper } from '../ingestion/scraper/dukanexpress-gtin-ar-scraper';
+import { EanaabGtinArScraper } from '../ingestion/scraper/eanaab-gtin-ar-scraper';
+import { AtayibGtinArScraper } from '../ingestion/scraper/atayib-gtin-ar-scraper';
+import { MubarkiyahGtinArScraper } from '../ingestion/scraper/mubarkiyah-gtin-ar-scraper';
 import { OpenFoodFactsService } from '../ingestion/open-food-facts.service';
 import { Observable } from 'rxjs';
+import Redis from 'ioredis';
 
 @Injectable()
 export class ProductsService {
@@ -36,7 +50,22 @@ export class ProductsService {
     private readonly etaamArScraper: EtaamGtinArScraper,
     private readonly parkCenterScraper: ParkCenterGtinArScraper,
     private readonly menhalScraper: MenhalGtinArScraper,
+    private readonly hsdShScraper: HsdShGtinArScraper,
+    private readonly nwshaScraper: NwshaGtinArScraper,
+    private readonly alaqialMarketsScraper: AlaqialMarketsGtinArScraper,
+    private readonly shamlScraper: ShamlGtinArScraper,
+    private readonly aliaqtisadiaScraper: AliaqtisadiaGtinArScraper,
+    private readonly mo3enScraper: Mo3enGtinArScraper,
+    private readonly mo0o0natScraper: Mo0o0natGtinArScraper,
+    private readonly narjsScraper: NarjsGtinArScraper,
+    private readonly talbatukScraper: TalbatukGtinArScraper,
+    private readonly dukanExpressScraper: DukanExpressGtinArScraper,
+    private readonly eanaabScraper: EanaabGtinArScraper,
+    private readonly atayibScraper: AtayibGtinArScraper,
+    private readonly mubarkiyahScraper: MubarkiyahGtinArScraper,
     private readonly openFoodFactsService: OpenFoodFactsService,
+    @Inject('REDIS_CLIENT')
+    private readonly redis: Redis,
   ) {}
 
   compareGtins(a: string | null | undefined, b: string | null | undefined): boolean {
@@ -53,6 +82,19 @@ export class ProductsService {
     if (url.includes('etaamexpress.com')) return this.etaamArScraper;
     if (url.includes('parkcentersa.com')) return this.parkCenterScraper;
     if (url.includes('menhal.sa')) return this.menhalScraper;
+    if (url.includes('hsd-sh.com')) return this.hsdShScraper;
+    if (url.includes('nwsha.com')) return this.nwshaScraper;
+    if (url.includes('alaqialmarkets.net')) return this.alaqialMarketsScraper;
+    if (url.includes('shaml.sa')) return this.shamlScraper;
+    if (url.includes('aliaqtisadia.sa')) return this.aliaqtisadiaScraper;
+    if (url.includes('mo3en.com')) return this.mo3enScraper;
+    if (url.includes('mo0o0nat.com')) return this.mo0o0natScraper;
+    if (url.includes('narjs.store')) return this.narjsScraper;
+    if (url.includes('talbatuk.com')) return this.talbatukScraper;
+    if (url.includes('dukanexpress.com')) return this.dukanExpressScraper;
+    if (url.includes('eanaab.com')) return this.eanaabScraper;
+    if (url.includes('atayib.com')) return this.atayibScraper;
+    if (url.includes('mubarkiyah.com')) return this.mubarkiyahScraper;
     throw new Error(`No dedicated scraper found for store URL: ${url}`);
   }
 
@@ -68,22 +110,40 @@ export class ProductsService {
       ],
     });
 
+    const storeConfigs = [
+      { url: 'https://store.shonaksa.com', platform: 'salla', nameAr: 'شوناكسا', nameEn: 'Shonaksa' },
+      { url: 'https://yasminstore.com', platform: 'salla', nameAr: 'متجر ياسمين', nameEn: 'Yasmin Store' },
+      { url: 'https://mrlogman.com', platform: 'salla', nameAr: 'مستر لوقمان', nameEn: 'Mr Logman' },
+      { url: 'https://etaamexpress.com', platform: 'salla', nameAr: 'إطعام إكسبريس', nameEn: 'Etaam Express' },
+      { url: 'https://parkcentersa.com', platform: 'zid', nameAr: 'بارك سنتر', nameEn: 'Park Center' },
+      { url: 'https://menhal.sa', platform: 'zid', nameAr: 'منهل', nameEn: 'Menhal' },
+      { url: 'https://hsd-sh.com', platform: 'salla', nameAr: 'حصاد نجد', nameEn: 'Hsd-Sh' },
+      { url: 'https://nwsha.com', platform: 'salla', nameAr: 'نوشا', nameEn: 'Nwsha' },
+      { url: 'https://alaqialmarkets.net', platform: 'salla', nameAr: 'أسواق العقيل', nameEn: 'Alaqial Markets' },
+      { url: 'https://shaml.sa', platform: 'salla', nameAr: 'نجمة الشمال', nameEn: 'Shaml' },
+      { url: 'https://aliaqtisadia.sa', platform: 'salla', nameAr: 'صالة تبوك الاقتصادية', nameEn: 'Aliaqtisadia' },
+      { url: 'https://mo3en.com', platform: 'salla', nameAr: 'معينكم', nameEn: 'Mo3en' },
+      { url: 'https://mo0o0nat.com', platform: 'zid', nameAr: 'مونة سكر', nameEn: 'Mo0o0nat' },
+      { url: 'https://narjs.store', platform: 'salla', nameAr: 'متجر نرجس', nameEn: 'Narjs Store' },
+      { url: 'https://talbatuk.com', platform: 'zid', nameAr: 'طلباتك', nameEn: 'Talbatuk' },
+      { url: 'https://dukanexpress.com', platform: 'zid', nameAr: 'الدكان المريح', nameEn: 'Dukan Express' },
+      { url: 'https://eanaab.com', platform: 'salla', nameAr: 'متجر عناب', nameEn: 'Eanaab' },
+      { url: 'https://www.atayib.com', platform: 'custom', nameAr: 'أطايب', nameEn: 'Atayib' },
+      { url: 'https://mubarkiyah.com', platform: 'custom', nameAr: 'المباركية', nameEn: 'Mubarkiyah' },
+    ];
+
     if (!product) {
       this.logger.log(`Product with GTIN ${gtin} not found in database. Starting parallel live seeding...`);
       
-      const storeConfigs = [
-        { url: 'https://store.shonaksa.com', platform: 'salla', nameAr: 'شوناكسا', nameEn: 'Shonaksa' },
-        { url: 'https://yasminstore.com', platform: 'salla', nameAr: 'متجر ياسمين', nameEn: 'Yasmin Store' },
-        { url: 'https://mrlogman.com', platform: 'salla', nameAr: 'مستر لوقمان', nameEn: 'Mr Logman' },
-        { url: 'https://etaamexpress.com', platform: 'salla', nameAr: 'إطعام إكسبريس', nameEn: 'Etaam Express' },
-        { url: 'https://parkcentersa.com', platform: 'zid', nameAr: 'بارك سنتر', nameEn: 'Park Center' },
-        { url: 'https://menhal.sa', platform: 'zid', nameAr: 'منهل', nameEn: 'Menhal' },
-      ];
-
-
-
       const promises = storeConfigs.map(async (store) => {
         try {
+          const cacheKey = `missing:${store.url}:${gtin}`;
+          const isNegativeCached = await this.redis.get(cacheKey);
+          if (isNegativeCached) {
+            this.logger.log(`[Direct Barcode Search] Skipping negative cached empty store ${store.url} for GTIN ${gtin}`);
+            return null;
+          }
+
           const scraper = this.getScraperForStore(store.url);
           await scraper.ensureLaunched();
 
@@ -91,11 +151,11 @@ export class ProductsService {
           const barcodeCandidates = await scraper.searchAndGetCandidates(gtin, 0.5, undefined, store.url);
           
           if (barcodeCandidates && barcodeCandidates.length > 0) {
-            if (barcodeCandidates.length >= 10) {
+            if (barcodeCandidates.length >= 25) {
                this.logger.log(`[Direct Barcode Search] Store ${store.url} returned ${barcodeCandidates.length} products for a GTIN search. This indicates a fallback generic catalog response. Rejecting as not found.`);
             } else {
-              // Loop through the top 3 candidates to find a verified GTIN match
-              const candidatesToCheck = barcodeCandidates.slice(0, 3);
+              // Loop through the top 10 candidates to find a verified GTIN match
+              const candidatesToCheck = barcodeCandidates.slice(0, 10);
               for (const cand of candidatesToCheck) {
                 this.logger.log(`[Direct Barcode Search] Candidate found on ${store.url}: "${cand.name}". Scraping details...`);
                 try {
@@ -103,6 +163,7 @@ export class ProductsService {
 
                   if (details && details.price !== null && this.compareGtins(details.gtin, gtin)) {
                     this.logger.log(`[Direct Barcode Search] Match accepted on ${store.url} for GTIN ${gtin}. Product: "${cand.name}"`);
+                    await this.redis.del(cacheKey);
                     return { store, details, matchUrl: cand.url };
                   } else {
                     this.logger.log(`[Direct Barcode Search] Details, price missing, or GTIN mismatch ("${details?.gtin}" vs "${gtin}") for "${cand.name}" on ${store.url}`);
@@ -114,7 +175,8 @@ export class ProductsService {
             }
           }
 
-          this.logger.log(`[Direct Barcode Search] No verified match for GTIN on ${store.url}`);
+          this.logger.log(`[Direct Barcode Search] No verified match for GTIN on ${store.url}. Writing negative cache.`);
+          await this.redis.set(cacheKey, 'true', 'EX', 86400); // 24 hours
           return null;
         } catch (e: any) {
           this.logger.warn(`Error querying ${store.url} for GTIN ${gtin}: ${e.message}`);
@@ -194,13 +256,9 @@ export class ProductsService {
       return savedProduct;
     }
 
-    if (!product) {
-      throw new NotFoundException(`Product with GTIN ${gtin} not found`);
-    }
-
     // Optimized: Only fetch the latest price per merchant for this product
     // Uses PostgreSQL "DISTINCT ON" to avoid loading full history rows
-    product.prices = await this.productPriceRepository
+    const existingPrices = await this.productPriceRepository
       .createQueryBuilder('pp')
       .leftJoinAndSelect('pp.merchant', 'merchant')
       .where('pp.product_id = :productId', { productId: product.id })
@@ -209,11 +267,87 @@ export class ProductsService {
       .addOrderBy('pp.scraped_at', 'DESC')
       .getMany();
 
-    // Secondary sort: lowest price first for the UI carousel
-    if (product.prices && product.prices.length > 0) {
-      product.prices.sort((a, b) => a.price_sar_incl_vat - b.price_sar_incl_vat);
+    const existingMerchantNames = new Set(existingPrices.map(p => p.merchant?.name_en));
+    const missingStores = storeConfigs.filter(store => !existingMerchantNames.has(store.nameEn));
+
+    if (missingStores.length > 0) {
+      this.logger.log(`Product with GTIN ${gtin} found in database, but missing prices from ${missingStores.length} stores. Gathering missing prices dynamically...`);
+      
+      const promises = missingStores.map(async (store) => {
+        try {
+          const cacheKey = `missing:${store.url}:${gtin}`;
+          const isNegativeCached = await this.redis.get(cacheKey);
+          if (isNegativeCached) {
+            return null;
+          }
+
+          const scraper = this.getScraperForStore(store.url);
+          await scraper.ensureLaunched();
+
+          const barcodeCandidates = await scraper.searchAndGetCandidates(gtin, 0.5, undefined, store.url);
+          if (barcodeCandidates && barcodeCandidates.length > 0 && barcodeCandidates.length < 25) {
+            const candidatesToCheck = barcodeCandidates.slice(0, 10);
+            for (const cand of candidatesToCheck) {
+              try {
+                const details = await scraper.scrapeProductDetails(cand.url);
+                if (details && details.price !== null && this.compareGtins(details.gtin, gtin)) {
+                  await this.redis.del(cacheKey);
+                  return { store, details, matchUrl: cand.url };
+                }
+              } catch (err: any) {
+                this.logger.warn(`Failed to scrape details for candidate "${cand.name}" on ${store.url}: ${err.message}`);
+              }
+            }
+          }
+
+          await this.redis.set(cacheKey, 'true', 'EX', 86400); // 24 hours
+          return null;
+        } catch (e: any) {
+          this.logger.warn(`Error querying ${store.url} for GTIN ${gtin}: ${e.message}`);
+          return null;
+        }
+      });
+
+      const results = await Promise.allSettled(promises);
+      const successfulMatches = results
+        .filter((r): r is PromiseFulfilledResult<any> => r.status === 'fulfilled' && r.value !== null)
+        .map(r => r.value);
+
+      for (const match of successfulMatches) {
+        let merchant = await this.merchantRepository.findOne({
+          where: { name_en: match.store.nameEn },
+        });
+
+        if (!merchant) {
+          merchant = this.merchantRepository.create({
+            name_en: match.store.nameEn,
+            name_ar: match.store.nameAr,
+            base_url: match.store.url,
+            data_source_type: 'scraped_live',
+          });
+          merchant = await this.merchantRepository.save(merchant);
+        }
+
+        const price = this.productPriceRepository.create({
+          price_sar_incl_vat: match.details.price,
+          currency: 'SAR',
+          in_stock: true,
+          source_url: match.matchUrl,
+          scraped_at: new Date(),
+          merchant: merchant,
+          product: product,
+        });
+        const savedPrice = await this.productPriceRepository.save(price);
+        existingPrices.push(savedPrice);
+      }
     }
 
+    // Secondary sort: lowest price first for the UI carousel
+    if (existingPrices && existingPrices.length > 0) {
+      existingPrices.sort((a, b) => a.price_sar_incl_vat - b.price_sar_incl_vat);
+    }
+
+    product.prices = existingPrices;
     return product;
   }
 
@@ -232,6 +366,28 @@ export class ProductsService {
             ],
           });
 
+          const storeConfigs = [
+            { url: 'https://store.shonaksa.com', platform: 'salla', nameAr: 'شوناكسا', nameEn: 'Shonaksa' },
+            { url: 'https://yasminstore.com', platform: 'salla', nameAr: 'متجر ياسمين', nameEn: 'Yasmin Store' },
+            { url: 'https://mrlogman.com', platform: 'salla', nameAr: 'مستر لوقمان', nameEn: 'Mr Logman' },
+            { url: 'https://etaamexpress.com', platform: 'salla', nameAr: 'إطعام إكسبريس', nameEn: 'Etaam Express' },
+            { url: 'https://parkcentersa.com', platform: 'zid', nameAr: 'بارك سنتر', nameEn: 'Park Center' },
+            { url: 'https://menhal.sa', platform: 'zid', nameAr: 'منهل', nameEn: 'Menhal' },
+            { url: 'https://hsd-sh.com', platform: 'salla', nameAr: 'حصاد نجد', nameEn: 'Hsd-Sh' },
+            { url: 'https://nwsha.com', platform: 'salla', nameAr: 'نوشا', nameEn: 'Nwsha' },
+            { url: 'https://alaqialmarkets.net', platform: 'salla', nameAr: 'أسواق العقيل', nameEn: 'Alaqial Markets' },
+            { url: 'https://shaml.sa', platform: 'salla', nameAr: 'نجمة الشمال', nameEn: 'Shaml' },
+            { url: 'https://aliaqtisadia.sa', platform: 'salla', nameAr: 'صالة تبوك الاقتصادية', nameEn: 'Aliaqtisadia' },
+            { url: 'https://mo3en.com', platform: 'salla', nameAr: 'معينكم', nameEn: 'Mo3en' },
+            { url: 'https://mo0o0nat.com', platform: 'zid', nameAr: 'مونة سكر', nameEn: 'Mo0o0nat' },
+            { url: 'https://narjs.store', platform: 'salla', nameAr: 'متجر نرجس', nameEn: 'Narjs Store' },
+            { url: 'https://talbatuk.com', platform: 'zid', nameAr: 'طلباتك', nameEn: 'Talbatuk' },
+            { url: 'https://dukanexpress.com', platform: 'zid', nameAr: 'الدكان المريح', nameEn: 'Dukan Express' },
+            { url: 'https://eanaab.com', platform: 'salla', nameAr: 'متجر عناب', nameEn: 'Eanaab' },
+            { url: 'https://www.atayib.com', platform: 'custom', nameAr: 'أطايب', nameEn: 'Atayib' },
+            { url: 'https://mubarkiyah.com', platform: 'custom', nameAr: 'المباركية', nameEn: 'Mubarkiyah' },
+          ];
+
           if (product) {
             // Fetch prices
             product.prices = await this.productPriceRepository
@@ -247,7 +403,119 @@ export class ProductsService {
               product.prices.sort((a, b) => a.price_sar_incl_vat - b.price_sar_incl_vat);
             }
 
+            // Immediately emit existing product state
             subscriber.next({ data: { type: 'product', payload: product } });
+
+            const existingMerchantNames = new Set(product.prices.map(p => p.merchant?.name_en));
+            const missingStores = storeConfigs.filter(store => !existingMerchantNames.has(store.nameEn));
+
+            if (missingStores.length === 0) {
+              subscriber.next({ data: { type: 'done', payload: product } });
+              subscriber.complete();
+              return;
+            }
+
+            this.logger.log(`[Stream Seeding] Product found but missing prices from ${missingStores.length} stores. Initiating live background scraping...`);
+
+            const successfulMatches: any[] = [];
+            const promises = missingStores.map(async (store) => {
+              try {
+                const cacheKey = `missing:${store.url}:${gtin}`;
+                const isNegativeCached = await this.redis.get(cacheKey);
+                if (isNegativeCached) {
+                  subscriber.next({
+                    data: {
+                      type: 'store_failed',
+                      payload: { merchant: store.nameEn, merchantAr: store.nameAr },
+                    },
+                  });
+                  return null;
+                }
+
+                const scraper = this.getScraperForStore(store.url);
+                await scraper.ensureLaunched();
+
+                const barcodeCandidates = await scraper.searchAndGetCandidates(gtin, 0.5, undefined, store.url);
+                if (barcodeCandidates && barcodeCandidates.length > 0 && barcodeCandidates.length < 25) {
+                  const candidatesToCheck = barcodeCandidates.slice(0, 10);
+                  for (const cand of candidatesToCheck) {
+                    try {
+                      const details = await scraper.scrapeProductDetails(cand.url);
+                      if (details && details.price !== null && this.compareGtins(details.gtin, gtin)) {
+                        const matchData = {
+                          merchant: store.nameEn,
+                          merchantAr: store.nameAr,
+                          price: details.price,
+                          url: cand.url,
+                        };
+
+                        // Emit price_match event immediately!
+                        subscriber.next({
+                          data: { type: 'price_match', payload: matchData },
+                        });
+
+                        const match = { store, details, matchUrl: cand.url };
+                        successfulMatches.push(match);
+                        await this.redis.del(cacheKey);
+                        return match;
+                      }
+                    } catch (err: any) {
+                      this.logger.warn(`Failed to scrape details for candidate "${cand.name}" on ${store.url}: ${err.message}`);
+                    }
+                  }
+                }
+
+                await this.redis.set(cacheKey, 'true', 'EX', 86400); // 24 hours
+                subscriber.next({
+                  data: {
+                    type: 'store_failed',
+                    payload: { merchant: store.nameEn, merchantAr: store.nameAr },
+                  },
+                });
+                return null;
+              } catch (e: any) {
+                subscriber.next({
+                  data: {
+                    type: 'store_failed',
+                    payload: { merchant: store.nameEn, merchantAr: store.nameAr, error: e.message },
+                  },
+                });
+                return null;
+              }
+            });
+
+            await Promise.allSettled(promises);
+
+            // Save and append successful matches
+            for (const match of successfulMatches) {
+              let merchant = await this.merchantRepository.findOne({
+                where: { name_en: match.store.nameEn },
+              });
+
+              if (!merchant) {
+                merchant = this.merchantRepository.create({
+                  name_en: match.store.nameEn,
+                  name_ar: match.store.nameAr,
+                  base_url: match.store.url,
+                  data_source_type: 'scraped_live',
+                });
+                merchant = await this.merchantRepository.save(merchant);
+              }
+
+              const price = this.productPriceRepository.create({
+                price_sar_incl_vat: match.details.price,
+                currency: 'SAR',
+                in_stock: true,
+                source_url: match.matchUrl,
+                scraped_at: new Date(),
+                merchant: merchant,
+                product: product,
+              });
+              const savedPrice = await this.productPriceRepository.save(price);
+              product.prices.push(savedPrice);
+            }
+
+            product.prices.sort((a, b) => a.price_sar_incl_vat - b.price_sar_incl_vat);
             subscriber.next({ data: { type: 'done', payload: product } });
             subscriber.complete();
             return;
@@ -255,21 +523,28 @@ export class ProductsService {
 
           // If product is not in database, we start parallel live seeding!
           this.logger.log(`[Stream Seeding] Product with GTIN ${gtin} not found. Starting streaming live seeding...`);
-          
-          const storeConfigs = [
-            { url: 'https://store.shonaksa.com', platform: 'salla', nameAr: 'شوناكسا', nameEn: 'Shonaksa' },
-            { url: 'https://yasminstore.com', platform: 'salla', nameAr: 'متجر ياسمين', nameEn: 'Yasmin Store' },
-            { url: 'https://mrlogman.com', platform: 'salla', nameAr: 'مستر لوقمان', nameEn: 'Mr Logman' },
-            { url: 'https://etaamexpress.com', platform: 'salla', nameAr: 'إطعام إكسبريس', nameEn: 'Etaam Express' },
-            { url: 'https://parkcentersa.com', platform: 'zid', nameAr: 'بارك سنتر', nameEn: 'Park Center' },
-            { url: 'https://menhal.sa', platform: 'zid', nameAr: 'منهل', nameEn: 'Menhal' },
-          ];
 
           const successfulMatches: any[] = [];
           let firstMatchFound = false;
 
           const promises = storeConfigs.map(async (store) => {
             try {
+              const cacheKey = `missing:${store.url}:${gtin}`;
+              const isNegativeCached = await this.redis.get(cacheKey);
+              if (isNegativeCached) {
+                this.logger.log(`[Stream Search] Skipping negative cached empty store ${store.url} for GTIN ${gtin}`);
+                subscriber.next({
+                  data: {
+                    type: 'store_failed',
+                    payload: {
+                      merchant: store.nameEn,
+                      merchantAr: store.nameAr,
+                    },
+                  },
+                });
+                return null;
+              }
+
               const scraper = this.getScraperForStore(store.url);
               await scraper.ensureLaunched();
 
@@ -277,10 +552,10 @@ export class ProductsService {
               const barcodeCandidates = await scraper.searchAndGetCandidates(gtin, 0.5, undefined, store.url);
               
               if (barcodeCandidates && barcodeCandidates.length > 0) {
-                if (barcodeCandidates.length >= 10) {
+                if (barcodeCandidates.length >= 25) {
                   this.logger.log(`[Stream Search] Store ${store.url} returned ${barcodeCandidates.length} products. Rejecting as generic response.`);
                 } else {
-                  const candidatesToCheck = barcodeCandidates.slice(0, 3);
+                  const candidatesToCheck = barcodeCandidates.slice(0, 10);
                   for (const cand of candidatesToCheck) {
                     this.logger.log(`[Stream Search] Candidate found on ${store.url}: "${cand.name}". Scraping details...`);
                     try {
@@ -321,6 +596,7 @@ export class ProductsService {
 
                         const match = { store, details, matchUrl: cand.url };
                         successfulMatches.push(match);
+                        await this.redis.del(cacheKey);
                         return match;
                       }
                     } catch (err: any) {
@@ -330,7 +606,8 @@ export class ProductsService {
                 }
               }
 
-              this.logger.log(`[Stream Search] No verified match for GTIN on ${store.url}`);
+              this.logger.log(`[Stream Search] No verified match for GTIN on ${store.url}. Writing negative cache.`);
+              await this.redis.set(cacheKey, 'true', 'EX', 86400); // 24 hours
               subscriber.next({
                 data: {
                   type: 'store_failed',

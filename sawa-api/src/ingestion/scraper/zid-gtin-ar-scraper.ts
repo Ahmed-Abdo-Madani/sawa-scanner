@@ -26,9 +26,11 @@ export function isGenericButtonOrLabel(name: string): boolean {
     'اشتر الآن', 'اشتري الآن', 'شراء الآن', 'نفدت الكمية', 'نفذت الكمية',
     'غير متوفر', 'تفاصيل المنتج', 'عرض المنتج', 'قراءة المزيد', 'تفاصيل',
     'المزيد', 'سلة المشتريات', 'أضف للمقارنة', 'أضف للمفضلة', 'معاينة', 'سريع',
+    'أعلمني عند التوفر', 'اعلمني عند التوفر', 'أعلمني عند توفره', 'اعلمني عند توفره',
+    'أعلمني عند توفر المنتج', 'اعلمني عند توفر المنتج', 'إعلامي عند التوفر', 'اعلامي عند التوفر',
     'add to cart', 'add to basket', 'buy now', 'out of stock', 'sold out',
     'read more', 'details', 'view product', 'quick view', 'add to wishlist',
-    'add to compare', 'go to cart'
+    'add to compare', 'go to cart', 'notify me', 'notify me when available'
   ];
   return clean.length <= 2 || blacklisted.some(term => clean === term);
 }
@@ -161,8 +163,20 @@ export class ZidGtinArScraper extends BaseScraper {
   private parseZidProductsFromHtml(html: string, origin: string): any[] {
     const results: any[] = [];
 
+    // Isolate the search results grid to prevent parsing header/footer/recommended carousels
+    let searchAreaHtml = html;
+    const gridStartIndex = html.indexOf('id="products-list"');
+    if (gridStartIndex !== -1) {
+      const footerIndex = html.indexOf('<footer', gridStartIndex);
+      if (footerIndex !== -1) {
+        searchAreaHtml = html.substring(gridStartIndex, footerIndex);
+      } else {
+        searchAreaHtml = html.substring(gridStartIndex);
+      }
+    }
+
     // 1. Try JSON-LD first (Zid sometimes embeds product list JSON-LD)
-    const matches = html.match(/<script\s+type="application\/ld\+json">([\s\S]*?)<\/script>/gi);
+    const matches = searchAreaHtml.match(/<script\s+type="application\/ld\+json">([\s\S]*?)<\/script>/gi);
     if (matches) {
       for (const match of matches) {
         try {
@@ -195,12 +209,43 @@ export class ZidGtinArScraper extends BaseScraper {
 
     if (results.length > 0) return results;
 
+    // 1.5 Try parsing from custom <product-card> element attributes (common in modern Zid Vitrin themes)
+    const productCardRegex = /<product-card\s+[^>]*product="([^"]+)"/gi;
+    let pcMatch: RegExpExecArray | null;
+    while ((pcMatch = productCardRegex.exec(searchAreaHtml)) !== null) {
+      try {
+        const decodedJson = pcMatch[1]
+          .replace(/&quot;/g, '"')
+          .replace(/&#39;/g, "'")
+          .replace(/&amp;/g, '&')
+          .replace(/&lt;/g, '<')
+          .replace(/&gt;/g, '>');
+        const productObj = JSON.parse(decodedJson);
+        if (productObj && productObj.name && productObj.slug) {
+          const productUrl = `${origin}/products/${productObj.slug}`;
+          let imgUrl: string | null = null;
+          if (productObj.images && productObj.images.length > 0) {
+            imgUrl = productObj.images[0]?.image?.large || productObj.images[0]?.image?.small || productObj.images[0]?.image?.full_size || null;
+          }
+          if (this.isValidZidProductUrl(productUrl) && !isGenericButtonOrLabel(productObj.name)) {
+            if (!results.some(r => r.url === productUrl)) {
+              results.push({
+                name: productObj.name,
+                url: productUrl,
+                image: imgUrl,
+              });
+            }
+          }
+        }
+      } catch { /* ignore */ }
+    }
+
     // 2. Fallback to Regex product-item card extraction
-    const cardRegex = /<div\s+[^>]*class="[^"]*(?:product-item|product-card)[^"]*"([\s\S]*?)<\/div>/gi;
+    const cardRegex = /<div\s+[^>]*class="[^"]*(?:product-item|product-card|product-cart-wrap)[^"]*"([\s\S]*?)<\/div>/gi;
     let cardMatch: RegExpExecArray | null;
     
     // To handle nested divs, we search within each matched card snippet
-    while ((cardMatch = cardRegex.exec(html)) !== null) {
+    while ((cardMatch = cardRegex.exec(searchAreaHtml)) !== null) {
       const cardHtml = cardMatch[1];
 
       // Extract href link
@@ -244,7 +289,9 @@ export class ZidGtinArScraper extends BaseScraper {
       }
 
       if (name && url && !isGenericButtonOrLabel(name)) {
-        results.push({ name, url, image });
+        if (!results.some(r => r.url === url)) {
+          results.push({ name, url, image });
+        }
       }
     }
 
@@ -259,8 +306,11 @@ export class ZidGtinArScraper extends BaseScraper {
   ): Promise<ZidArProductMatch[]> {
     productNameAr = productNameAr.trim();
     const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
-    const isMenhal = baseUrl.includes('menhal.sa');
-    const searchParam = isMenhal ? 'q' : 'search';
+    const useQParam = baseUrl.includes('menhal.sa') || 
+                      baseUrl.includes('mo0o0nat.com') || 
+                      baseUrl.includes('talbatuk.com') || 
+                      baseUrl.includes('dukanexpress.com');
+    const searchParam = useQParam ? 'q' : 'search';
     let searchUrl = `${cleanBaseUrl}/products?${searchParam}=${encodeURIComponent(productNameAr)}`;
 
     this.logger.log(`[Zid Scraper] Gathering search candidates for "${productNameAr}" on store: ${baseUrl}...`);
@@ -341,13 +391,15 @@ export class ZidGtinArScraper extends BaseScraper {
       await this.ensureLaunched();
       if (!this.context) throw new Error('Browser context not initialized');
 
-      const page = await this.context.newPage();
+      const page = await this.acquirePage();
       try {
         await this.applyHostThrottling(searchUrl);
         await this.navigateWithEvasion(page, searchUrl, 'domcontentloaded', 60000, 400, 1200);
         try {
           try {
-            await page.waitForSelector('.product-item a, .product-card a, [class*="product-card"] a, [class*="product-item"] a, .no-results, .empty-page, .empty-state, .empty-search, .no-products', { timeout: 3000 });
+            await page.waitForSelector('.product-item a, .product-card a, [class*="product-card"] a, [class*="product-item"] a, product-card a, product-item a, .product-cart-wrap a, .no-results, .empty-page, .empty-state, .empty-search, .no-products', {
+              timeout: this.getAdaptiveSelectorTimeout(baseUrl),
+            });
           } catch (e) {
             this.logger.debug(`[Zid Scraper] Timeout waiting for product selectors on search page: ${e.message}`);
           }
@@ -366,9 +418,11 @@ export class ZidGtinArScraper extends BaseScraper {
               'اشتر الآن', 'اشتري الآن', 'شراء الآن', 'نفدت الكمية', 'نفذت الكمية',
               'غير متوفر', 'تفاصيل المنتج', 'عرض المنتج', 'قراءة المزيد', 'تفاصيل',
               'المزيد', 'سلة المشتريات', 'أضف للمقارنة', 'أضف للمفضلة', 'معاينة', 'سريع',
+              'أعلمني عند التوفر', 'اعلمني عند التوفر', 'أعلمني عند توفره', 'اعلمني عند توفره',
+              'أعلمني عند توفر المنتج', 'اعلمني عند توفر المنتج', 'إعلامي عند التوفر', 'اعلامي عند التوفر',
               'add to cart', 'add to basket', 'buy now', 'out of stock', 'sold out',
               'read more', 'details', 'view product', 'quick view', 'add to wishlist',
-              'add to compare', 'go to cart'
+              'add to compare', 'go to cart', 'notify me', 'notify me when available'
             ];
             return clean.length <= 2 || blacklisted.some(term => clean === term);
           }
@@ -400,33 +454,86 @@ export class ZidGtinArScraper extends BaseScraper {
 
           const results: { name: string; url: string; image: string | null }[] = [];
           
-          // Selectors matching product items or cards in Zid storefronts
-          const cards = document.querySelectorAll('.product-item, .product-card, [class*="product-card"], [class*="product-item"]');
+          // Isolate to main product grid if present, fallback to document to avoid recommended footer carousels
+          const grid = document.getElementById('products-list') || document.querySelector('.products-list, .product-grid');
+          const root = grid || document;
+          const cards = root.querySelectorAll('.product-item, .product-card, [class*="product-card"], [class*="product-item"], product-card, product-item, .product-cart-wrap');
 
           for (const card of Array.from(cards)) {
-            const linkEl = card.querySelector('a[href*="/products/"]') as HTMLAnchorElement;
-            if (!linkEl) continue;
+            // A. Check if this is a custom <product-card> element with JSON attribute
+            if (card.tagName.toLowerCase() === 'product-card') {
+              const productAttr = card.getAttribute('product');
+              if (productAttr) {
+                try {
+                  const productObj = JSON.parse(productAttr);
+                  if (productObj && productObj.name && productObj.slug) {
+                    const productUrl = `${window.location.origin}/products/${productObj.slug}`;
+                    let imgUrl = null;
+                    if (productObj.images && productObj.images.length > 0) {
+                      imgUrl = productObj.images[0]?.image?.large || productObj.images[0]?.image?.small || productObj.images[0]?.image?.full_size || null;
+                    }
+                    if (isValidZidProductUrl(productUrl) && !isGenericButtonOrLabel(productObj.name)) {
+                      if (!results.some(r => r.url === productUrl)) {
+                        results.push({
+                          name: productObj.name,
+                          url: productUrl,
+                          image: imgUrl,
+                        });
+                      }
+                      continue;
+                    }
+                  }
+                } catch (e) {
+                  // Fallback to DOM parsing for this card
+                }
+              }
+            }
 
-            const url = linkEl.href;
-            if (!isValidZidProductUrl(url)) continue;
+            // B. Standard DOM parsing fallback
+            const anchors = Array.from(card.querySelectorAll('a'));
+            let linkEl: HTMLAnchorElement | null = null;
+            let url = '';
+            for (const a of anchors) {
+              if (a.href && isValidZidProductUrl(a.href)) {
+                linkEl = a;
+                url = a.href;
+                break;
+              }
+            }
+            if (!linkEl) continue;
             
             // Find non-gif product image
             let image: string | null = null;
             const imgs = card.querySelectorAll('img');
             for (const img of Array.from(imgs)) {
-              const src = img.src || img.getAttribute('data-src');
+              const rawSrc = img.getAttribute('src');
+              const dataSrc = img.getAttribute('data-src');
+              const src = (rawSrc && rawSrc !== '#' && rawSrc !== '') ? rawSrc : dataSrc;
               if (src && !src.includes('spinner') && !src.includes('placeholder') && !src.includes('.gif')) {
-                image = src;
+                image = src.startsWith('http') ? src : new URL(src, window.location.href).href;
                 break;
               }
             }
 
             // Find title
-            const titleEl = card.querySelector('.product-title, .title, h3, h4, span.product-name');
-            const name = titleEl?.textContent?.trim() || linkEl.textContent?.trim() || '';
+            const titleEl = card.querySelector('.product-title, .title, h1, h2, h3, h4, h5, h6, span.product-name, [class*="title"]');
+            let name = titleEl?.textContent?.trim() || '';
+
+            if (!name) {
+              // Try to find any anchor text in this card that contains non-generic text
+              for (const a of anchors) {
+                const text = a.textContent?.trim();
+                if (text && !isGenericButtonOrLabel(text)) {
+                  name = text;
+                  break;
+                }
+              }
+            }
 
             if (name && url && !isGenericButtonOrLabel(name)) {
-              results.push({ name, url, image });
+              if (!results.some(r => r.url === url)) {
+                results.push({ name, url, image });
+              }
             }
           }
           return results;
@@ -434,7 +541,7 @@ export class ZidGtinArScraper extends BaseScraper {
 
         this.logger.log(`[Fallback Playwright] Scraped ${searchResults.length} candidates.`);
       } finally {
-        await page.close().catch((err) => this.logger.warn(`Failed to close search page: ${err.message}`));
+        await this.releasePage(page);
       }
     }
 
@@ -446,8 +553,8 @@ export class ZidGtinArScraper extends BaseScraper {
 
     const isPureBarcode = /^\d{8,14}$/.test(productNameAr);
     if (isPureBarcode) {
-      this.logger.log(`[Barcode Bypass] Pure barcode query detected: ${productNameAr}. Returning top ${Math.min(searchResults.length, 3)} candidate(s).`);
-      return searchResults.slice(0, 3).map((r) => ({
+      this.logger.log(`[Barcode Bypass] Pure barcode query detected: ${productNameAr}. Returning top ${Math.min(searchResults.length, 12)} candidate(s).`);
+      return searchResults.slice(0, 12).map((r) => ({
         name: r.name,
         url: r.url,
         image: r.image,
@@ -586,12 +693,12 @@ export class ZidGtinArScraper extends BaseScraper {
     await this.ensureLaunched();
     if (!this.context) throw new Error('Browser context not initialized');
 
-    const page = await this.context.newPage();
+    const page = await this.acquirePage();
     try {
       await this.applyHostThrottling(productUrl);
       await this.navigateWithEvasion(page, productUrl, 'domcontentloaded', 60000, 400, 1200);
       try {
-        await page.waitForSelector('h1, .product-title, .title, script[type="application/ld+json"]', { timeout: 5000 });
+        await page.waitForSelector('h1, .product-title, .title', { timeout: 5000 });
       } catch (e) {
         this.logger.debug(`[Zid Scraper] Timeout waiting for selectors on product page: ${e.message}`);
       }
@@ -633,7 +740,7 @@ export class ZidGtinArScraper extends BaseScraper {
 
       return gtin || null;
     } finally {
-      await page.close().catch((err) => this.logger.warn(`Failed to close product page: ${err.message}`));
+      await this.releasePage(page);
     }
   }
 
@@ -866,7 +973,7 @@ export class ZidGtinArScraper extends BaseScraper {
       await this.applyHostThrottling(productUrl);
       await this.navigateWithEvasion(page, productUrl, 'domcontentloaded', 60000, 400, 1200);
       try {
-        await page.waitForSelector('h1, .product-title, .title, script[type="application/ld+json"]', { timeout: 5000 });
+        await page.waitForSelector('h1, .product-title, .title', { timeout: 5000 });
       } catch (e) {
         this.logger.debug(`[Zid Scraper] Timeout waiting for selectors on details page: ${e.message}`);
       }

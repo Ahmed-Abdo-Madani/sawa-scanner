@@ -207,6 +207,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> with WidgetsBindi
             },
             onError: (err) {
               if (!mounted) return;
+              print('[Scanner Screen SSE Error] Stream listener encountered an error: $err');
               setState(() {
                 _isProcessing = false;
                 _isLoadingProduct = false;
@@ -1379,6 +1380,20 @@ class _ScannedProductLoadingCardState extends State<_ScannedProductLoadingCard>
       {'en': 'Park Center', 'ar': 'بارك سنتر'},
       {'en': 'Menhal', 'ar': 'منهل'},
       {'en': 'Etaam Express', 'ar': 'إطعام إكسبريس'},
+      {'en': 'Hsd-Sh', 'ar': 'حصاد نجد'},
+      {'en': 'Nwsha', 'ar': 'نوشا'},
+      {'en': 'Alaqial Markets', 'ar': 'أسواق العقيل'},
+      {'en': 'Shaml', 'ar': 'نجمة الشمال'},
+      {'en': 'Aliaqtisadia', 'ar': 'صالة تبوك الاقتصادية'},
+      {'en': 'Mo3en', 'ar': 'معينكم'},
+      {'en': 'Mo0o0nat', 'ar': 'مونة سكر'},
+      {'en': 'Narjs Store', 'ar': 'متجر نرجس'},
+      {'en': 'Talbatuk', 'ar': 'طلباتك'},
+      {'en': 'Waw', 'ar': 'واو للتسوق'},
+      {'en': 'Dukan Express', 'ar': 'الدكان المريح'},
+      {'en': 'Eanaab', 'ar': 'متجر عناب'},
+      {'en': 'Atayib', 'ar': 'أطايب'},
+      {'en': 'Mubarkiyah', 'ar': 'المباركية'},
     ];
 
     return ClipRRect(

@@ -23,52 +23,76 @@ class ProductRemoteDataSource {
 
     () async {
       try {
+        print('[SSE Debug] Initiating progressive stream for GTIN: $gtin');
         final client = HttpClient();
         client.connectionTimeout = const Duration(seconds: 15);
         
+        // Development bypass for custom tunnels (e.g. ngrok/localtunnel Let's Encrypt issues on emulator/devices)
+        client.badCertificateCallback = (X509Certificate cert, String host, int port) => true;
+
         final url = Uri.parse('$baseUrl/products/$gtin/scan-stream');
+        print('[SSE Debug] Targeting stream URL: $url');
         final request = await client.getUrl(url);
         
+        // Set standard tunnel and client bypass headers
         request.headers.set('bypass-tunnel-reminder', 'true');
+        request.headers.set('Bypass-Tunnel-Reminder', 'true');
         request.headers.set('ngrok-skip-browser-warning', 'true');
         request.headers.set('Accept', 'text/event-stream');
         request.headers.set('Cache-Control', 'no-cache');
+        request.headers.set('X-Accel-Buffering', 'no');
+        request.headers.set('User-Agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
         
+        if (ApiConfig.devAdminSecret != null) {
+          print('[SSE Debug] Appending dev admin secret header');
+          request.headers.set('x-dev-admin-secret', ApiConfig.devAdminSecret!);
+        }
+
+        print('[SSE Debug] Closing request to fetch stream response...');
         final response = await request.close();
+        print('[SSE Debug] Response received. HTTP Status: ${response.statusCode}');
         
         if (response.statusCode != 200) {
-          controller.addError(ServerException('Failed to connect to stream: ${response.statusCode}'));
+          final errStr = 'Failed to connect to stream: ${response.statusCode}';
+          print('[SSE Debug] Connection error: $errStr');
+          controller.addError(ServerException(errStr));
           controller.close();
           return;
         }
         
+        print('[SSE Debug] Connection established. Listening to incoming chunk data...');
         response
             .transform(utf8.decoder)
             .transform(const LineSplitter())
             .listen(
           (line) {
+            print('[SSE Debug Raw Chunk] Line: "$line"');
             if (line.startsWith('data: ')) {
               final jsonStr = line.substring(6).trim();
               if (jsonStr.isNotEmpty) {
                 try {
                   final payload = json.decode(jsonStr) as Map<String, dynamic>;
+                  print('[SSE Debug Parsed] Type: ${payload['type']}, Payload keys: ${payload['payload']?.keys}');
                   controller.add(payload);
                 } catch (e) {
-                  // Silently ignore malformed SSE frames
+                  print('[SSE Debug Parse Error] Failed to decode JSON: $jsonStr, Error: $e');
                 }
               }
             }
           },
-          onError: (err) {
+          onError: (err, stackTrace) {
+            print('[SSE Debug Stream Error] Listener exception: $err\n$stackTrace');
             controller.addError(err);
             controller.close();
           },
           onDone: () {
+            print('[SSE Debug Stream Closed] Stream completed.');
             controller.close();
           },
           cancelOnError: true,
         );
-      } catch (e) {
+      } catch (e, stackTrace) {
+        print('[SSE Debug Catch Error] Connection setup failed: $e\n$stackTrace');
         controller.addError(ServerException(e.toString()));
         controller.close();
       }
