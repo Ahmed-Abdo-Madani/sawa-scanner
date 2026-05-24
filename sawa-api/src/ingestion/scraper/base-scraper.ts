@@ -42,16 +42,21 @@ export abstract class BaseScraper {
       if (urlOrHost.startsWith('http://') || urlOrHost.startsWith('https://')) {
         host = new URL(urlOrHost).host;
       }
+      
+      const envTimeout = process.env.SCRAPER_SELECTOR_TIMEOUT ? parseInt(process.env.SCRAPER_SELECTOR_TIMEOUT, 10) : null;
+      const maxTimeout = envTimeout || 6000; // default max: 6s (relaxed from 3s)
+      const minTimeout = envTimeout ? Math.round(envTimeout / 2.5) : 3000; // default min: 3s (relaxed from 1.2s)
+
       const latencies = BaseScraper.hostLatencies[host];
       if (!latencies || latencies.length < 2) {
-        return 3000;
+        return maxTimeout;
       }
       const avg = latencies.reduce((sum, val) => sum + val, 0) / latencies.length;
-      const adaptive = Math.max(1200, Math.min(3000, Math.round(avg * 1.5)));
+      const adaptive = Math.max(minTimeout, Math.min(maxTimeout, Math.round(avg * 2.0)));
       this.logger.debug(`[Adaptive Timeout] Host: ${host}, Avg Latency: ${Math.round(avg)}ms -> Selector Timeout: ${adaptive}ms`);
       return adaptive;
     } catch {
-      return 3000;
+      return 6000;
     }
   }
 

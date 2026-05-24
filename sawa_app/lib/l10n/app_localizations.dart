@@ -1711,6 +1711,90 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Searching local stores in real-time...'**
   String get searchingLiveStores;
+
+  /// No description provided for @cartTab.
+  ///
+  /// In en, this message translates to:
+  /// **'Cart'**
+  String get cartTab;
+
+  /// No description provided for @addedToCart.
+  ///
+  /// In en, this message translates to:
+  /// **'Product added to cart'**
+  String get addedToCart;
+
+  /// No description provided for @cartTotal.
+  ///
+  /// In en, this message translates to:
+  /// **'Cart Total'**
+  String get cartTotal;
+
+  /// No description provided for @emptyCart.
+  ///
+  /// In en, this message translates to:
+  /// **'Your cart is empty'**
+  String get emptyCart;
+
+  /// No description provided for @checkout.
+  ///
+  /// In en, this message translates to:
+  /// **'Checkout'**
+  String get checkout;
+
+  /// No description provided for @quantity.
+  ///
+  /// In en, this message translates to:
+  /// **'Quantity'**
+  String get quantity;
+
+  /// No description provided for @totalAmount.
+  ///
+  /// In en, this message translates to:
+  /// **'Total Amount'**
+  String get totalAmount;
+
+  /// No description provided for @lowestPriceTotal.
+  ///
+  /// In en, this message translates to:
+  /// **'Total (Lowest)'**
+  String get lowestPriceTotal;
+
+  /// No description provided for @highestPriceTotal.
+  ///
+  /// In en, this message translates to:
+  /// **'Total (Highest)'**
+  String get highestPriceTotal;
+
+  /// No description provided for @potentialSavings.
+  ///
+  /// In en, this message translates to:
+  /// **'Potential Savings'**
+  String get potentialSavings;
+
+  /// No description provided for @startScanning.
+  ///
+  /// In en, this message translates to:
+  /// **'Start Scanning'**
+  String get startScanning;
+
+  /// No description provided for @clearCart.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear Cart'**
+  String get clearCart;
+
+  /// No description provided for @itemsCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 item} other{{count} items}}'**
+  String itemsCount(int count);
+
+  /// No description provided for @priceSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'Price Summary'**
+  String get priceSummary;
 }
 
 class _AppLocalizationsDelegate

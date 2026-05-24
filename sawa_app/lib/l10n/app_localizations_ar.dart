@@ -866,4 +866,54 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get searchingLiveStores => 'جاري البحث في المتاجر المحلية...';
+
+  @override
+  String get cartTab => 'السلة';
+
+  @override
+  String get addedToCart => 'تمت إضافة المنتج إلى السلة';
+
+  @override
+  String get cartTotal => 'إجمالي السلة';
+
+  @override
+  String get emptyCart => 'سلتك فارغة';
+
+  @override
+  String get checkout => 'الدفع';
+
+  @override
+  String get quantity => 'الكمية';
+
+  @override
+  String get totalAmount => 'المبلغ الإجمالي';
+
+  @override
+  String get lowestPriceTotal => 'الإجمالي (الأقل)';
+
+  @override
+  String get highestPriceTotal => 'الإجمالي (الأعلى)';
+
+  @override
+  String get potentialSavings => 'التوفير المحتمل';
+
+  @override
+  String get startScanning => 'ابدأ المسح';
+
+  @override
+  String get clearCart => 'تفريغ السلة';
+
+  @override
+  String itemsCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count عناصر',
+      one: 'عنصر واحد',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get priceSummary => 'ملخص الأسعار';
 }

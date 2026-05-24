@@ -20,6 +20,7 @@ import '../search/search_screen.dart';
 import '../../widgets/nutri_score_badge.dart';
 import '../../../core/exceptions.dart';
 import '../../../data/models/product_model.dart';
+import '../../providers/cart_provider.dart';
 
 
 
@@ -444,81 +445,23 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> with WidgetsBindi
                       ),
                     ),
 
-                  // Top Bar Overlay (Mode Pills)
-                  Positioned(
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    child: Container(
-                      padding: EdgeInsets.only(
-                        top: MediaQuery.of(context).padding.top + 10,
-                        bottom: 20,
-                      ),
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: [
-                            Colors.black.withOpacity(0.7),
-                            Colors.transparent,
-                          ],
+                  // Top Bar Overlay (Close Button)
+                  if (widget.showBackButton)
+                    Positioned(
+                      top: MediaQuery.of(context).padding.top + 10,
+                      left: Localizations.localeOf(context).languageCode == 'ar' ? null : 16,
+                      right: Localizations.localeOf(context).languageCode == 'ar' ? 16 : null,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.black.withOpacity(0.4),
+                          shape: BoxShape.circle,
+                        ),
+                        child: IconButton(
+                          icon: const Icon(Icons.close, color: Colors.white),
+                          onPressed: () => Navigator.pop(context),
                         ),
                       ),
-                      child: Column(
-                        children: [
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 16),
-                            child: Row(
-                              children: [
-                                if (widget.showBackButton)
-                                  IconButton(
-                                    icon: const Icon(Icons.close, color: Colors.white),
-                                    onPressed: () => Navigator.pop(context),
-                                  )
-                                else
-                                  const SizedBox(width: 48),
-                                Expanded(
-                                  child: SingleChildScrollView(
-                                    scrollDirection: Axis.horizontal,
-                                    child: Row(
-                                      mainAxisAlignment: MainAxisAlignment.center,
-                                      children: [
-                                        ModePill(
-                                          label: l10n.barcodeMode,
-                                          isActive: mode == ScannerMode.barcode,
-                                          onTap: () {
-                                            ref.read(scannerModeProvider.notifier).state = ScannerMode.barcode;
-                                            setState(() => _lastScannedGtin = null);
-                                          },
-                                        ),
-                                        const SizedBox(width: 8),
-                                        ModePill(
-                                          label: l10n.labelMode,
-                                          isActive: mode == ScannerMode.label,
-                                          onTap: () {
-                                            ref.read(scannerModeProvider.notifier).state = ScannerMode.label;
-                                          },
-                                        ),
-                                        const SizedBox(width: 8),
-                                        ModePill(
-                                          label: l10n.manualMode,
-                                          isActive: mode == ScannerMode.manual,
-                                          onTap: () {
-                                            ref.read(scannerModeProvider.notifier).state = ScannerMode.manual;
-                                          },
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 48),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
                     ),
-                  ),
 
                   // Barcode Overlay
                   if (mode == ScannerMode.barcode)
@@ -743,6 +686,21 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> with WidgetsBindi
                                   historyAlreadyRecorded: true,
                                   resetLabelScan: false,
                                 ),
+                                onClose: () {
+                                  setState(() {
+                                    _scannedProducts.removeWhere((p) => p.gtin == product.gtin);
+                                    if (product.gtin == _lastScannedGtin) {
+                                      _lastScannedGtin = null;
+                                    }
+                                  });
+                                  if (_scannedProducts.isEmpty) {
+                                    _pageController.animateToPage(
+                                      0,
+                                      duration: const Duration(milliseconds: 300),
+                                      curve: Curves.easeOut,
+                                    );
+                                  }
+                                },
                               ),
                             ),
                           ),
@@ -981,19 +939,22 @@ class _SearchWelcomeCardState extends State<_SearchWelcomeCard> {
   }
 }
 
-class _ScannedProductCard extends StatelessWidget {
+class _ScannedProductCard extends ConsumerWidget {
   final Product product;
   final VoidCallback onTap;
+  final VoidCallback onClose;
 
   const _ScannedProductCard({
     required this.product,
     required this.onTap,
+    required this.onClose,
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final locale = Localizations.localeOf(context);
     final l10n = AppLocalizations.of(context)!;
+    final isRtl = locale.languageCode == 'ar';
 
     // Calculate price points
     final validPrices = product.prices
@@ -1011,271 +972,336 @@ class _ScannedProductCard extends StatelessWidget {
       average = numericalPrices.reduce((a, b) => a + b) / numericalPrices.length;
     }
 
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(24),
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.black.withOpacity(0.85),
+    return Stack(
+      children: [
+        InkWell(
+          onTap: onTap,
           borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: Colors.white12, width: 1.5),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.4),
-              blurRadius: 16,
-              offset: const Offset(0, 8),
-            ),
-          ],
-        ),
-        clipBehavior: Clip.antiAlias,
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(20.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // Top Product info
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Product Image
-                  Container(
-                    width: 72,
-                    height: 72,
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: Colors.white10, width: 1),
-                    ),
-                    padding: const EdgeInsets.all(6.0),
-                    child: product.images.isNotEmpty
-                        ? Image.network(
-                            product.images.first.url,
-                            fit: BoxFit.contain,
-                            cacheWidth: 200,
-                            errorBuilder: (context, error, stackTrace) =>
-                                const Icon(Icons.inventory_2_outlined, size: 32, color: Colors.grey),
-                          )
-                        : const Icon(Icons.inventory_2_outlined, size: 32, color: Colors.grey),
-                  ),
-                  const SizedBox(width: 16),
-                  // Text details
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          product.brand.isNotEmpty ? product.brand : "Sawa Scanner",
-                          style: TextStyle(
-                            color: Colors.amber.shade300.withOpacity(0.8),
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            letterSpacing: 0.5,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          locale.languageCode == 'ar' ? product.nameAr : product.nameEn,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        const SizedBox(height: 6),
-                        Row(
-                          children: [
-                            if (product.nutriScoreGrade != null) ...[
-                              NutriScoreBadge(grade: product.nutriScoreGrade!, isMini: true),
-                              const SizedBox(width: 8),
-                            ],
-                            if (product.source == 'scraped_live')
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                decoration: BoxDecoration(
-                                  color: Colors.cyan.withOpacity(0.2),
-                                  borderRadius: BorderRadius.circular(8),
-                                  border: Border.all(color: Colors.cyan.withOpacity(0.4), width: 0.5),
-                                ),
-                                child: const Text(
-                                  "Live Scraped",
-                                  style: TextStyle(
-                                    color: Colors.cyanAccent,
-                                    fontSize: 9,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 20),
-
-              // Price Pills Section
-              if (lowest != null && average != null && highest != null) ...[
-                Row(
-                  children: [
-                    Expanded(
-                      child: _buildPricePill(
-                        title: l10n.lowestPrice,
-                        price: lowest,
-                        gradient: LinearGradient(
-                          colors: [
-                            HSLColor.fromAHSL(1.0, 140, 0.8, 0.4).toColor(),
-                            HSLColor.fromAHSL(1.0, 160, 0.9, 0.35).toColor(),
-                          ],
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: _buildPricePill(
-                        title: l10n.averagePrice,
-                        price: average,
-                        gradient: LinearGradient(
-                          colors: [
-                            HSLColor.fromAHSL(1.0, 210, 0.8, 0.45).toColor(),
-                            HSLColor.fromAHSL(1.0, 230, 0.9, 0.4).toColor(),
-                          ],
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: _buildPricePill(
-                        title: l10n.highestPrice,
-                        price: highest,
-                        gradient: LinearGradient(
-                          colors: [
-                            HSLColor.fromAHSL(1.0, 350, 0.8, 0.45).toColor(),
-                            HSLColor.fromAHSL(1.0, 10, 0.9, 0.45).toColor(),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.black.withOpacity(0.85),
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(color: Colors.white12, width: 1.5),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.4),
+                  blurRadius: 16,
+                  offset: const Offset(0, 8),
                 ),
-                const SizedBox(height: 20),
               ],
-
-              // Tabular Comparison Grid
-              if (validPrices.isNotEmpty) ...[
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.04),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: Colors.white.withOpacity(0.08), width: 1),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 8.0),
-                        child: Text(
-                          l10n.priceComparison,
-                          style: const TextStyle(
-                            color: Colors.white70,
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
+            ),
+            clipBehavior: Clip.antiAlias,
+            padding: const EdgeInsets.all(20.0),
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                // Top Product info
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Product Image
+                    Container(
+                      width: 72,
+                      height: 72,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: Colors.white10, width: 1),
                       ),
-                      const Divider(color: Colors.white10, height: 1),
-                      ...validPrices.map((priceInfo) {
-                        final storeName = locale.languageCode == 'ar'
-                            ? (priceInfo.merchantAr.isNotEmpty ? priceInfo.merchantAr : priceInfo.merchant)
-                            : priceInfo.merchant;
-                        
-                        return Container(
-                          padding: const EdgeInsets.symmetric(vertical: 8),
-                          decoration: const BoxDecoration(
-                            border: Border(
-                              bottom: BorderSide(color: Colors.white10, width: 0.5),
+                      padding: const EdgeInsets.all(6.0),
+                      child: product.images.isNotEmpty
+                          ? Image.network(
+                              product.images.first.url,
+                              fit: BoxFit.contain,
+                              cacheWidth: 200,
+                              errorBuilder: (context, error, stackTrace) =>
+                                  const Icon(Icons.inventory_2_outlined, size: 32, color: Colors.grey),
+                            )
+                          : const Icon(Icons.inventory_2_outlined, size: 32, color: Colors.grey),
+                    ),
+                    const SizedBox(width: 16),
+                    // Text details
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            product.brand.isNotEmpty ? product.brand : "Sawa Scanner",
+                            style: TextStyle(
+                              color: Colors.amber.shade300.withOpacity(0.8),
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              letterSpacing: 0.5,
                             ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          const SizedBox(height: 4),
+                          Text(
+                            locale.languageCode == 'ar' ? product.nameAr : product.nameEn,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 6),
+                          Row(
                             children: [
-                              Row(
-                                children: [
-                                  if (priceInfo.logoUrl != null && priceInfo.logoUrl!.isNotEmpty)
-                                    ClipRRect(
-                                      borderRadius: BorderRadius.circular(4),
-                                      child: Image.network(
-                                        priceInfo.logoUrl!,
-                                        width: 20,
-                                        height: 20,
-                                        fit: BoxFit.cover,
-                                        errorBuilder: (context, error, stackTrace) =>
-                                            const Icon(Icons.store, size: 20, color: Colors.white30),
-                                      ),
-                                    )
-                                  else
-                                    const Icon(Icons.store, size: 20, color: Colors.white30),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    storeName,
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w500,
-                                    ),
+                              if (product.nutriScoreGrade != null) ...[
+                                NutriScoreBadge(grade: product.nutriScoreGrade!, isMini: true),
+                                const SizedBox(width: 8),
+                              ],
+                              if (product.source == 'scraped_live')
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                  decoration: BoxDecoration(
+                                    color: Colors.cyan.withOpacity(0.2),
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(color: Colors.cyan.withOpacity(0.4), width: 0.5),
                                   ),
-                                ],
-                              ),
-                              Row(
-                                children: [
-                                  Text(
-                                    "${priceInfo.priceSarInclVat.toStringAsFixed(2)} ${l10n.sar}",
+                                  child: const Text(
+                                    "Live Scraped",
                                     style: TextStyle(
-                                      color: lowest == priceInfo.priceSarInclVat
-                                          ? Colors.greenAccent
-                                          : Colors.white,
-                                      fontSize: 12,
+                                      color: Colors.cyanAccent,
+                                      fontSize: 9,
                                       fontWeight: FontWeight.bold,
                                     ),
                                   ),
-                                  const SizedBox(width: 4),
-                                  Icon(
-                                    Icons.arrow_forward_ios,
-                                    size: 10,
-                                    color: Colors.white.withOpacity(0.3),
-                                  ),
-                                ],
-                              ),
+                                ),
                             ],
                           ),
-                        );
-                      }).toList(),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 32),
+                  ],
+                ),
+
+                const SizedBox(height: 20),
+
+                // Price Pills Section
+                if (lowest != null && average != null && highest != null) ...[
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildPricePill(
+                          title: l10n.lowestPrice,
+                          price: lowest,
+                          gradient: LinearGradient(
+                            colors: [
+                              HSLColor.fromAHSL(1.0, 140, 0.8, 0.4).toColor(),
+                              HSLColor.fromAHSL(1.0, 160, 0.9, 0.35).toColor(),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: _buildPricePill(
+                          title: l10n.averagePrice,
+                          price: average,
+                          gradient: LinearGradient(
+                            colors: [
+                              HSLColor.fromAHSL(1.0, 210, 0.8, 0.45).toColor(),
+                              HSLColor.fromAHSL(1.0, 230, 0.9, 0.4).toColor(),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: _buildPricePill(
+                          title: l10n.highestPrice,
+                          price: highest,
+                          gradient: LinearGradient(
+                            colors: [
+                              HSLColor.fromAHSL(1.0, 350, 0.8, 0.45).toColor(),
+                              HSLColor.fromAHSL(1.0, 10, 0.9, 0.45).toColor(),
+                            ],
+                          ),
+                        ),
+                      ),
                     ],
                   ),
-                ),
-              ] else
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.04),
-                    borderRadius: BorderRadius.circular(16),
+                  const SizedBox(height: 20),
+                ],
+
+                // Tabular Comparison Grid
+                if (validPrices.isNotEmpty) ...[
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.04),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: Colors.white.withOpacity(0.08), width: 1),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 8.0),
+                          child: Text(
+                            l10n.priceComparison,
+                            style: const TextStyle(
+                              color: Colors.white70,
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                        const Divider(color: Colors.white10, height: 1),
+                        ...validPrices.map((priceInfo) {
+                          final storeName = locale.languageCode == 'ar'
+                              ? (priceInfo.merchantAr.isNotEmpty ? priceInfo.merchantAr : priceInfo.merchant)
+                              : priceInfo.merchant;
+                          
+                          return Container(
+                            padding: const EdgeInsets.symmetric(vertical: 8),
+                            decoration: const BoxDecoration(
+                              border: Border(
+                                bottom: BorderSide(color: Colors.white10, width: 0.5),
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Row(
+                                  children: [
+                                    if (priceInfo.logoUrl != null && priceInfo.logoUrl!.isNotEmpty)
+                                      ClipRRect(
+                                        borderRadius: BorderRadius.circular(4),
+                                        child: Image.network(
+                                          priceInfo.logoUrl!,
+                                          width: 20,
+                                          height: 20,
+                                          fit: BoxFit.cover,
+                                          errorBuilder: (context, error, stackTrace) =>
+                                              const Icon(Icons.store, size: 20, color: Colors.white30),
+                                        ),
+                                      )
+                                    else
+                                      const Icon(Icons.store, size: 20, color: Colors.white30),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      storeName,
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                Row(
+                                  children: [
+                                    Text(
+                                      "${priceInfo.priceSarInclVat.toStringAsFixed(2)} ${l10n.sar}",
+                                      style: TextStyle(
+                                        color: lowest == priceInfo.priceSarInclVat
+                                            ? Colors.greenAccent
+                                            : Colors.white,
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Icon(
+                                      Icons.arrow_forward_ios,
+                                      size: 10,
+                                      color: Colors.white.withOpacity(0.3),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          );
+                        }).toList(),
+                      ],
+                    ),
                   ),
-                  child: Text(
-                    l10n.noNearbyStores,
-                    style: const TextStyle(color: Colors.white54, fontSize: 12),
-                    textAlign: TextAlign.center,
+                  const SizedBox(height: 20),
+                ] else ...[
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.04),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Text(
+                      l10n.noNearbyStores,
+                      style: const TextStyle(color: Colors.white54, fontSize: 12),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                ],
+
+                // Add to Cart Button
+                ElevatedButton.icon(
+                  onPressed: () {
+                    ref.read(cartProvider.notifier).addProduct(product);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(l10n.addedToCart),
+                        duration: const Duration(seconds: 2),
+                        backgroundColor: AppColors.primary,
+                        behavior: SnackBarBehavior.floating,
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.add_shopping_cart, color: Colors.white, size: 18),
+                  label: Text(
+                    l10n.addToCart,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                    ),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
                 ),
-            ],
+              ],
+            ),
           ),
         ),
-      ),
+        ),
+        Positioned(
+          top: 8,
+          right: isRtl ? null : 8,
+          left: isRtl ? 8 : null,
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: onClose,
+              borderRadius: BorderRadius.circular(16),
+              child: Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.15),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.close,
+                  color: Colors.white,
+                  size: 16,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 

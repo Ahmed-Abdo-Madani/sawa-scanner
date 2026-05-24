@@ -335,5 +335,24 @@
   "searchByText": "Search by Text",
   "submittingReport": "Submitting report...",
   "reportSubmitted": "Report submitted successfully!",
-  "searchingLiveStores": "Searching local stores in real-time..."
+  "searchingLiveStores": "Searching local stores in real-time...",
+  "cartTab": "Cart",
+  "addedToCart": "Product added to cart",
+  "cartTotal": "Cart Total",
+  "emptyCart": "Your cart is empty",
+  "checkout": "Checkout",
+  "quantity": "Quantity",
+  "totalAmount": "Total Amount",
+  "lowestPriceTotal": "Total (Lowest)",
+  "highestPriceTotal": "Total (Highest)",
+  "potentialSavings": "Potential Savings",
+  "startScanning": "Start Scanning",
+  "clearCart": "Clear Cart",
+  "itemsCount": "{count, plural, =1{1 item} other{{count} items}}",
+  "@itemsCount": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "priceSummary": "Price Summary"
 }

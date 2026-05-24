@@ -866,4 +866,54 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get searchingLiveStores => 'Searching local stores in real-time...';
+
+  @override
+  String get cartTab => 'Cart';
+
+  @override
+  String get addedToCart => 'Product added to cart';
+
+  @override
+  String get cartTotal => 'Cart Total';
+
+  @override
+  String get emptyCart => 'Your cart is empty';
+
+  @override
+  String get checkout => 'Checkout';
+
+  @override
+  String get quantity => 'Quantity';
+
+  @override
+  String get totalAmount => 'Total Amount';
+
+  @override
+  String get lowestPriceTotal => 'Total (Lowest)';
+
+  @override
+  String get highestPriceTotal => 'Total (Highest)';
+
+  @override
+  String get potentialSavings => 'Potential Savings';
+
+  @override
+  String get startScanning => 'Start Scanning';
+
+  @override
+  String get clearCart => 'Clear Cart';
+
+  @override
+  String itemsCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count items',
+      one: '1 item',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get priceSummary => 'Price Summary';
 }

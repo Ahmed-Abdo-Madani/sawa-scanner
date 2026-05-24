@@ -335,5 +335,24 @@
   "searchByText": "البحث بالاسم",
   "submittingReport": "جاري إرسال البلاغ...",
   "reportSubmitted": "تم إرسال البلاغ بنجاح!",
-  "searchingLiveStores": "جاري البحث في المتاجر المحلية..."
+  "searchingLiveStores": "جاري البحث في المتاجر المحلية...",
+  "cartTab": "السلة",
+  "addedToCart": "تمت إضافة المنتج إلى السلة",
+  "cartTotal": "إجمالي السلة",
+  "emptyCart": "سلتك فارغة",
+  "checkout": "الدفع",
+  "quantity": "الكمية",
+  "totalAmount": "المبلغ الإجمالي",
+  "lowestPriceTotal": "الإجمالي (الأقل)",
+  "highestPriceTotal": "الإجمالي (الأعلى)",
+  "potentialSavings": "التوفير المحتمل",
+  "startScanning": "ابدأ المسح",
+  "clearCart": "تفريغ السلة",
+  "itemsCount": "{count, plural, =1{عنصر واحد} other{{count} عناصر}}",
+  "@itemsCount": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "priceSummary": "ملخص الأسعار"
 }

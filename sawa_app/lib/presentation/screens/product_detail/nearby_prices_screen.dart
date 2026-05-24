@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:sawa_app/l10n/app_localizations.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
@@ -358,11 +359,36 @@ class _NearbyPricesScreenState extends ConsumerState<NearbyPricesScreen> {
                       : AppColors.onSurface.withValues(alpha: 0.06),
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: Icon(
-                  Icons.storefront,
-                  color: isBest ? AppColors.primary : AppColors.onSurface,
-                  size: 22,
-                ),
+                child: price.logoUrl != null && price.logoUrl!.isNotEmpty
+                    ? ClipRRect(
+                        borderRadius: BorderRadius.circular(10),
+                        child: CachedNetworkImage(
+                          imageUrl: price.logoUrl!,
+                          width: 44,
+                          height: 44,
+                          fit: BoxFit.cover,
+                          placeholder: (context, url) => Center(
+                            child: SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: isBest ? AppColors.primary : AppColors.onSurface,
+                              ),
+                            ),
+                          ),
+                          errorWidget: (context, url, error) => Icon(
+                            Icons.storefront,
+                            color: isBest ? AppColors.primary : AppColors.onSurface,
+                            size: 22,
+                          ),
+                        ),
+                      )
+                    : Icon(
+                        Icons.storefront,
+                        color: isBest ? AppColors.primary : AppColors.onSurface,
+                        size: 22,
+                      ),
               ),
               const SizedBox(width: 12),
               // Store info

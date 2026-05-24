@@ -10,6 +10,7 @@ import '../admin/admin_sign_in_screen.dart';
 import '../admin/quick_entry_screen.dart';
 import '../admin/missing_gtin_list_screen.dart';
 import '../admin/products_gtin_edit_screen.dart';
+import '../history/history_screen.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
@@ -47,6 +48,17 @@ class ProfileScreen extends ConsumerWidget {
               final newLocale = locale.languageCode == 'ar' ? 'en' : 'ar';
               ref.read(localeProvider.notifier).toggleLocale();
               ref.read(userPreferencesProvider.notifier).setPreferredLocale(newLocale);
+            },
+          ),
+          _buildSettingsTile(
+            context: context,
+            icon: Icons.history,
+            title: l10n.scanHistory,
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const HistoryScreen()),
+              );
             },
           ),
           _buildSettingsTile(

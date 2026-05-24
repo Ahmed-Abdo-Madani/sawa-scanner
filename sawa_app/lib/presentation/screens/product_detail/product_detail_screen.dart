@@ -2,25 +2,15 @@ import 'package:flutter/material.dart';
 import 'dart:typed_data';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sawa_app/l10n/app_localizations.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../../providers/product_provider.dart';
 import '../../providers/scan_history_provider.dart';
-import '../../providers/nutrition_comparison_provider.dart';
-import '../../widgets/nutri_score_badge.dart';
-import '../../widgets/nova_group_badge.dart';
-import '../../widgets/eco_score_badge.dart';
-import '../../widgets/knowledge_panel_card.dart';
+import '../../providers/cart_provider.dart';
 import '../../widgets/halal_badge.dart';
-import '../../widgets/ingredient_chip.dart';
-import '../../widgets/nutrient_row.dart';
-import '../../widgets/price_preview_strip.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../domain/entities/product.dart';
 import '../../../core/exceptions.dart';
-import '../../../domain/entities/ingredient.dart';
-import '../product_edit/product_edit_screen.dart';
-import 'nutrition_intelligence_screen.dart';
-import 'comparison_screen.dart';
 import 'nearby_prices_screen.dart';
 
 class ProductDetailScreen extends ConsumerStatefulWidget {
@@ -77,7 +67,9 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
     await ref.read(productRepositoryProvider).clearProductCache(widget.gtin);
     ref.invalidate(productByGtinProvider(widget.gtin));
     // Allow the FutureProvider to rebuild.
-    await ref.read(productByGtinProvider(widget.gtin).future).catchError((_) {});
+    try {
+      await ref.read(productByGtinProvider(widget.gtin).future);
+    } catch (_) {}
   }
 
   @override
@@ -92,29 +84,11 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
       next.whenData((product) => _maybeSaveHistory(product, locale));
     });
 
-    // Determine the product we are *actually displaying* so the FAB is
-    // available in all branches where content is shown (data, loading with
-    // initialProduct, or error with initialProduct).
-    final Product? effectiveProduct = productAsync.when(
-      data: (p) => p,
-      loading: () => widget.initialProduct,
-      error: (_, __) => widget.initialProduct,
-    );
+
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      floatingActionButton: effectiveProduct != null
-          ? FloatingActionButton(
-              backgroundColor: AppColors.primary,
-              onPressed: () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => ProductEditScreen(product: effectiveProduct),
-                ),
-              ),
-              child: const Icon(Icons.edit, color: Colors.white),
-            )
-          : null,
+      floatingActionButton: null,
       body: productAsync.when(
         data: (product) =>
             _buildContent(context, product, l10n, locale),
@@ -166,316 +140,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
           SliverList(
             delegate: SliverChildListDelegate([
               const SizedBox(height: 16),
-
-              // 1. Nutri-Score Panel
-              if (product.nutriScoreGrade != null)
-                Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                  child: KnowledgePanelCard(
-                    leadingIcon: Icons.restaurant_menu,
-                    iconColor: Colors.green.shade600,
-                    title: l10n.nutriScoreTitle,
-                    summary:
-                        l10n.gradeSummary(product.nutriScoreGrade!.toUpperCase()),
-                    initiallyExpanded: true,
-                    content: NutriScoreBadge(grade: product.nutriScoreGrade!),
-                  ),
-                ),
-
-              // 2. NOVA Group Panel
-              if (product.novaGroup != null)
-                Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                  child: KnowledgePanelCard(
-                    leadingIcon: Icons.science,
-                    iconColor: Colors.orange.shade700,
-                    title: l10n.novaGroupTitle,
-                    summary: l10n.novaGroupSummary(product.novaGroup!),
-                    content: NovaGroupBadge(group: product.novaGroup!),
-                  ),
-                ),
-
-              // 3. Eco-Score Panel
-              if (product.ecoScore != null)
-                Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                  child: KnowledgePanelCard(
-                    leadingIcon: Icons.eco,
-                    iconColor: Colors.teal.shade700,
-                    title: l10n.ecoScore,
-                    summary:
-                        l10n.gradeSummary(product.ecoScore!.toUpperCase()),
-                    content: EcoScoreBadge(grade: product.ecoScore!),
-                  ),
-                ),
-
-              // 4. Nutrition Facts Panel
-              if (product.nutritionFact != null)
-                Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                  child: KnowledgePanelCard(
-                    leadingIcon: Icons.restaurant,
-                    iconColor: Colors.orange.shade600,
-                    title: l10n.nutritionFactsTitle,
-                    summary: l10n.per100g,
-                    content:
-                        _buildNutritionContent(product, l10n, locale),
-                  ),
-                ),
-
-              // 5. Ingredients Panel
-              if (product.ingredients.isNotEmpty ||
-                  product.ingredientsText != null)
-                Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                  child: KnowledgePanelCard(
-                    leadingIcon: Icons.science_outlined,
-                    iconColor: Colors.teal.shade600,
-                    title: l10n.ingredientsTitle,
-                    summary: l10n.ingredientsCount(
-                        product.ingredients.length),
-                    content:
-                        _buildIngredientsContent(product, l10n, locale),
-                  ),
-                ),
-
-              // 6. Allergens Panel
-              if (product.allergensDataAvailable)
-                Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                  child: KnowledgePanelCard(
-                    leadingIcon: Icons.warning_amber,
-                    iconColor: Colors.red.shade700,
-                    title: l10n.allergensTitle,
-                    summary: product.allergens.isNotEmpty
-                        ? product.allergens.join(', ')
-                        : l10n.noAllergens,
-                    content:
-                        _buildAllergensContent(product, l10n, locale),
-                  ),
-                ),
-
-              // 7. SFDA Safety Panel (Conditional)
-              if (product.ingredients
-                  .any((i) => i.sfdaStatus != IngredientSfdaStatus.safe))
-                Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                  child: KnowledgePanelCard(
-                    leadingIcon: Icons.shield,
-                    iconColor: Colors.red.shade800,
-                    title: l10n.sfdaSafety,
-                    summary: l10n.flaggedItemsCount(product.ingredients
-                        .where(
-                            (i) => i.sfdaStatus != IngredientSfdaStatus.safe)
-                        .length),
-                    content:
-                        _buildSfdaSafetyContent(product, l10n, locale),
-                  ),
-                ),
-
-              // 8. Nutrition Intelligence deep-dive button
-              if (product.sawaDbAvailable) ...[
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 16, vertical: 6),
-                  child: Material(
-                    color: AppColors.surface,
-                    borderRadius: BorderRadius.circular(14),
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(14),
-                      onTap: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => NutritionIntelligenceScreen(
-                            gtin: product.gtin,
-                            productName: locale.languageCode == 'ar'
-                                ? product.nameAr
-                                : product.nameEn,
-                          ),
-                        ),
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Row(
-                          children: [
-                            Container(
-                              width: 40,
-                              height: 40,
-                              decoration: BoxDecoration(
-                                color: AppColors.primary.withValues(alpha: 0.12),
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              child: Icon(Icons.insights,
-                                  color: AppColors.primary, size: 22),
-                            ),
-                            const SizedBox(width: 14),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    l10n.nutritionIntelligence,
-                                    style: AppTypography.body(locale).copyWith(
-                                      color: AppColors.onBackground,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                  Text(
-                                    l10n.healthSummary,
-                                    style: AppTypography.caption(locale)
-                                        .copyWith(color: AppColors.onSurface),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const Icon(Icons.chevron_right,
-                                color: AppColors.onSurface),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-
-                // 9. Compare Products button
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 16, vertical: 6),
-                  child: Material(
-                    color: AppColors.surface,
-                    borderRadius: BorderRadius.circular(14),
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(14),
-                      onTap: () => _showSimilarProductsSheet(context, product, l10n, locale),
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Row(
-                          children: [
-                            Container(
-                              width: 40,
-                              height: 40,
-                              decoration: BoxDecoration(
-                                color: AppColors.secondary.withValues(alpha: 0.12),
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              child: Icon(Icons.compare_arrows,
-                                  color: AppColors.secondary, size: 22),
-                            ),
-                            const SizedBox(width: 14),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    l10n.compareProducts,
-                                    style: AppTypography.body(locale).copyWith(
-                                      color: AppColors.onBackground,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                  Text(
-                                    l10n.similarProducts,
-                                    style: AppTypography.caption(locale)
-                                        .copyWith(color: AppColors.onSurface),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const Icon(Icons.chevron_right,
-                                color: AppColors.onSurface),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-
-                // 10. Nearby Stores button
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 16, vertical: 6),
-                  child: Material(
-                    color: AppColors.surface,
-                    borderRadius: BorderRadius.circular(14),
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(14),
-                      onTap: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => NearbyPricesScreen(
-                            gtin: product.gtin,
-                            productName: locale.languageCode == 'ar'
-                                ? product.nameAr
-                                : product.nameEn,
-                          ),
-                        ),
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Row(
-                          children: [
-                            Container(
-                              width: 40,
-                              height: 40,
-                              decoration: BoxDecoration(
-                                color: AppColors.warning.withValues(alpha: 0.12),
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              child: Icon(Icons.location_on,
-                                  color: AppColors.warning, size: 22),
-                            ),
-                            const SizedBox(width: 14),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    l10n.nearbyStores,
-                                    style: AppTypography.body(locale).copyWith(
-                                      color: AppColors.onBackground,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                  Text(
-                                    l10n.nearbyStoresSubtitle,
-                                    style: AppTypography.caption(locale)
-                                        .copyWith(color: AppColors.onSurface),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const Icon(Icons.chevron_right,
-                                color: AppColors.onSurface),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-
-                // 11. Price Comparison
-                if (product.prices.isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 12),
-                    child: PricePreviewStrip(
-                      gtin: product.gtin,
-                      productName: locale.languageCode == 'ar'
-                          ? product.nameAr
-                          : product.nameEn,
-                      merchantName: product.prices.first.merchant,
-                      price: product.prices.first.priceSarInclVat,
-                    ),
-                  ),
-              ],
-
+              _buildPriceDashboard(context, product, l10n, locale),
               const SizedBox(height: 24),
               _buildDisclaimer(l10n, locale),
               const SizedBox(height: 48),
@@ -485,10 +150,6 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
       ),
     );
   }
-
-  // --------------------------------------------------------------------------
-  // Hero section
-  // --------------------------------------------------------------------------
 
   Widget _buildHero(
     BuildContext context,
@@ -507,10 +168,15 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
             child: Padding(
               padding: const EdgeInsets.only(bottom: 120, top: 40),
               child: product.images.isNotEmpty
-                  ? Image.network(
-                      product.images.first.url,
+                  ? CachedNetworkImage(
+                      imageUrl: product.images.first.url,
                       fit: BoxFit.contain,
-                      cacheWidth: 800,
+                      placeholder: (context, url) => const Center(
+                          child: CircularProgressIndicator(color: AppColors.primary)),
+                      errorWidget: (context, url, error) => const Icon(
+                          Icons.broken_image_outlined,
+                          size: 40,
+                          color: Colors.grey),
                     )
                   : widget.capturedImageBytes != null
                       ? Image.memory(
@@ -592,140 +258,235 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
     );
   }
 
-  // --------------------------------------------------------------------------
-  // Knowledge-panel content builders
-  // --------------------------------------------------------------------------
+  Widget _buildPriceDashboard(
+    BuildContext context,
+    Product product,
+    AppLocalizations l10n,
+    Locale locale,
+  ) {
+    final validPrices = product.prices
+        .where((p) => p.priceSarInclVat > 0)
+        .toList();
 
-  Widget _buildNutritionContent(
-      Product product, AppLocalizations l10n, Locale locale) {
-    final nutrition = product.nutritionFact;
-    if (nutrition == null) return const SizedBox.shrink();
+    double? lowest;
+    double? average;
+    double? highest;
 
-    return Column(
-      children: [
-        NutrientRow(
-          label: l10n.calories,
-          value: '${nutrition.energyKcal?.toInt() ?? 0} kcal',
-          percentage: (nutrition.energyKcal ?? 0) / 2000,
-          barColor: AppColors.primary,
-        ),
-        NutrientRow(
-          label: l10n.fat,
-          value: '${nutrition.fatG?.toStringAsFixed(1) ?? 0} g',
-          percentage: (nutrition.fatG ?? 0) / 70,
-          barColor: AppColors.warning,
-        ),
-        NutrientRow(
-          label: l10n.saturatedFat,
-          value: '${nutrition.saturatedFatG?.toStringAsFixed(1) ?? 0} g',
-          percentage: (nutrition.saturatedFatG ?? 0) / 20,
-          barColor: AppColors.error,
-        ),
-        NutrientRow(
-          label: l10n.carbs,
-          value: '${nutrition.carbsG?.toStringAsFixed(1) ?? 0} g',
-          percentage: (nutrition.carbsG ?? 0) / 260,
-          barColor: AppColors.secondary,
-        ),
-        NutrientRow(
-          label: l10n.sugars,
-          value: '${nutrition.sugarsG?.toStringAsFixed(1) ?? 0} g',
-          percentage: (nutrition.sugarsG ?? 0) / 90,
-          barColor: AppColors.warning,
-        ),
-        NutrientRow(
-          label: l10n.fiber,
-          value: '${nutrition.fiberG?.toStringAsFixed(1) ?? 0} g',
-          percentage: (nutrition.fiberG ?? 0) / 30,
-          barColor: AppColors.secondary,
-        ),
-        NutrientRow(
-          label: l10n.protein,
-          value: '${nutrition.proteinG?.toStringAsFixed(1) ?? 0} g',
-          percentage: (nutrition.proteinG ?? 0) / 50,
-          barColor: AppColors.secondary,
-        ),
-        NutrientRow(
-          label: l10n.sodium,
-          value: '${nutrition.sodiumMg?.toInt() ?? 0} mg',
-          percentage: (nutrition.sodiumMg ?? 0) / 2300,
-          barColor: AppColors.warning,
-        ),
-      ],
-    );
-  }
+    if (validPrices.isNotEmpty) {
+      final numericalPrices = validPrices.map((p) => p.priceSarInclVat).toList();
+      lowest = numericalPrices.reduce((a, b) => a < b ? a : b);
+      highest = numericalPrices.reduce((a, b) => a > b ? a : b);
+      average = numericalPrices.reduce((a, b) => a + b) / numericalPrices.length;
+    }
 
-  Widget _buildIngredientsContent(
-      Product product, AppLocalizations l10n, Locale locale) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        if (product.ingredients.isNotEmpty)
-          Wrap(
-            spacing: 8,
-            runSpacing: 10,
-            children: product.ingredients
-                .map((ing) => IngredientChip(ingredient: ing))
-                .toList(),
+    if (lowest == null || average == null || highest == null) {
+      return Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppColors.onSurface.withOpacity(0.06)),
           ),
-        if (product.ingredientsText != null) ...[
-          if (product.ingredients.isNotEmpty) const SizedBox(height: 16),
-          Text(
-            product.ingredientsText!,
-            style: AppTypography.caption(locale).copyWith(
-              color: AppColors.onSurface,
-              height: 1.5,
+          child: Column(
+            children: [
+              const Icon(Icons.store_outlined, color: AppColors.onSurface, size: 48),
+              const SizedBox(height: 16),
+              Text(
+                locale.languageCode == 'ar'
+                    ? "لا توجد أسعار متاحة لهذا المنتج حالياً."
+                    : "No price information available for this product.",
+                textAlign: TextAlign.center,
+                style: AppTypography.body(locale).copyWith(color: AppColors.onSurface),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: AppColors.onSurface.withOpacity(0.06)),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.04),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  l10n.priceSummary,
+                  style: AppTypography.headline(locale).copyWith(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.onBackground,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildDetailPriceCard(
+                        title: l10n.lowestPrice,
+                        price: lowest,
+                        color: Colors.green,
+                        locale: locale,
+                        l10n: l10n,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: _buildDetailPriceCard(
+                        title: l10n.averagePrice,
+                        price: average,
+                        color: Colors.blue,
+                        locale: locale,
+                        l10n: l10n,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: _buildDetailPriceCard(
+                        title: l10n.highestPrice,
+                        price: highest,
+                        color: Colors.red,
+                        locale: locale,
+                        l10n: l10n,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 20),
+          ElevatedButton.icon(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => NearbyPricesScreen(
+                    gtin: product.gtin,
+                    productName: locale.languageCode == 'ar'
+                        ? product.nameAr
+                        : product.nameEn,
+                  ),
+                ),
+              );
+            },
+            icon: const Icon(Icons.compare_arrows, color: Colors.white),
+            label: Text(
+              l10n.comparePrices,
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+              ),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
+              elevation: 0,
+            ),
+          ),
+          const SizedBox(height: 12),
+          OutlinedButton.icon(
+            onPressed: () {
+              ref.read(cartProvider.notifier).addProduct(product);
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(l10n.addedToCart),
+                  duration: const Duration(seconds: 2),
+                  backgroundColor: AppColors.primary,
+                  behavior: SnackBarBehavior.floating,
+                ),
+              );
+            },
+            icon: const Icon(Icons.add_shopping_cart, color: AppColors.primary),
+            label: Text(
+              l10n.addToCart,
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                color: AppColors.primary,
+                fontSize: 15,
+              ),
+            ),
+            style: OutlinedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              side: const BorderSide(color: AppColors.primary, width: 1.5),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
             ),
           ),
         ],
-      ],
+      ),
     );
   }
 
-  Widget _buildAllergensContent(
-      Product product, AppLocalizations l10n, Locale locale) {
-    if (product.allergens.isEmpty) {
-      return Text(l10n.noAllergens, style: AppTypography.body(locale));
-    }
-
-    final cs = Theme.of(context).colorScheme;
-    return Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      children: product.allergens.map((allergen) {
-        return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-          decoration: BoxDecoration(
-            color: cs.errorContainer,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: cs.errorContainer.withOpacity(0.6)),
-          ),
-          child: Text(
-            allergen,
+  Widget _buildDetailPriceCard({
+    required String title,
+    required double price,
+    required Color color,
+    required Locale locale,
+    required AppLocalizations l10n,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.06),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withOpacity(0.12), width: 1),
+      ),
+      child: Column(
+        children: [
+          Text(
+            title,
+            textAlign: TextAlign.center,
             style: AppTypography.caption(locale).copyWith(
-              color: cs.error,
+              color: AppColors.onSurface,
+              fontWeight: FontWeight.bold,
+              fontSize: 10,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            price.toStringAsFixed(2),
+            style: TextStyle(
+              color: color.withOpacity(0.9),
+              fontSize: 16,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            l10n.sar,
+            style: AppTypography.caption(locale).copyWith(
+              color: color.withOpacity(0.6),
+              fontSize: 9,
               fontWeight: FontWeight.bold,
             ),
           ),
-        );
-      }).toList(),
-    );
-  }
-
-  Widget _buildSfdaSafetyContent(
-      Product product, AppLocalizations l10n, Locale locale) {
-    final flagged = product.ingredients
-        .where((i) => i.sfdaStatus != IngredientSfdaStatus.safe)
-        .toList();
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: flagged.map((ing) {
-        return Padding(
-          padding: const EdgeInsets.only(bottom: 8.0),
-          child: IngredientChip(ingredient: ing),
-        );
-      }).toList(),
+        ],
+      ),
     );
   }
 
@@ -739,10 +500,6 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
       ),
     );
   }
-
-  // --------------------------------------------------------------------------
-  // Error state
-  // --------------------------------------------------------------------------
 
   Widget _buildError(
     BuildContext context,
@@ -817,13 +574,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
             child: ElevatedButton(
               onPressed: () {
                 if (isNotFound) {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) =>
-                          ProductEditScreen(barcode: widget.gtin),
-                    ),
-                  );
+                  Navigator.pop(context);
                 } else {
                   ref.invalidate(productByGtinProvider(widget.gtin));
                 }
@@ -835,7 +586,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                     borderRadius: BorderRadius.circular(12)),
               ),
               child: Text(
-                isNotFound ? l10n.contributeProduct : l10n.retryButton,
+                isNotFound ? l10n.close : l10n.retryButton,
                 style: AppTypography.body(locale).copyWith(
                   fontWeight: FontWeight.bold,
                   color: AppColors.background,
@@ -846,239 +597,5 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
         ],
       ),
     );
-  }
-
-  // --------------------------------------------------------------------------
-  // Similar products bottom sheet → Comparison screen navigator
-  // --------------------------------------------------------------------------
-
-  void _showSimilarProductsSheet(
-    BuildContext context,
-    Product product,
-    AppLocalizations l10n,
-    Locale locale,
-  ) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: AppColors.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      isScrollControlled: true,
-      builder: (_) => DraggableScrollableSheet(
-        expand: false,
-        initialChildSize: 0.5,
-        maxChildSize: 0.85,
-        minChildSize: 0.3,
-        builder: (context, scrollController) => Consumer(
-          builder: (context, ref, _) {
-            final similarAsync =
-                ref.watch(similarProductsProvider(product.gtin));
-            final isAr = locale.languageCode == 'ar';
-
-            return Column(
-              children: [
-                Container(
-                  width: 40,
-                  height: 4,
-                  margin: const EdgeInsets.only(top: 12, bottom: 16),
-                  decoration: BoxDecoration(
-                    color: AppColors.onSurface.withValues(alpha: 0.3),
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Row(
-                    children: [
-                      Icon(Icons.compare_arrows,
-                          color: AppColors.primary, size: 22),
-                      const SizedBox(width: 10),
-                      Text(
-                        l10n.similarProducts,
-                        style: AppTypography.headline(locale).copyWith(
-                          color: AppColors.onBackground,
-                          fontSize: 18,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Expanded(
-                  child: similarAsync.when(
-                    data: (items) {
-                      if (items.isEmpty) {
-                        return Center(
-                          child: Text(
-                            l10n.noSimilarProducts,
-                            style: AppTypography.body(locale)
-                                .copyWith(color: AppColors.onSurface),
-                          ),
-                        );
-                      }
-                      return ListView.builder(
-                        controller: scrollController,
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        itemCount: items.length,
-                        itemBuilder: (context, index) {
-                          final item = items[index];
-                          final name = isAr
-                              ? (item['name_ar'] ?? '')
-                              : (item['name_en'] ?? '');
-                          final brand = item['brand'] ?? '';
-                          final grade =
-                              item['nutri_score_grade']?.toString();
-                          final gtin = item['gtin']?.toString() ?? '';
-                          final imageUrl = item['image_front_url'];
-
-                          return Padding(
-                            padding: const EdgeInsets.only(bottom: 8),
-                            child: Material(
-                              color: AppColors.background,
-                              borderRadius: BorderRadius.circular(12),
-                              child: InkWell(
-                                borderRadius: BorderRadius.circular(12),
-                                onTap: () {
-                                  Navigator.pop(context); // close sheet
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (_) => ComparisonScreen(
-                                        gtinA: product.gtin,
-                                        gtinB: gtin,
-                                        nameA: isAr
-                                            ? product.nameAr
-                                            : product.nameEn,
-                                        nameB: name.toString(),
-                                      ),
-                                    ),
-                                  );
-                                },
-                                child: Padding(
-                                  padding: const EdgeInsets.all(12),
-                                  child: Row(
-                                    children: [
-                                      if (imageUrl != null)
-                                        ClipRRect(
-                                          borderRadius:
-                                              BorderRadius.circular(8),
-                                          child: Image.network(
-                                            imageUrl.toString(),
-                                            width: 48,
-                                            height: 48,
-                                            fit: BoxFit.contain,
-                                            cacheWidth: 150,
-                                            errorBuilder: (_, __, ___) =>
-                                                const Icon(
-                                                    Icons.image_not_supported,
-                                                    size: 32),
-                                          ),
-                                        )
-                                      else
-                                        const Icon(
-                                            Icons.inventory_2_outlined,
-                                            size: 32,
-                                            color: AppColors.onSurface),
-                                      const SizedBox(width: 12),
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              name.toString(),
-                                              maxLines: 2,
-                                              overflow:
-                                                  TextOverflow.ellipsis,
-                                              style: AppTypography.body(
-                                                      locale)
-                                                  .copyWith(
-                                                color:
-                                                    AppColors.onBackground,
-                                                fontWeight: FontWeight.w600,
-                                              ),
-                                            ),
-                                            Text(
-                                              brand.toString(),
-                                              style:
-                                                  AppTypography.caption(
-                                                          locale)
-                                                      .copyWith(
-                                                color: AppColors.onSurface,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                      if (grade != null)
-                                        Container(
-                                          padding:
-                                              const EdgeInsets.symmetric(
-                                                  horizontal: 8,
-                                                  vertical: 4),
-                                          decoration: BoxDecoration(
-                                            color: _gradeColor(grade),
-                                            borderRadius:
-                                                BorderRadius.circular(6),
-                                          ),
-                                          child: Text(
-                                            grade.toUpperCase(),
-                                            style: const TextStyle(
-                                              color: Colors.white,
-                                              fontSize: 12,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                        ),
-                                      const SizedBox(width: 8),
-                                      Icon(Icons.compare_arrows,
-                                          color: AppColors.primary,
-                                          size: 20),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ),
-                          );
-                        },
-                      );
-                    },
-                    loading: () => const Center(
-                      child: CircularProgressIndicator(
-                          color: AppColors.primary),
-                    ),
-                    error: (err, _) => Center(
-                      child: Text(
-                        err.toString(),
-                        style: AppTypography.body(locale)
-                            .copyWith(color: AppColors.error),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            );
-          },
-        ),
-      ),
-    );
-  }
-
-  Color _gradeColor(String grade) {
-    switch (grade.toUpperCase()) {
-      case 'A':
-        return const Color(0xFF1B8539);
-      case 'B':
-        return const Color(0xFF85BB2F);
-      case 'C':
-        return const Color(0xFFFECB02);
-      case 'D':
-        return const Color(0xFFEE8100);
-      case 'E':
-        return const Color(0xFFE63E11);
-      default:
-        return AppColors.onSurface;
-    }
   }
 }

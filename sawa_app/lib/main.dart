@@ -38,6 +38,7 @@ void main() async {
 
   // Open all boxes.
   await Hive.openBox('scanHistoryBox');
+  await Hive.openBox('cartBox');
   await Hive.openBox<Product>(ProductLocalDataSource.productsBoxName);
   await Hive.openBox<DateTime>(ProductLocalDataSource.timestampsBoxName);
   await Hive.openBox<int>(ProductLocalDataSource.cacheVersionBoxName);
