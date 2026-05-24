@@ -18,6 +18,7 @@ import { OffEnrichmentJobDto } from './dto/off-enrichment-job.dto';
 import { OffPriceLinkingJobDto } from './dto/off-price-linking-job.dto';
 import { BarcodeListNamesJobDto } from './dto/barcode-list-names-job.dto';
 import { HsCatalogJobDto } from './dto/hs-catalog-job.dto';
+import { ParkCenterCatalogJobDto } from './dto/parkcenter-catalog-job.dto';
 import { OpenFoodFactsDumpService } from './open-food-facts-dump.service';
 import { getOffPoolFilter, getOffPoolHash } from './constants/off-pool';
 import { EtaamGtinService } from './etaam-gtin.service';
@@ -118,6 +119,16 @@ export class IngestionController {
       mode: IngestionJobMode.HS_CATALOG_SCRAPE,
       ...dto,
     });
+  }
+  
+  @Post('parkcenter-catalog-scrape')
+  @UsePipes(new ValidationPipe({ transform: true, whitelist: true }))
+  @UseGuards(FirebaseAuthGuard, AdminGuard)
+  async startParkCenterCatalogScrape(@Body() dto: ParkCenterCatalogJobDto) {
+    return this.ingestionService.addIngestionJob({
+      mode: IngestionJobMode.PARKCENTER_CATALOG_SCRAPE,
+      ...dto,
+    } as any);
   }
 
   @Post('etaam-gtin')

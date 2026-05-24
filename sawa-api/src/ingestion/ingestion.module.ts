@@ -50,6 +50,7 @@ import { OffEnrichmentService } from './off-enrichment.service';
 import { OffPriceLinkerService } from './off-price-linker.service';
 import { BarcodeListScraperService } from './barcode-list-scraper.service';
 import { HsCatalogScraperService } from './hs-catalog-scraper.service';
+import { ParkCenterCatalogScraperService } from './parkcenter-catalog-scraper.service';
 import { EtaamGtinService } from './etaam-gtin.service';
 import { EtaamGtinProcessor } from './etaam-gtin.processor';
 import { EtaamGtinScraper } from './scraper/etaam-gtin-scraper';
@@ -121,6 +122,7 @@ import { MubarkiyahGtinArScraper } from './scraper/mubarkiyah-gtin-ar-scraper';
     OffPriceLinkerService,
     BarcodeListScraperService,
     HsCatalogScraperService,
+    ParkCenterCatalogScraperService,
     EtaamGtinService,
     EtaamGtinProcessor,
     EtaamGtinScraper,
@@ -179,6 +181,7 @@ import { MubarkiyahGtinArScraper } from './scraper/mubarkiyah-gtin-ar-scraper';
     YasminGtinArScraper,
     MrLogmanGtinArScraper,
     ParkCenterGtinArScraper,
+    ParkCenterCatalogScraperService,
     MenhalGtinArScraper,
     HsdShGtinArScraper,
     NwshaGtinArScraper,
@@ -225,6 +228,7 @@ export class IngestionModule implements OnModuleInit {
       'off-price-linking',
       'hs-catalog-scrape',
       'hs-catalog-scrape-category',
+      'parkcenter-catalog-scrape',
     ];
 
     for (const jobName of staleJobsToClean) {

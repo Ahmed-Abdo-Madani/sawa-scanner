@@ -50,6 +50,8 @@ export class IngestionService {
       jobName = 'barcode-list-names';
     else if (dto.mode === IngestionJobMode.HS_CATALOG_SCRAPE)
       jobName = 'hs-catalog-scrape';
+    else if (dto.mode === IngestionJobMode.PARKCENTER_CATALOG_SCRAPE)
+      jobName = 'parkcenter-catalog-scrape';
 
     const options: JobsOptions & { timeout?: number; jobId?: string } = { ...INGESTION_JOB_OPTIONS };
     if (jobName === 'gtin-backfill-off') {
@@ -185,6 +187,24 @@ export class IngestionService {
         this.logger.warn(`Conflict: HS catalog scrape already in-flight as ${activeJobState}`);
         throw err;
       }
+    } else if (jobName === 'parkcenter-catalog-scrape') {
+      options.attempts = 1;
+      options.timeout = 8 * 60 * 60 * 1000; // 8 hours
+
+      const activeJobs = await this.ingestionQueue.getJobs(['active', 'waiting', 'delayed', 'prioritized']);
+      const activePC = activeJobs.filter((job) => job.name === 'parkcenter-catalog-scrape');
+      
+      if (activePC.length > 0) {
+        const activeJobId = activePC[0].id;
+        const activeJobState = await activePC[0].getState();
+        const err = new ConflictException({
+          jobId: activeJobId,
+          created: false,
+          message: `A Park Center catalog scrape is already ${activeJobState} (job ID: ${activeJobId}). Wait for it to complete.`,
+        });
+        this.logger.warn(`Conflict: Park Center catalog scrape already in-flight as ${activeJobState}`);
+        throw err;
+      }
     } else if (jobName === 'hs-catalog-scrape-category') {
       options.attempts = 3;
       options.timeout = 2 * 60 * 60 * 1000; // 2 hours
@@ -214,6 +234,9 @@ export class IngestionService {
     } else if (jobName === 'hs-catalog-scrape-category') {
       response.created = true;
       response.message = 'HS catalog category scrape job queued successfully.';
+    } else if (jobName === 'parkcenter-catalog-scrape') {
+      response.created = true;
+      response.message = 'Park Center catalog scrape job queued successfully.';
     }
     return response;
   }

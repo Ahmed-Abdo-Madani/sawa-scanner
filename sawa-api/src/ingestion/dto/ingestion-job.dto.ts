@@ -37,6 +37,7 @@ export enum IngestionJobMode {
   BARCODE_LIST_NAMES = 'barcode-list-names',
   HS_CATALOG_SCRAPE = 'hs-catalog-scrape',
   HS_CATALOG_SCRAPE_CATEGORY = 'hs-catalog-scrape-category',
+  PARKCENTER_CATALOG_SCRAPE = 'parkcenter-catalog-scrape',
 }
 
 export class PageRangeDto {
@@ -137,7 +138,7 @@ export class IngestionJobDto {
    * Platform is required for scrape, discovery, and other jobs that actually need it.
    * For GTIN_BACKFILL_OFF mode, platform is not used and can be omitted.
    */
-  @ValidateIf((o) => o.mode !== IngestionJobMode.GTIN_BACKFILL_OFF && o.mode !== IngestionJobMode.OFF_IMPORT && o.mode !== IngestionJobMode.OFF_ENRICHMENT && o.mode !== IngestionJobMode.OFF_PRICE_LINKING && o.mode !== IngestionJobMode.BARCODE_LIST_NAMES && (!o.mode || o.mode === IngestionJobMode.SCRAPE))
+  @ValidateIf((o) => o.mode !== IngestionJobMode.GTIN_BACKFILL_OFF && o.mode !== IngestionJobMode.OFF_IMPORT && o.mode !== IngestionJobMode.OFF_ENRICHMENT && o.mode !== IngestionJobMode.OFF_PRICE_LINKING && o.mode !== IngestionJobMode.BARCODE_LIST_NAMES && o.mode !== IngestionJobMode.HS_CATALOG_SCRAPE && o.mode !== IngestionJobMode.HS_CATALOG_SCRAPE_CATEGORY && o.mode !== IngestionJobMode.PARKCENTER_CATALOG_SCRAPE && (!o.mode || o.mode === IngestionJobMode.SCRAPE))
   @IsEnum(IngestionPlatform)
   platform?: IngestionPlatform;
 

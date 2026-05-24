@@ -1,6 +1,6 @@
 import { Processor, WorkerHost, InjectQueue } from '@nestjs/bullmq';
 import { Job, Queue, UnrecoverableError } from 'bullmq';
-import { Logger, NotFoundException } from '@nestjs/common';
+import { Logger, NotFoundException, Inject, forwardRef } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource, IsNull } from 'typeorm';
 import axios from 'axios';
@@ -50,6 +50,9 @@ import { BarcodeListScraperService } from './barcode-list-scraper.service';
 import { BarcodeListNamesJobDto } from './dto/barcode-list-names-job.dto';
 import { HsCatalogScraperService } from './hs-catalog-scraper.service';
 import { HsCatalogJobDto } from './dto/hs-catalog-job.dto';
+import { ParkCenterCatalogScraperService } from './parkcenter-catalog-scraper.service';
+import { ParkCenterCatalogJobDto } from './dto/parkcenter-catalog-job.dto';
+import { ProductsService } from '../products/products.service';
 
 import { Product } from '../entities/product.entity';
 import { ProductPrice } from '../entities/product-price.entity';
@@ -95,6 +98,7 @@ export class IngestionProcessor extends WorkerHost {
   private offPriceLinkingLock = new Semaphore(1);
   private barcodeListNamesLock = new Semaphore(1);
   private hsCatalogLock = new Semaphore(1);
+  private parkCenterCatalogLock = new Semaphore(1);
 
   private todayDateSuffix(): string {
     const now = new Date();
@@ -122,6 +126,9 @@ export class IngestionProcessor extends WorkerHost {
     private readonly offPriceLinkerService: OffPriceLinkerService,
     private readonly barcodeListScraperService: BarcodeListScraperService,
     private readonly hsCatalogScraperService: HsCatalogScraperService,
+    private readonly parkCenterCatalogScraperService: ParkCenterCatalogScraperService,
+    @Inject(forwardRef(() => ProductsService))
+    private readonly productsService: ProductsService,
   ) {
     super();
     this.logger.log(
@@ -160,6 +167,10 @@ export class IngestionProcessor extends WorkerHost {
         return this.handleHsCatalogScrape(job);
       case 'hs-catalog-scrape-category':
         return this.handleHsCatalogScrapeCategory(job);
+      case 'parkcenter-catalog-scrape':
+        return this.handleParkCenterCatalogScrape(job);
+      case 'seed-gtin-prices':
+        return this.handleSeedGtinPrices(job);
       default:
         this.logger.warn(`Unknown job name: ${job.name}`);
     }
@@ -870,6 +881,35 @@ export class IngestionProcessor extends WorkerHost {
       return result;
     } catch (error: any) {
       this.logger.error(`HS catalog category scrape failed: ${error.message}`, error.stack);
+      throw error;
+    }
+  }
+
+  private async handleParkCenterCatalogScrape(job: Job<IngestionJobDto>) {
+    return await this.parkCenterCatalogLock.run(async () => {
+      this.logger.log(`Starting Park Center catalog scrape job ${job.id}`);
+      try {
+        const result = await this.parkCenterCatalogScraperService.run(
+          job.data as unknown as ParkCenterCatalogJobDto,
+        );
+        this.logger.log(`Completed Park Center catalog scrape job ${job.id}`);
+        return result;
+      } catch (error: any) {
+        this.logger.error(`Park Center catalog scrape failed: ${error.message}`, error.stack);
+        throw error;
+      }
+    });
+  }
+
+  private async handleSeedGtinPrices(job: Job<any>) {
+    const { gtin } = job.data;
+    this.logger.log(`Starting background seed of other store prices for GTIN: ${gtin}`);
+    try {
+      const product = await this.productsService.findByGtin(gtin);
+      this.logger.log(`Successfully completed price seeding for GTIN: ${gtin}`);
+      return { success: true, productId: product.id };
+    } catch (error: any) {
+      this.logger.error(`Failed background price seeding for GTIN ${gtin}: ${error.message}`);
       throw error;
     }
   }

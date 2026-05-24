@@ -66,6 +66,8 @@
 - [x] Remove checkout button: Removed payment/checkout button from the Cart screen.
 - [x] Redesign Product Details: Replaced all nutrition panels and buttons with a custom Price Summary Dashboard (Lowest, Highest, Mean/Average prices) and a "Compare Prices" button. Removed edit capability and FloatingActionButton.
 - [x] Disk-caching store logos: Integrated `cached_network_image` to cache store logos and product images on disk, displaying them dynamically on the Compare Prices screen.
+- [x] Implement high-speed Zid-based catalog scraper for `parkcentersa.com` (Zid storefront) to extract all 8000+ products (364 pages) dynamically using fast-path API payload extraction (`window.__INITIAL_STATE__` credentials decode).
+- [x] Transactionally upsert newly found products and Park Center prices into PostgreSQL, enqueuing asynchronous `seed-gtin-prices` background jobs to search the other 18 stores for identical GTINs.
 
 ## Architecture Decisions
 - **Self-Healing Scraper Browser Contexts**: To prevent browser contexts from getting locked in a permanently broken/closed state after background crashes (e.g. Chromium terminated by OS memory pressure or page closing exceptions), `BaseScraper` now listens to the `'close'` event on `BrowserContext` and `'disconnected'` on `Browser` to immediately nullify active singleton references. Additionally, `isLaunched()` executes a lightweight, synchronous `this.context.pages()` sanity check at the start of every request. If this check throws an exception, the scraper immediately invalidates its context and browser references, guaranteeing that a fresh, healthy browser instance is automatically launched on the next scrape job.
@@ -113,6 +115,10 @@
   - *SQL Seeding Cache*: Persists successfully resolved products and pricing configurations into PostgreSQL immediately upon completing the parallel scrapes, allowing subsequent scans to bypass the scraper layer and complete in milliseconds.
   - *Native Chunk Decoder*: Streams product data progressively using standard `HttpClient` in the mobile application, mapping chunks line-by-line using a standard parser without external library dependencies.
   - *Glassmorphic Scan Overlay*: Renders a highly responsive card overlay showing All-Store loading badges that turn green (with the parsed promo/offer price) or grey (if not matched) progressively as stream events arrive.
+- **Park Center Catalog Scraping & Asynchronous Price Seeding**:
+  - *Zid Platform Fast Path API*: Bypasses heavy HTML page parsing and DOM rendering on Park Center's SPA catalog by extracting authorization headers (`apiAuthorization` token and `storeId`) from the initial load's `window.__INITIAL_STATE__` base64 payload. Direct Axios requests are then made to the paginated Zid catalog API (`/api/v1/products`), bringing page retrieval time down to ~300-400ms.
+  - *Strict Numeric Filtering*: Only accepts GTINs/SKUs matching pure numeric pattern `^\d{8,14}$` to prevent alphanumeric SEO slug/SKU contamination.
+  - *Asynchronous Cross-Store Lookups*: Newly scraped GTINs are enqueued via BullMQ as `seed-gtin-prices` tasks to trigger parallel lookup and seeding against other 18 stores. De-duplication and concurrency locks manage active Redis memory footprint efficiently.
 
 ## Environment & Configuration
 Ensure you have updated the `.env` settings to match the optimizations:
@@ -177,5 +183,10 @@ Ensure you have updated the `.env` settings to match the optimizations:
 | `sawa_app/lib/presentation/screens/scanner/scanner_screen.dart` | Flutter Scanner Screen implementing dynamic loading overlays and glassmorphic progress badges. |
 | `sawa_app/lib/presentation/providers/cart_provider.dart` | Riverpod provider managing cart state (lowest & highest pricing range, quantities, persistence). |
 | `sawa_app/lib/presentation/screens/cart/cart_screen.dart` | Screen rendering cart list, quantity controls, Lowest/Highest totals range, potential savings, and checkout. |
+| `sawa-api/src/ingestion/dto/parkcenter-catalog-job.dto.ts` | Job configuration DTO controlling dry-runs, pages, and seed actions. |
+| `sawa-api/src/ingestion/parkcenter-catalog-scraper.service.ts` | Service handling authorization harvesting, paginated API requests, and database upserts. |
+| `sawa-api/src/scripts/trigger-parkcenter-catalog.ts` | CLI script to trigger the full or chunked catalog scraping job. |
+| `sawa-api/src/scripts/test-parkcenter-catalog-direct.ts` | Validation script to run a 2-page dry run catalog scrape. |
+| `sawa-api/src/scripts/verify-parkcenter-db-write.ts` | Database and BullMQ seeding verification script. |
 | `.env.example` | Template for configuring thresholds and batch sizes. |
 
