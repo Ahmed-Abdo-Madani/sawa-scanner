@@ -7,6 +7,9 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 
+# Copy scripts folder since postinstall script needs scripts/download-tessdata.js
+COPY scripts/ ./scripts/
+
 # Install dependencies (this will also trigger scripts/download-tessdata.js)
 RUN npm ci
 
