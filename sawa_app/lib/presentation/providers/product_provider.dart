@@ -6,11 +6,19 @@ import '../../data/datasources/product_local_data_source.dart';
 import '../../data/repositories/product_repository_impl.dart';
 import '../../domain/entities/product.dart';
 import '../../domain/repositories/product_repository.dart';
-import 'dart:io' show Platform;
+import 'dart:io' show Platform, HttpClient, X509Certificate;
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:http/io_client.dart' show IOClient;
 import '../../data/datasources/firebase_ai_data_source.dart';
 
-final httpClientProvider = Provider((ref) => http.Client());
+final httpClientProvider = Provider<http.Client>((ref) {
+  if (kIsWeb) {
+    return http.Client();
+  }
+  final ioClient = HttpClient()
+    ..badCertificateCallback = (X509Certificate cert, String host, int port) => true;
+  return IOClient(ioClient);
+});
 
 final productRemoteDataSourceProvider = Provider((ref) {
   final client = ref.watch(httpClientProvider);

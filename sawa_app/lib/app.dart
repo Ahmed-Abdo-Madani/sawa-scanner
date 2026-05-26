@@ -9,6 +9,7 @@ import 'presentation/providers/user_preferences_provider.dart';
 import 'presentation/screens/navigation_shell.dart';
 
 import 'presentation/screens/onboarding/onboarding_screen.dart';
+import 'presentation/screens/splash/splash_screen.dart';
 
 class SawaApp extends ConsumerStatefulWidget {
   final bool isFirstLaunch;
@@ -20,6 +21,7 @@ class SawaApp extends ConsumerStatefulWidget {
 
 class _SawaAppState extends ConsumerState<SawaApp> {
   late bool _showOnboarding;
+  bool _showSplash = true;
   late final AppLifecycleListener _lifecycleListener;
 
   @override
@@ -71,13 +73,19 @@ class _SawaAppState extends ConsumerState<SawaApp> {
       locale: currentLocale,
       supportedLocales: AppLocalizations.supportedLocales,
       localizationsDelegates: AppLocalizations.localizationsDelegates,
-      home: _showOnboarding 
-          ? OnboardingScreen(onComplete: () {
+      home: _showSplash
+          ? SplashScreen(onComplete: () {
               setState(() {
-                _showOnboarding = false;
+                _showSplash = false;
               });
             })
-          : const NavigationShell(),
+          : (_showOnboarding 
+              ? OnboardingScreen(onComplete: () {
+                  setState(() {
+                    _showOnboarding = false;
+                  });
+                })
+              : const NavigationShell()),
     );
   }
 }

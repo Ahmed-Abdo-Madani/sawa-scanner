@@ -21,9 +21,9 @@ class _NavigationShellState extends ConsumerState<NavigationShell> {
     final currentIndex = ref.watch(navigationProvider);
 
     final List<Widget> screens = [
-      const ProfileScreen(),
-      ScannerScreen(showBackButton: false, isActive: currentIndex == 1),
       const CartScreen(),
+      ScannerScreen(showBackButton: false, isActive: currentIndex == 1),
+      const ProfileScreen(),
     ];
 
     return Scaffold(
@@ -39,9 +39,9 @@ class _NavigationShellState extends ConsumerState<NavigationShell> {
         indicatorColor: AppColors.primary.withOpacity(0.12),
         destinations: [
           NavigationDestination(
-            icon: const Icon(Icons.person_outline),
-            selectedIcon: const Icon(Icons.person, color: AppColors.primary),
-            label: l10n.profileTab,
+            icon: const Icon(Icons.shopping_cart_outlined),
+            selectedIcon: const Icon(Icons.shopping_cart, color: AppColors.primary),
+            label: l10n.cartTab,
           ),
           NavigationDestination(
             icon: const Icon(Icons.qr_code_scanner_outlined),
@@ -49,9 +49,9 @@ class _NavigationShellState extends ConsumerState<NavigationShell> {
             label: l10n.scanTab,
           ),
           NavigationDestination(
-            icon: const Icon(Icons.shopping_cart_outlined),
-            selectedIcon: const Icon(Icons.shopping_cart, color: AppColors.primary),
-            label: l10n.cartTab,
+            icon: const Icon(Icons.person_outline),
+            selectedIcon: const Icon(Icons.person, color: AppColors.primary),
+            label: l10n.profileTab,
           ),
         ],
       ),

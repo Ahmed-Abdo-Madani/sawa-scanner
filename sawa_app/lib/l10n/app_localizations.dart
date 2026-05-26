@@ -1795,6 +1795,282 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Price Summary'**
   String get priceSummary;
+
+  /// No description provided for @authTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign In or Register'**
+  String get authTitle;
+
+  /// No description provided for @registerButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Register'**
+  String get registerButton;
+
+  /// No description provided for @signUpSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Account registered successfully!'**
+  String get signUpSuccess;
+
+  /// No description provided for @alreadyHaveAccount.
+  ///
+  /// In en, this message translates to:
+  /// **'Already have an account? Sign In'**
+  String get alreadyHaveAccount;
+
+  /// No description provided for @dontHaveAccount.
+  ///
+  /// In en, this message translates to:
+  /// **'Don\'t have an account? Register'**
+  String get dontHaveAccount;
+
+  /// No description provided for @passwordsDoNotMatch.
+  ///
+  /// In en, this message translates to:
+  /// **'Passwords do not match'**
+  String get passwordsDoNotMatch;
+
+  /// No description provided for @confirmPasswordLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm Password'**
+  String get confirmPasswordLabel;
+
+  /// No description provided for @scanLimitTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Daily Scan Limit Reached'**
+  String get scanLimitTitle;
+
+  /// No description provided for @scanLimitMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Free users are limited to 5 scans per day. Upgrade to Sawa Plus for unlimited scans!'**
+  String get scanLimitMessage;
+
+  /// No description provided for @upgradeSawaPlusButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Upgrade to Sawa Plus'**
+  String get upgradeSawaPlusButton;
+
+  /// No description provided for @unlimitedScans.
+  ///
+  /// In en, this message translates to:
+  /// **'Unlimited Real-Time Scans'**
+  String get unlimitedScans;
+
+  /// No description provided for @cartOptimizations.
+  ///
+  /// In en, this message translates to:
+  /// **'Smart Cart Price Range'**
+  String get cartOptimizations;
+
+  /// No description provided for @historicTrends.
+  ///
+  /// In en, this message translates to:
+  /// **'Historic Price Trends & Analytics'**
+  String get historicTrends;
+
+  /// No description provided for @subscriptionExplanationTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'App Store Billing Integration'**
+  String get subscriptionExplanationTitle;
+
+  /// No description provided for @subscriptionExplanationText.
+  ///
+  /// In en, this message translates to:
+  /// **'Subscriptions are billed securely through your Google Play Store or Apple App Store account. Verification is handled by verifying cryptographic purchase tokens on our servers.'**
+  String get subscriptionExplanationText;
+
+  /// No description provided for @subscribeMockSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Purchase simulated! You are now subscribed to Sawa Plus.'**
+  String get subscribeMockSuccess;
+
+  /// No description provided for @priceDropAlerts.
+  ///
+  /// In en, this message translates to:
+  /// **'Price Drop Alerts'**
+  String get priceDropAlerts;
+
+  /// No description provided for @priceDropAlertsDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Get notified when items in your cart go on sale.'**
+  String get priceDropAlertsDesc;
+
+  /// No description provided for @cartReminders.
+  ///
+  /// In en, this message translates to:
+  /// **'Cart Reminders'**
+  String get cartReminders;
+
+  /// No description provided for @cartRemindersDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Remind you of pending items in your shopping cart.'**
+  String get cartRemindersDesc;
+
+  /// No description provided for @newStoresAlerts.
+  ///
+  /// In en, this message translates to:
+  /// **'New Stores & Offers'**
+  String get newStoresAlerts;
+
+  /// No description provided for @newStoresAlertsDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Alert you when new stores are added in your region.'**
+  String get newStoresAlertsDesc;
+
+  /// No description provided for @notificationSettingsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Notification Settings'**
+  String get notificationSettingsTitle;
+
+  /// No description provided for @privacyCommitmentTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Privacy & Security'**
+  String get privacyCommitmentTitle;
+
+  /// No description provided for @privacyCommitmentText.
+  ///
+  /// In en, this message translates to:
+  /// **'Sawa is built with privacy in mind. We do not sell your personal data or scan history. Your scans are stored securely on your device.'**
+  String get privacyCommitmentText;
+
+  /// No description provided for @deleteAccount.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete Account'**
+  String get deleteAccount;
+
+  /// No description provided for @deleteAccountConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Are you sure you want to permanently delete your account? This action cannot be undone.'**
+  String get deleteAccountConfirm;
+
+  /// No description provided for @deleteAccountSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Account deleted successfully'**
+  String get deleteAccountSuccess;
+
+  /// No description provided for @sawaPlusSubscriber.
+  ///
+  /// In en, this message translates to:
+  /// **'Sawa Plus Subscriber'**
+  String get sawaPlusSubscriber;
+
+  /// No description provided for @searchingStore.
+  ///
+  /// In en, this message translates to:
+  /// **'Checking {store}...'**
+  String searchingStore(String store);
+
+  /// No description provided for @storeNotFound.
+  ///
+  /// In en, this message translates to:
+  /// **'{store}: Not found'**
+  String storeNotFound(String store);
+
+  /// No description provided for @featuresTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Discover Sawa\'s Features'**
+  String get featuresTitle;
+
+  /// No description provided for @featureScanTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Real-Time Price Scanning'**
+  String get featureScanTitle;
+
+  /// No description provided for @featureScanDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Scan any grocery barcode to compare prices across 20+ local e-commerce stores instantly.'**
+  String get featureScanDesc;
+
+  /// No description provided for @featureCartTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Smart Shopping Cart'**
+  String get featureCartTitle;
+
+  /// No description provided for @featureCartDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Add items to your cart and check both Lowest Total and Highest Total to see how much you save.'**
+  String get featureCartDesc;
+
+  /// No description provided for @signInPrompt.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign in to Sawa to access your history and sync your smart shopping cart across devices.'**
+  String get signInPrompt;
+
+  /// No description provided for @signInOrRegister.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign In / Register'**
+  String get signInOrRegister;
+
+  /// No description provided for @confirmDelete.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm Delete'**
+  String get confirmDelete;
+
+  /// No description provided for @yesDelete.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete'**
+  String get yesDelete;
+
+  /// No description provided for @keepAccount.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep Account'**
+  String get keepAccount;
+
+  /// No description provided for @visitStore.
+  ///
+  /// In en, this message translates to:
+  /// **'Visit Store'**
+  String get visitStore;
+
+  /// No description provided for @lowPrice.
+  ///
+  /// In en, this message translates to:
+  /// **'Low Price'**
+  String get lowPrice;
+
+  /// No description provided for @highPrice.
+  ///
+  /// In en, this message translates to:
+  /// **'High Price'**
+  String get highPrice;
+
+  /// No description provided for @commonPrice.
+  ///
+  /// In en, this message translates to:
+  /// **'Common Price'**
+  String get commonPrice;
+
+  /// No description provided for @inCart.
+  ///
+  /// In en, this message translates to:
+  /// **'Added to Cart'**
+  String get inCart;
 }
 
 class _AppLocalizationsDelegate

@@ -21,6 +21,8 @@ class UserPreferencesKeys {
   static const String fieldAllergenFilters = 'allergenFilters';
   static const String fieldPreferredLocale = 'preferredLocale';
   static const String fieldIsFirstLaunch = 'isFirstLaunch';
+  static const String fieldRecentScanTimestamps = 'recentScanTimestamps';
+  static const String fieldIsSubscribed = 'isSubscribed';
 
   /// Default locale used when no preference has been stored yet.
   static const String defaultLocale = 'ar';
@@ -81,12 +83,16 @@ class UserPreferences {
   final Set<String> allergenFilters;
   final String preferredLocale;
   final bool isFirstLaunch;
+  final List<String> recentScanTimestamps;
+  final bool isSubscribed;
 
   UserPreferences({
     required this.dietaryPreferences,
     required this.allergenFilters,
     required this.preferredLocale,
     required this.isFirstLaunch,
+    required this.recentScanTimestamps,
+    required this.isSubscribed,
   });
 
   UserPreferences copyWith({
@@ -94,12 +100,16 @@ class UserPreferences {
     Set<String>? allergenFilters,
     String? preferredLocale,
     bool? isFirstLaunch,
+    List<String>? recentScanTimestamps,
+    bool? isSubscribed,
   }) {
     return UserPreferences(
       dietaryPreferences: dietaryPreferences ?? this.dietaryPreferences,
       allergenFilters: allergenFilters ?? this.allergenFilters,
       preferredLocale: preferredLocale ?? this.preferredLocale,
       isFirstLaunch: isFirstLaunch ?? this.isFirstLaunch,
+      recentScanTimestamps: recentScanTimestamps ?? this.recentScanTimestamps,
+      isSubscribed: isSubscribed ?? this.isSubscribed,
     );
   }
 
@@ -109,6 +119,8 @@ class UserPreferences {
       UserPreferencesKeys.fieldAllergenFilters: allergenFilters.toList(),
       UserPreferencesKeys.fieldPreferredLocale: preferredLocale,
       UserPreferencesKeys.fieldIsFirstLaunch: isFirstLaunch,
+      UserPreferencesKeys.fieldRecentScanTimestamps: recentScanTimestamps,
+      UserPreferencesKeys.fieldIsSubscribed: isSubscribed,
     };
   }
 
@@ -123,6 +135,10 @@ class UserPreferences {
           UserPreferencesKeys.defaultLocale,
       isFirstLaunch:
           map[UserPreferencesKeys.fieldIsFirstLaunch] as bool? ?? true,
+      recentScanTimestamps: List<String>.from(
+          map[UserPreferencesKeys.fieldRecentScanTimestamps] ?? []),
+      isSubscribed:
+          map[UserPreferencesKeys.fieldIsSubscribed] as bool? ?? false,
     );
   }
 }
@@ -137,6 +153,8 @@ class UserPreferencesNotifier extends StateNotifier<UserPreferences> {
       allergenFilters: {},
       preferredLocale: UserPreferencesKeys.defaultLocale,
       isFirstLaunch: true,
+      recentScanTimestamps: [],
+      isSubscribed: false,
     )
   ) {
     _loadFromHive();
@@ -147,6 +165,45 @@ class UserPreferencesNotifier extends StateNotifier<UserPreferences> {
     if (data != null) {
       state = UserPreferences.fromMap(Map<dynamic, dynamic>.from(data as Map));
     }
+  }
+
+  bool canScan() {
+    if (state.isSubscribed) return true;
+    final now = DateTime.now();
+    final oneDayAgo = now.subtract(const Duration(days: 1));
+    final activeScans = state.recentScanTimestamps
+        .where((t) {
+          try {
+            return DateTime.parse(t).isAfter(oneDayAgo);
+          } catch (_) {
+            return false;
+          }
+        })
+        .toList();
+    return activeScans.length < 5;
+  }
+
+  Future<void> incrementScanCount() async {
+    if (state.isSubscribed) return;
+    final now = DateTime.now();
+    final oneDayAgo = now.subtract(const Duration(days: 1));
+    final activeScans = state.recentScanTimestamps
+        .where((t) {
+          try {
+            return DateTime.parse(t).isAfter(oneDayAgo);
+          } catch (_) {
+            return false;
+          }
+        })
+        .toList();
+    activeScans.add(now.toIso8601String());
+    state = state.copyWith(recentScanTimestamps: activeScans);
+    await _persist();
+  }
+
+  Future<void> setSubscribed(bool subscribed) async {
+    state = state.copyWith(isSubscribed: subscribed);
+    await _persist();
   }
 
   Future<void> toggleDietaryPreference(String pref) async {

@@ -99,7 +99,35 @@ export class ProductsService {
   }
 
   async findByGtin(gtin: string): Promise<Product> {
-    gtin = gtin.trim().replace(/\D/g, '');
+    const trimmed = gtin.trim();
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(trimmed);
+    if (isUuid) {
+      const product = await this.productRepository.findOne({
+        where: { id: trimmed },
+        relations: [
+          'nutritionFact',
+          'ingredients',
+          'allergens',
+          'images',
+        ],
+      });
+      if (!product) {
+        throw new NotFoundException(`Product with ID ${trimmed} not found`);
+      }
+      const existingPrices = await this.productPriceRepository
+        .createQueryBuilder('pp')
+        .leftJoinAndSelect('pp.merchant', 'merchant')
+        .where('pp.product_id = :productId', { productId: product.id })
+        .distinctOn(['pp.merchant_id'])
+        .orderBy('pp.merchant_id')
+        .addOrderBy('pp.scraped_at', 'DESC')
+        .getMany();
+      product.prices = existingPrices;
+      product.prices.sort((a, b) => a.price_sar_incl_vat - b.price_sar_incl_vat);
+      return product;
+    }
+
+    gtin = trimmed.replace(/\D/g, '');
     let product = await this.productRepository.findOne({
       where: { gtin },
       relations: [
@@ -229,10 +257,18 @@ export class ProductsService {
         });
 
         if (!merchant) {
+          let logoUrl: string | undefined = undefined;
+          if (match.store.url) {
+            try {
+              const hostname = new URL(match.store.url).hostname;
+              logoUrl = `https://www.google.com/s2/favicons?sz=128&domain=${hostname}`;
+            } catch (e) {}
+          }
           merchant = this.merchantRepository.create({
             name_en: match.store.nameEn,
             name_ar: match.store.nameAr,
             base_url: match.store.url,
+            logo_url: logoUrl,
             data_source_type: 'scraped_live',
           });
           merchant = await this.merchantRepository.save(merchant);
@@ -319,10 +355,18 @@ export class ProductsService {
         });
 
         if (!merchant) {
+          let logoUrl: string | undefined = undefined;
+          if (match.store.url) {
+            try {
+              const hostname = new URL(match.store.url).hostname;
+              logoUrl = `https://www.google.com/s2/favicons?sz=128&domain=${hostname}`;
+            } catch (e) {}
+          }
           merchant = this.merchantRepository.create({
             name_en: match.store.nameEn,
             name_ar: match.store.nameAr,
             base_url: match.store.url,
+            logo_url: logoUrl,
             data_source_type: 'scraped_live',
           });
           merchant = await this.merchantRepository.save(merchant);
@@ -493,10 +537,18 @@ export class ProductsService {
               });
 
               if (!merchant) {
+                let logoUrl: string | undefined = undefined;
+                if (match.store.url) {
+                  try {
+                    const hostname = new URL(match.store.url).hostname;
+                    logoUrl = `https://www.google.com/s2/favicons?sz=128&domain=${hostname}`;
+                  } catch (e) {}
+                }
                 merchant = this.merchantRepository.create({
                   name_en: match.store.nameEn,
                   name_ar: match.store.nameAr,
                   base_url: match.store.url,
+                  logo_url: logoUrl,
                   data_source_type: 'scraped_live',
                 });
                 merchant = await this.merchantRepository.save(merchant);
@@ -686,10 +738,18 @@ export class ProductsService {
             });
 
             if (!merchant) {
+              let logoUrl: string | undefined = undefined;
+              if (match.store.url) {
+                try {
+                  const hostname = new URL(match.store.url).hostname;
+                  logoUrl = `https://www.google.com/s2/favicons?sz=128&domain=${hostname}`;
+                } catch (e) {}
+              }
               merchant = this.merchantRepository.create({
                 name_en: match.store.nameEn,
                 name_ar: match.store.nameAr,
                 base_url: match.store.url,
+                logo_url: logoUrl,
                 data_source_type: 'scraped_live',
               });
               merchant = await this.merchantRepository.save(merchant);
@@ -732,6 +792,22 @@ export class ProductsService {
         }
       })();
     });
+  }
+
+  async search(q: string): Promise<Product[]> {
+    if (!q || q.trim() === '') return [];
+    const query = q.trim();
+    return await this.productRepository
+      .createQueryBuilder('product')
+      .leftJoinAndSelect('product.images', 'images')
+      .leftJoinAndSelect('product.prices', 'prices')
+      .leftJoinAndSelect('prices.merchant', 'merchant')
+      .where(
+        '(product.name_en ILIKE :q OR product.name_ar ILIKE :q OR product.brand ILIKE :q OR product.gtin = :gtin)',
+        { q: `%${query}%`, gtin: query },
+      )
+      .limit(50)
+      .getMany();
   }
 
   async createReport(

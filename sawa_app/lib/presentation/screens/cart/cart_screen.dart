@@ -6,6 +6,7 @@ import '../../providers/navigation_provider.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
 import '../product_detail/product_detail_screen.dart';
+import '../../widgets/fallback_image_network.dart';
 
 class CartScreen extends ConsumerWidget {
   const CartScreen({super.key});
@@ -121,16 +122,17 @@ class CartScreen extends ConsumerWidget {
             separatorBuilder: (context, index) => const SizedBox(height: 12),
             itemBuilder: (context, index) {
               final item = items[index];
+              final itemKey = item.product.gtin.isNotEmpty ? item.product.gtin : item.product.id;
               return _CartItemCard(
                 item: item,
                 onIncrement: () {
-                  ref.read(cartProvider.notifier).updateQuantity(item.product.gtin, item.quantity + 1);
+                  ref.read(cartProvider.notifier).updateQuantity(itemKey, item.quantity + 1);
                 },
                 onDecrement: () {
-                  ref.read(cartProvider.notifier).updateQuantity(item.product.gtin, item.quantity - 1);
+                  ref.read(cartProvider.notifier).updateQuantity(itemKey, item.quantity - 1);
                 },
                 onRemove: () {
-                  ref.read(cartProvider.notifier).removeProduct(item.product.gtin);
+                  ref.read(cartProvider.notifier).removeProduct(itemKey);
                 },
               );
             },
@@ -299,12 +301,13 @@ class _CartItemCard extends StatelessWidget {
     final theme = Theme.of(context);
 
     final product = item.product;
+    final itemKey = product.gtin.isNotEmpty ? product.gtin : product.id;
 
     return InkWell(
       onTap: () {
         Navigator.of(context).push(
           MaterialPageRoute(
-            builder: (context) => ProductDetailScreen(gtin: product.gtin),
+            builder: (context) => ProductDetailScreen(gtin: itemKey),
           ),
         );
       },
@@ -329,15 +332,11 @@ class _CartItemCard extends StatelessWidget {
                 border: Border.all(color: AppColors.onSurface.withOpacity(0.04)),
               ),
               padding: const EdgeInsets.all(6),
-              child: product.images.isNotEmpty
-                  ? Image.network(
-                      product.images.first.url,
-                      fit: BoxFit.contain,
-                      cacheWidth: 200,
-                      errorBuilder: (context, error, stackTrace) =>
-                          const Icon(Icons.inventory_2_outlined, color: Colors.grey),
-                    )
-                  : const Icon(Icons.inventory_2_outlined, color: Colors.grey),
+              child: FallbackImageNetwork(
+                imageUrls: FallbackImageNetwork.getPrioritizedImageUrls(product),
+                fit: BoxFit.contain,
+                fallback: const Icon(Icons.inventory_2_outlined, color: Colors.grey),
+              ),
             ),
             const SizedBox(width: 14),
             // Product info

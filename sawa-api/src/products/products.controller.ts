@@ -10,6 +10,7 @@ import {
   BadRequestException,
   Sse,
   MessageEvent,
+  Query,
 } from '@nestjs/common';
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
@@ -43,6 +44,13 @@ export class ProductsController {
         return event;
       }),
     );
+  }
+
+  @Public()
+  @Get('search')
+  async searchProducts(@Query('q') q: string) {
+    const products = await this.productsService.search(q);
+    return products.map((p) => this.formatProduct(p));
   }
 
   @Public()
@@ -101,14 +109,35 @@ export class ProductsController {
         name_en: a.name_en,
         source: a.source,
       })),
-      prices: (product.prices || []).map((p) => ({
-        merchant: p.merchant?.name_en || 'Unknown',
-        price_sar_incl_vat: p.price_sar_incl_vat,
-        scraped_at: p.scraped_at,
-      })),
+      prices: (product.prices || []).map((p) => {
+        let logoUrl = p.merchant?.logo_url || null;
+        if (!logoUrl && p.merchant?.base_url) {
+          try {
+            const hostname = new URL(p.merchant.base_url).hostname;
+            logoUrl = `https://www.google.com/s2/favicons?sz=128&domain=${hostname}`;
+          } catch (e) {
+            // ignore
+          }
+        }
+        return {
+          merchant: {
+            name_en: p.merchant?.name_en || 'Unknown',
+            name_ar: p.merchant?.name_ar || '',
+            logo_url: logoUrl,
+          },
+          price_sar_incl_vat: p.price_sar_incl_vat,
+          promo_price_sar: p.promo_price_sar || null,
+          unit_price_sar: p.unit_price_sar || null,
+          unit_price_unit: p.unit_price_unit || null,
+          in_stock: p.in_stock,
+          scraped_at: p.scraped_at,
+          source_url: p.source_url || null,
+        };
+      }),
       images: (product.images || []).map((i) => ({
         url: i.url,
         image_type: i.image_type,
+        source: i.source || null,
       })),
     };
   }

@@ -3,15 +3,18 @@ import 'dart:typed_data';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sawa_app/l10n/app_localizations.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:url_launcher/url_launcher.dart';
+import '../../../core/utils/store_logo_helper.dart';
 import '../../providers/product_provider.dart';
 import '../../providers/scan_history_provider.dart';
-import '../../providers/cart_provider.dart';
 import '../../widgets/halal_badge.dart';
+import '../../widgets/fallback_image_network.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../domain/entities/product.dart';
+import '../../../domain/entities/price_info.dart';
 import '../../../core/exceptions.dart';
-import 'nearby_prices_screen.dart';
+
 
 class ProductDetailScreen extends ConsumerStatefulWidget {
   final String gtin;
@@ -22,6 +25,7 @@ class ProductDetailScreen extends ConsumerStatefulWidget {
   final bool historyAlreadyRecorded;
   /// Captured image bytes from label scan, used as fallback image in hero.
   final Uint8List? capturedImageBytes;
+  final String? selectedMerchant;
 
   const ProductDetailScreen({
     super.key,
@@ -29,6 +33,7 @@ class ProductDetailScreen extends ConsumerStatefulWidget {
     this.initialProduct,
     this.historyAlreadyRecorded = false,
     this.capturedImageBytes,
+    this.selectedMerchant,
   });
 
   @override
@@ -142,8 +147,6 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
               const SizedBox(height: 16),
               _buildPriceDashboard(context, product, l10n, locale),
               const SizedBox(height: 24),
-              _buildDisclaimer(l10n, locale),
-              const SizedBox(height: 48),
             ]),
           ),
         ],
@@ -167,24 +170,23 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
           Center(
             child: Padding(
               padding: const EdgeInsets.only(bottom: 120, top: 40),
-              child: product.images.isNotEmpty
-                  ? CachedNetworkImage(
-                      imageUrl: product.images.first.url,
+              child: widget.capturedImageBytes != null
+                  ? Image.memory(
+                      widget.capturedImageBytes!,
                       fit: BoxFit.contain,
-                      placeholder: (context, url) => const Center(
-                          child: CircularProgressIndicator(color: AppColors.primary)),
-                      errorWidget: (context, url, error) => const Icon(
-                          Icons.broken_image_outlined,
-                          size: 40,
-                          color: Colors.grey),
                     )
-                  : widget.capturedImageBytes != null
-                      ? Image.memory(
-                          widget.capturedImageBytes!,
-                          fit: BoxFit.contain,
-                        )
-                      : const Icon(Icons.inventory_2_outlined,
-                          size: 100, color: AppColors.onSurface),
+                  : FallbackImageNetwork(
+                      imageUrls: FallbackImageNetwork.getPrioritizedImageUrls(
+                        product,
+                        selectedMerchant: widget.selectedMerchant,
+                      ),
+                      fit: BoxFit.contain,
+                      fallback: const Icon(
+                        Icons.inventory_2_outlined,
+                        size: 100,
+                        color: AppColors.onSurface,
+                      ),
+                    ),
             ),
           ),
           Positioned(
@@ -264,22 +266,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
     AppLocalizations l10n,
     Locale locale,
   ) {
-    final validPrices = product.prices
-        .where((p) => p.priceSarInclVat > 0)
-        .toList();
-
-    double? lowest;
-    double? average;
-    double? highest;
-
-    if (validPrices.isNotEmpty) {
-      final numericalPrices = validPrices.map((p) => p.priceSarInclVat).toList();
-      lowest = numericalPrices.reduce((a, b) => a < b ? a : b);
-      highest = numericalPrices.reduce((a, b) => a > b ? a : b);
-      average = numericalPrices.reduce((a, b) => a + b) / numericalPrices.length;
-    }
-
-    if (lowest == null || average == null || highest == null) {
+    if (product.prices.isEmpty) {
       return Padding(
         padding: const EdgeInsets.all(16.0),
         child: Container(
@@ -306,6 +293,42 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
       );
     }
 
+    final validPrices = product.prices
+        .where((p) => p.priceSarInclVat > 0)
+        .toList();
+
+    double? lowest;
+    double? highest;
+
+    if (validPrices.isNotEmpty) {
+      final numericalPrices = validPrices.map((p) => p.priceSarInclVat).toList();
+      lowest = numericalPrices.reduce((a, b) => a < b ? a : b);
+      highest = numericalPrices.reduce((a, b) => a > b ? a : b);
+    }
+
+    final selectedPrice = product.prices.cast<PriceInfo>().firstWhere(
+      (p) {
+        if (widget.selectedMerchant == null) return false;
+        final cleanMerchant = widget.selectedMerchant!.toLowerCase().trim();
+        return p.merchant.toLowerCase().trim() == cleanMerchant ||
+            p.merchantAr.toLowerCase().trim() == cleanMerchant;
+      },
+      orElse: () {
+        if (validPrices.isEmpty) return product.prices.first;
+        validPrices.sort((a, b) => a.priceSarInclVat.compareTo(b.priceSarInclVat));
+        return validPrices.first;
+      },
+    );
+
+    final isLow = lowest != null && highest != null && lowest != highest && selectedPrice.priceSarInclVat == lowest;
+    final isHigh = lowest != null && highest != null && lowest != highest && selectedPrice.priceSarInclVat == highest;
+
+    final storeName = locale.languageCode == 'ar'
+        ? (selectedPrice.merchantAr.isNotEmpty
+            ? selectedPrice.merchantAr
+            : selectedPrice.merchant)
+        : selectedPrice.merchant;
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Column(
@@ -328,175 +351,166 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  l10n.priceSummary,
-                  style: AppTypography.headline(locale).copyWith(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.onBackground,
-                  ),
-                ),
-                const SizedBox(height: 16),
                 Row(
                   children: [
-                    Expanded(
-                      child: _buildDetailPriceCard(
-                        title: l10n.lowestPrice,
-                        price: lowest,
-                        color: Colors.green,
-                        locale: locale,
-                        l10n: l10n,
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: StoreLogoHelper.buildStoreLogo(
+                        selectedPrice.merchant,
+                        size: 40,
+                        networkFallbackUrl: selectedPrice.logoUrl,
                       ),
                     ),
-                    const SizedBox(width: 8),
+                    const SizedBox(width: 12),
                     Expanded(
-                      child: _buildDetailPriceCard(
-                        title: l10n.averagePrice,
-                        price: average,
-                        color: Colors.blue,
-                        locale: locale,
-                        l10n: l10n,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            storeName,
+                            style: AppTypography.headline(locale).copyWith(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.onBackground,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          // Price Tier Badge
+                          if (isLow)
+                            _buildPriceTierBadge(
+                              label: l10n.lowPrice,
+                              color: Colors.green,
+                              icon: Icons.arrow_downward,
+                              locale: locale,
+                            )
+                          else if (isHigh)
+                            _buildPriceTierBadge(
+                              label: l10n.highPrice,
+                              color: Colors.red,
+                              icon: Icons.arrow_upward,
+                              locale: locale,
+                            )
+                          else
+                            _buildPriceTierBadge(
+                              label: l10n.commonPrice,
+                              color: Colors.blueGrey,
+                              icon: Icons.label,
+                              locale: locale,
+                            ),
+                        ],
                       ),
                     ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: _buildDetailPriceCard(
-                        title: l10n.highestPrice,
-                        price: highest,
-                        color: Colors.red,
-                        locale: locale,
-                        l10n: l10n,
+                  ],
+                ),
+                const SizedBox(height: 24),
+                // Price information
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.baseline,
+                  textBaseline: TextBaseline.alphabetic,
+                  children: [
+                    Text(
+                      locale.languageCode == 'ar' ? "السعر:" : "Price:",
+                      style: AppTypography.body(locale).copyWith(
+                        color: AppColors.onSurface.withOpacity(0.6),
+                        fontSize: 14,
                       ),
+                    ),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.baseline,
+                      textBaseline: TextBaseline.alphabetic,
+                      children: [
+                        Text(
+                          selectedPrice.priceSarInclVat.toStringAsFixed(2),
+                          style: TextStyle(
+                            color: isLow
+                                ? Colors.green.shade700
+                                : (isHigh ? Colors.red.shade700 : AppColors.onBackground),
+                            fontSize: 32,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          l10n.sar,
+                          style: AppTypography.caption(locale).copyWith(
+                            color: AppColors.onSurface.withOpacity(0.8),
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 20),
-          ElevatedButton.icon(
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => NearbyPricesScreen(
-                    gtin: product.gtin,
-                    productName: locale.languageCode == 'ar'
-                        ? product.nameAr
-                        : product.nameEn,
-                  ),
+          if (selectedPrice.sourceUrl != null && selectedPrice.sourceUrl!.isNotEmpty) ...[
+            const SizedBox(height: 20),
+            ElevatedButton.icon(
+              onPressed: () async {
+                final uri = Uri.tryParse(selectedPrice.sourceUrl!);
+                if (uri != null) {
+                  try {
+                    await launchUrl(uri, mode: LaunchMode.externalApplication);
+                  } catch (e) {
+                    debugPrint("Could not launch store URL: $e");
+                  }
+                }
+              },
+              icon: const Icon(Icons.open_in_new, color: Colors.white, size: 18),
+              label: Text(
+                l10n.visitStore,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
                 ),
-              );
-            },
-            icon: const Icon(Icons.compare_arrows, color: Colors.white),
-            label: Text(
-              l10n.comparePrices,
-              style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-                fontSize: 16,
               ),
-            ),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(14),
-              ),
-              elevation: 0,
-            ),
-          ),
-          const SizedBox(height: 12),
-          OutlinedButton.icon(
-            onPressed: () {
-              ref.read(cartProvider.notifier).addProduct(product);
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(l10n.addedToCart),
-                  duration: const Duration(seconds: 2),
-                  backgroundColor: AppColors.primary,
-                  behavior: SnackBarBehavior.floating,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
                 ),
-              );
-            },
-            icon: const Icon(Icons.add_shopping_cart, color: AppColors.primary),
-            label: Text(
-              l10n.addToCart,
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                color: AppColors.primary,
-                fontSize: 15,
+                elevation: 0,
               ),
             ),
-            style: OutlinedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              side: const BorderSide(color: AppColors.primary, width: 1.5),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(14),
-              ),
-            ),
-          ),
+          ],
         ],
       ),
     );
   }
 
-  Widget _buildDetailPriceCard({
-    required String title,
-    required double price,
+  Widget _buildPriceTierBadge({
+    required String label,
     required Color color,
+    required IconData icon,
     required Locale locale,
-    required AppLocalizations l10n,
   }) {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.06),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.12), width: 1),
+        color: color.withOpacity(0.12),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: color.withOpacity(0.3), width: 1),
       ),
-      child: Column(
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
+          Icon(icon, size: 12, color: color),
+          const SizedBox(width: 4),
           Text(
-            title,
-            textAlign: TextAlign.center,
+            label,
             style: AppTypography.caption(locale).copyWith(
-              color: AppColors.onSurface,
+              color: color,
               fontWeight: FontWeight.bold,
-              fontSize: 10,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            price.toStringAsFixed(2),
-            style: TextStyle(
-              color: color.withOpacity(0.9),
-              fontSize: 16,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            l10n.sar,
-            style: AppTypography.caption(locale).copyWith(
-              color: color.withOpacity(0.6),
-              fontSize: 9,
-              fontWeight: FontWeight.bold,
+              fontSize: 11,
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildDisclaimer(AppLocalizations l10n, Locale locale) {
-    return Text(
-      l10n.sfdaDisclaimer,
-      textAlign: TextAlign.center,
-      style: AppTypography.caption(locale).copyWith(
-        color: AppColors.onSurface,
-        height: 1.6,
       ),
     );
   }

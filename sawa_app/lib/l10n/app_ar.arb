@@ -1,5 +1,5 @@
 {
-  "appTitle": "ساوا",
+  "appTitle": "سوا",
   "scanNow": "امسح الآن",
   "greeting": "مرحباً، {name} 👋",
   "@greeting": {
@@ -150,7 +150,7 @@
   "manageSubscription": "إدارة الاشتراك",
   "freePlan": "مجاني",
   "userName": "اسم المستخدم",
-  "welcomeTitle": "مرحباً بك في ساوا",
+  "welcomeTitle": "مرحباً بك في سوا",
   "welcomeSubtitle": "امسح المنتجات للتحقق من التغذية والسلامة وأفضل الأسعار",
   "dietaryPreferences": "التفضيلات الغذائية",
   "allergenFilters": "تنبيهات الحساسية",
@@ -197,13 +197,13 @@
   "gtinBarcode": "GTIN / الباركود",
   "enterIngredientsList": "أدخل قائمة المكونات...",
   "upgradeNow": "ترقية الآن",
-  "backendUnavailable": "خدمة ساوا غير متوفرة",
+  "backendUnavailable": "خدمة سوا غير متوفرة",
   "backendUnavailableDescription": "خوادمنا الأساسية غير قادرة على الاتصال حالياً. نحن نعمل على استعادة الوصول.",
   "fallbackUnavailable": "خطأ في القاعدة العالمية",
   "fallbackUnavailableDescription": "تعذر الوصول إلى قاعدة البيانات العالمية للمنتجات (OpenFoodFacts).",
   "fallbackConfiguration": "خطأ في تهيئة التطبيق",
   "fallbackConfigurationDescription": "حدث خطأ في إعدادات التطبيق (User-Agent مفقود). يرجى التواصل مع الدعم.",
-  "apiConfiguration": "قاعدة بيانات ساوا غير مهيأة",
+  "apiConfiguration": "قاعدة بيانات سوا غير مهيأة",
   "apiConfigurationDescription": "رابط الخادم الأساسي مفقود. يجب البناء باستخدام --dart-define=API_BASE_URL=...",
   "scanOrSearchPrompt": "امسح باركود أو ابحث عن منتج",
 
@@ -354,5 +354,61 @@
       "count": { "type": "int" }
     }
   },
-  "priceSummary": "ملخص الأسعار"
+  "priceSummary": "ملخص الأسعار",
+  "authTitle": "تسجيل الدخول أو الإنشاء",
+  "registerButton": "تسجيل جديد",
+  "signUpSuccess": "تم تسجيل الحساب بنجاح!",
+  "alreadyHaveAccount": "لديك حساب بالفعل؟ تسجيل الدخول",
+  "dontHaveAccount": "ليس لديك حساب؟ تسجيل جديد",
+  "passwordsDoNotMatch": "كلمات المرور غير متطابقة",
+  "confirmPasswordLabel": "تأكيد كلمة المرور",
+  "scanLimitTitle": "تم الوصول إلى الحد اليومي للمسح",
+  "scanLimitMessage": "يقتصر المستخدمون المجانيون على 5 عمليات مسح في اليوم. قم بالترقية إلى سوا بلس للحصول على عمليات مسح غير محدودة!",
+  "upgradeSawaPlusButton": "الترقية إلى سوا بلس",
+  "unlimitedScans": "عمليات مسح غير محدودة في الوقت الفعلي",
+  "cartOptimizations": "نطاق أسعار السلة الذكية",
+  "historicTrends": "اتجاهات الأسعار التاريخية والتحليلات",
+  "subscriptionExplanationTitle": "تكامل الفوترة مع متجر التطبيقات",
+  "subscriptionExplanationText": "يتم فوترة الاشتراكات بشكل آمن من خلال حساب متجر Google Play أو Apple App Store الخاص بك. يتم التحقق من صحة رموز الشراء المشفرة على خوادمنا.",
+  "subscribeMockSuccess": "تمت محاكاة الشراء! أنت الآن مشترك في سوا بلس.",
+  "priceDropAlerts": "تنبيهات انخفاض الأسعار",
+  "priceDropAlertsDesc": "احصل على تنبيهات عندما تنخفض أسعار المنتجات في سلتك.",
+  "cartReminders": "تذكيرات السلة",
+  "cartRemindersDesc": "تذكيرك بالمنتجات المتبقية في سلة التسوق الخاصة بك.",
+  "newStoresAlerts": "المتاجر والعروض الجديدة",
+  "newStoresAlertsDesc": "تنبيهك عند إضافة متاجر جديدة في منطقتك.",
+  "notificationSettingsTitle": "إعدادات التنبيهات",
+  "privacyCommitmentTitle": "الخصوصية والأمان",
+  "privacyCommitmentText": "تم بناء سوا مع وضع الخصوصية في الاعتبار. نحن لا نبيع بياناتك الشخصية أو سجل مسح المنتجات الخاص بك. يتم تخزين عمليات المسح بأمان على جهازك.",
+  "deleteAccount": "حذف الحساب",
+  "deleteAccountConfirm": "هل أنت متأكد أنك تريد حذف حسابك نهائيًا؟ لا يمكن التراجع عن هذا الإجراء.",
+  "deleteAccountSuccess": "تم حذف الحساب بنجاح",
+  "sawaPlusSubscriber": "مشترك سوا بلس",
+  "searchingStore": "جاري فحص {store}...",
+  "@searchingStore": {
+    "placeholders": {
+      "store": { "type": "String" }
+    }
+  },
+  "storeNotFound": "{store}: غير متوفر",
+  "@storeNotFound": {
+    "placeholders": {
+      "store": { "type": "String" }
+    }
+  },
+  "featuresTitle": "اكتشف مميزات سوا",
+  "featureScanTitle": "مقارنة الأسعار في الوقت الفعلي",
+  "featureScanDesc": "امسح أي باركود للمنتجات لمقارنة الأسعار عبر أكثر من 20 متجرًا إلكترونيًا محليًا على الفور.",
+  "featureCartTitle": "سلة التسوق الذكية",
+  "featureCartDesc": "أضف المنتجات إلى سلتك وتحقق من كل من الإجمالي الأقل والإجمالي الأعلى لمعرفة مقدار ما توفره.",
+  "signInPrompt": "سجل الدخول إلى سوا للوصول إلى السجل الخاص بك ومزامنة سلة التسوق الذكية الخاصة بك عبر الأجهزة.",
+  "signInOrRegister": "تسجيل الدخول / التسجيل",
+  "confirmDelete": "تأكيد الحذف",
+  "yesDelete": "حذف",
+  "keepAccount": "الاحتفاظ بالحساب",
+  "visitStore": "زيارة المتجر",
+  "lowPrice": "سعر منخفض",
+  "highPrice": "سعر مرتفع",
+  "commonPrice": "سعر شائع",
+  "inCart": "في السلة"
 }

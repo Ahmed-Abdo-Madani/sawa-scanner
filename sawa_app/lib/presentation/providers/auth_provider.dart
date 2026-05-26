@@ -5,6 +5,7 @@ import '../../data/datasources/auth_data_source.dart';
 import 'package:http/http.dart' as http;
 import '../../data/datasources/authed_http_client.dart';
 import '../../data/datasources/admin_product_remote_data_source.dart';
+import 'product_provider.dart';
 
 final authDataSourceProvider = Provider<AuthDataSource>((ref) {
   return AuthDataSource();
@@ -24,8 +25,9 @@ final isAdminProvider = FutureProvider<bool>((ref) async {
 
 final authedHttpClientProvider = Provider<AuthedHttpClient>((ref) {
   final authDataSource = ref.watch(authDataSourceProvider);
+  final client = ref.watch(httpClientProvider);
   return AuthedHttpClient(
-    client: http.Client(),
+    client: client,
     tokenProvider: () => authDataSource.getIdToken(),
   );
 });

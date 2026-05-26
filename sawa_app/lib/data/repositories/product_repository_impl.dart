@@ -265,8 +265,8 @@ class ProductRepositoryImpl implements ProductRepository {
   }
 
   @override
-  Future<List<Product>> searchProducts(String query) {
-    return openFoodFactsDataSource.searchProducts(query);
+  Future<List<Product>> searchProducts(String query) async {
+    return await remoteDataSource.searchProducts(query);
   }
 
   @override

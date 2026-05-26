@@ -26,7 +26,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   }
 
   void _nextPage() {
-    if (_currentPage < 3) {
+    if (_currentPage < 1) {
       _pageController.nextPage(
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeInOut,
@@ -61,9 +61,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                 },
                 children: [
                   _WelcomePage(l10n: l10n, locale: locale),
-                  _DietaryPage(l10n: l10n, locale: locale),
-                  _AllergenPage(l10n: l10n, locale: locale),
-                  _ConfirmationPage(l10n: l10n, locale: locale),
+                  _FeaturesPage(l10n: l10n, locale: locale),
                 ],
               ),
             ),
@@ -82,7 +80,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
-            children: List.generate(4, (index) => _buildDot(index)),
+            children: List.generate(2, (index) => _buildDot(index)),
           ),
           const SizedBox(height: 32),
           SizedBox(
@@ -99,7 +97,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                 elevation: 0,
               ),
               child: Text(
-                _currentPage == 3 ? l10n.getStarted : l10n.next,
+                _currentPage == 1 ? l10n.getStarted : l10n.next,
                 style: AppTypography.body(locale).copyWith(
                   color: Colors.white,
                   fontWeight: FontWeight.bold,
@@ -107,7 +105,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
               ),
             ),
           ),
-          if (_currentPage < 3)
+          if (_currentPage < 1)
             TextButton(
               onPressed: _complete,
               child: Text(
@@ -215,165 +213,112 @@ class _WelcomePage extends ConsumerWidget {
   }
 }
 
-class _DietaryPage extends ConsumerWidget {
+class _FeaturesPage extends StatelessWidget {
   final AppLocalizations l10n;
   final Locale locale;
 
-  const _DietaryPage({required this.l10n, required this.locale});
+  const _FeaturesPage({required this.l10n, required this.locale});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final prefs = ref.watch(userPreferencesProvider).dietaryPreferences;
-
+  Widget build(BuildContext context) {
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(24.0),
+      padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 40.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          const SizedBox(height: 20),
+          Text(
+            l10n.featuresTitle,
+            style: AppTypography.headline(locale).copyWith(
+              fontSize: 28,
+              fontWeight: FontWeight.bold,
+              color: AppColors.onSurface,
+            ),
+          ),
           const SizedBox(height: 40),
-          Text(l10n.dietaryPreferences, style: AppTypography.headline(locale).copyWith(fontSize: 28)),
+          _buildFeatureCard(
+            icon: Icons.qr_code_scanner_rounded,
+            iconColor: AppColors.primary,
+            title: l10n.featureScanTitle,
+            description: l10n.featureScanDesc,
+          ),
           const SizedBox(height: 24),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: PreferenceOptions.dietary.map((option) =>
-              _buildPrefChip(
-                ref,
-                option.id,
-                option.labelOf(l10n),
-                prefs.contains(option.id),
-              ),
-            ).toList(),
+          _buildFeatureCard(
+            icon: Icons.shopping_cart_rounded,
+            iconColor: Colors.blueAccent,
+            title: l10n.featureCartTitle,
+            description: l10n.featureCartDesc,
           ),
         ],
       ),
     );
   }
 
-  Widget _buildPrefChip(WidgetRef ref, String key, String label, bool isSelected) {
-    return FilterChip(
-      label: Text(label),
-      selected: isSelected,
-      onSelected: (_) => ref.read(userPreferencesProvider.notifier).toggleDietaryPreference(key),
-      selectedColor: AppColors.primary.withOpacity(0.2),
-      checkmarkColor: AppColors.primary,
-      labelStyle: TextStyle(
-        color: isSelected ? AppColors.primary : AppColors.onSurface,
-        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+  Widget _buildFeatureCard({
+    required IconData icon,
+    required Color iconColor,
+    required String title,
+    required String description,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: AppColors.onSurface.withOpacity(0.08),
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
-    );
-  }
-}
-
-class _AllergenPage extends ConsumerWidget {
-  final AppLocalizations l10n;
-  final Locale locale;
-
-  const _AllergenPage({required this.l10n, required this.locale});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final allergens = ref.watch(userPreferencesProvider).allergenFilters;
-
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(24.0),
-      child: Column(
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const SizedBox(height: 40),
-          Text(l10n.allergenFilters, style: AppTypography.headline(locale).copyWith(fontSize: 28)),
-          const SizedBox(height: 24),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: PreferenceOptions.allergens.map((option) =>
-              _buildAllergenChip(
-                ref,
-                option.id,
-                option.labelOf(l10n),
-                allergens.contains(option.id),
-              ),
-            ).toList(),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: iconColor.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Icon(
+              icon,
+              size: 32,
+              color: iconColor,
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: AppTypography.body(locale).copyWith(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 18,
+                    color: AppColors.onSurface,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  description,
+                  style: AppTypography.caption(locale).copyWith(
+                    color: AppColors.onSurface.withOpacity(0.7),
+                    height: 1.4,
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
     );
   }
-
-  Widget _buildAllergenChip(WidgetRef ref, String key, String label, bool isSelected) {
-    return FilterChip(
-      label: Text(label),
-      selected: isSelected,
-      onSelected: (_) => ref.read(userPreferencesProvider.notifier).toggleAllergenFilter(key),
-      selectedColor: AppColors.error.withOpacity(0.1),
-      checkmarkColor: AppColors.error,
-      labelStyle: TextStyle(
-        color: isSelected ? AppColors.error : AppColors.onSurface,
-        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-      ),
-    );
-  }
 }
 
-class _ConfirmationPage extends ConsumerWidget {
-  final AppLocalizations l10n;
-  final Locale locale;
-
-  const _ConfirmationPage({required this.l10n, required this.locale});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final userPrefs = ref.watch(userPreferencesProvider);
-
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(24.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const SizedBox(height: 40),
-          Text(l10n.confirmationTitle, style: AppTypography.headline(locale).copyWith(fontSize: 28)),
-          const SizedBox(height: 16),
-          Text(l10n.confirmationSubtitle, style: AppTypography.body(locale)),
-          const SizedBox(height: 32),
-          if (userPrefs.dietaryPreferences.isNotEmpty) ...[
-            Text(l10n.yourPreferences, style: AppTypography.body(locale).copyWith(fontWeight: FontWeight.bold)),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              children: userPrefs.dietaryPreferences.map((p) => Chip(
-                label: Text(_getDietaryLabel(p, l10n)),
-                backgroundColor: AppColors.primary.withOpacity(0.1),
-              )).toList(),
-            ),
-            const SizedBox(height: 24),
-          ],
-          if (userPrefs.allergenFilters.isNotEmpty) ...[
-            Text(l10n.yourAllergens, style: AppTypography.body(locale).copyWith(fontWeight: FontWeight.bold)),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              children: userPrefs.allergenFilters.map((a) => Chip(
-                label: Text(_getAllergenLabel(a, l10n)),
-                backgroundColor: AppColors.error.withOpacity(0.1),
-              )).toList(),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  String _getDietaryLabel(String key, AppLocalizations l10n) {
-    return PreferenceOptions.dietary
-        .firstWhere((o) => o.id == key,
-            orElse: () => PreferenceOption(id: key, labelOf: (_) => key))
-        .labelOf(l10n);
-  }
-
-  String _getAllergenLabel(String key, AppLocalizations l10n) {
-    return PreferenceOptions.allergens
-        .firstWhere((o) => o.id == key,
-            orElse: () => PreferenceOption(id: key, labelOf: (_) => key))
-        .labelOf(l10n);
-  }
-}

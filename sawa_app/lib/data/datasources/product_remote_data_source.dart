@@ -129,6 +129,32 @@ class ProductRemoteDataSource {
     }
   }
 
+  Future<List<ProductModel>> searchProducts(String query) async {
+    ApiConfig.validate();
+    try {
+      final response = await client.get(
+        Uri.parse('$baseUrl/products/search?q=${Uri.encodeComponent(query)}'),
+        headers: {
+          'Content-Type': 'application/json',
+          'bypass-tunnel-reminder': 'true',
+          'ngrok-skip-browser-warning': 'true',
+        },
+      ).timeout(const Duration(seconds: 15));
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = json.decode(response.body);
+        return data.map((e) => ProductModel.fromJson(e)).toList();
+      } else {
+        throw ServerException('Failed to search products: ${response.statusCode}');
+      }
+    } on TimeoutException {
+      throw NetworkTimeoutException('Connection timed out. Please check your internet.');
+    } catch (e) {
+      if (e is ServerException || e is NetworkTimeoutException) rethrow;
+      throw ServerException(e.toString());
+    }
+  }
+
   Future<ProductModel> scanLabel(String base64Image, {String? gtin}) async {
     ApiConfig.validate();
     try {

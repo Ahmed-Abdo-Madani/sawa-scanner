@@ -9,7 +9,7 @@ class AppLocalizationsAr extends AppLocalizations {
   AppLocalizationsAr([String locale = 'ar']) : super(locale);
 
   @override
-  String get appTitle => 'ساوا';
+  String get appTitle => 'سوا';
 
   @override
   String get scanNow => 'امسح الآن';
@@ -373,7 +373,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get userName => 'اسم المستخدم';
 
   @override
-  String get welcomeTitle => 'مرحباً بك في ساوا';
+  String get welcomeTitle => 'مرحباً بك في سوا';
 
   @override
   String get welcomeSubtitle =>
@@ -517,7 +517,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get upgradeNow => 'ترقية الآن';
 
   @override
-  String get backendUnavailable => 'خدمة ساوا غير متوفرة';
+  String get backendUnavailable => 'خدمة سوا غير متوفرة';
 
   @override
   String get backendUnavailableDescription =>
@@ -538,7 +538,7 @@ class AppLocalizationsAr extends AppLocalizations {
       'حدث خطأ في إعدادات التطبيق (User-Agent مفقود). يرجى التواصل مع الدعم.';
 
   @override
-  String get apiConfiguration => 'قاعدة بيانات ساوا غير مهيأة';
+  String get apiConfiguration => 'قاعدة بيانات سوا غير مهيأة';
 
   @override
   String get apiConfigurationDescription =>
@@ -916,4 +916,156 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get priceSummary => 'ملخص الأسعار';
+
+  @override
+  String get authTitle => 'تسجيل الدخول أو الإنشاء';
+
+  @override
+  String get registerButton => 'تسجيل جديد';
+
+  @override
+  String get signUpSuccess => 'تم تسجيل الحساب بنجاح!';
+
+  @override
+  String get alreadyHaveAccount => 'لديك حساب بالفعل؟ تسجيل الدخول';
+
+  @override
+  String get dontHaveAccount => 'ليس لديك حساب؟ تسجيل جديد';
+
+  @override
+  String get passwordsDoNotMatch => 'كلمات المرور غير متطابقة';
+
+  @override
+  String get confirmPasswordLabel => 'تأكيد كلمة المرور';
+
+  @override
+  String get scanLimitTitle => 'تم الوصول إلى الحد اليومي للمسح';
+
+  @override
+  String get scanLimitMessage =>
+      'يقتصر المستخدمون المجانيون على 5 عمليات مسح في اليوم. قم بالترقية إلى سوا بلس للحصول على عمليات مسح غير محدودة!';
+
+  @override
+  String get upgradeSawaPlusButton => 'الترقية إلى سوا بلس';
+
+  @override
+  String get unlimitedScans => 'عمليات مسح غير محدودة في الوقت الفعلي';
+
+  @override
+  String get cartOptimizations => 'نطاق أسعار السلة الذكية';
+
+  @override
+  String get historicTrends => 'اتجاهات الأسعار التاريخية والتحليلات';
+
+  @override
+  String get subscriptionExplanationTitle => 'تكامل الفوترة مع متجر التطبيقات';
+
+  @override
+  String get subscriptionExplanationText =>
+      'يتم فوترة الاشتراكات بشكل آمن من خلال حساب متجر Google Play أو Apple App Store الخاص بك. يتم التحقق من صحة رموز الشراء المشفرة على خوادمنا.';
+
+  @override
+  String get subscribeMockSuccess =>
+      'تمت محاكاة الشراء! أنت الآن مشترك في سوا بلس.';
+
+  @override
+  String get priceDropAlerts => 'تنبيهات انخفاض الأسعار';
+
+  @override
+  String get priceDropAlertsDesc =>
+      'احصل على تنبيهات عندما تنخفض أسعار المنتجات في سلتك.';
+
+  @override
+  String get cartReminders => 'تذكيرات السلة';
+
+  @override
+  String get cartRemindersDesc =>
+      'تذكيرك بالمنتجات المتبقية في سلة التسوق الخاصة بك.';
+
+  @override
+  String get newStoresAlerts => 'المتاجر والعروض الجديدة';
+
+  @override
+  String get newStoresAlertsDesc => 'تنبيهك عند إضافة متاجر جديدة في منطقتك.';
+
+  @override
+  String get notificationSettingsTitle => 'إعدادات التنبيهات';
+
+  @override
+  String get privacyCommitmentTitle => 'الخصوصية والأمان';
+
+  @override
+  String get privacyCommitmentText =>
+      'تم بناء سوا مع وضع الخصوصية في الاعتبار. نحن لا نبيع بياناتك الشخصية أو سجل مسح المنتجات الخاص بك. يتم تخزين عمليات المسح بأمان على جهازك.';
+
+  @override
+  String get deleteAccount => 'حذف الحساب';
+
+  @override
+  String get deleteAccountConfirm =>
+      'هل أنت متأكد أنك تريد حذف حسابك نهائيًا؟ لا يمكن التراجع عن هذا الإجراء.';
+
+  @override
+  String get deleteAccountSuccess => 'تم حذف الحساب بنجاح';
+
+  @override
+  String get sawaPlusSubscriber => 'مشترك سوا بلس';
+
+  @override
+  String searchingStore(String store) {
+    return 'جاري فحص $store...';
+  }
+
+  @override
+  String storeNotFound(String store) {
+    return '$store: غير متوفر';
+  }
+
+  @override
+  String get featuresTitle => 'اكتشف مميزات سوا';
+
+  @override
+  String get featureScanTitle => 'مقارنة الأسعار في الوقت الفعلي';
+
+  @override
+  String get featureScanDesc =>
+      'امسح أي باركود للمنتجات لمقارنة الأسعار عبر أكثر من 20 متجرًا إلكترونيًا محليًا على الفور.';
+
+  @override
+  String get featureCartTitle => 'سلة التسوق الذكية';
+
+  @override
+  String get featureCartDesc =>
+      'أضف المنتجات إلى سلتك وتحقق من كل من الإجمالي الأقل والإجمالي الأعلى لمعرفة مقدار ما توفره.';
+
+  @override
+  String get signInPrompt =>
+      'سجل الدخول إلى سوا للوصول إلى السجل الخاص بك ومزامنة سلة التسوق الذكية الخاصة بك عبر الأجهزة.';
+
+  @override
+  String get signInOrRegister => 'تسجيل الدخول / التسجيل';
+
+  @override
+  String get confirmDelete => 'تأكيد الحذف';
+
+  @override
+  String get yesDelete => 'حذف';
+
+  @override
+  String get keepAccount => 'الاحتفاظ بالحساب';
+
+  @override
+  String get visitStore => 'زيارة المتجر';
+
+  @override
+  String get lowPrice => 'سعر منخفض';
+
+  @override
+  String get highPrice => 'سعر مرتفع';
+
+  @override
+  String get commonPrice => 'سعر شائع';
+
+  @override
+  String get inCart => 'في السلة';
 }

@@ -354,5 +354,61 @@
       "count": { "type": "int" }
     }
   },
-  "priceSummary": "Price Summary"
+  "priceSummary": "Price Summary",
+  "authTitle": "Sign In or Register",
+  "registerButton": "Register",
+  "signUpSuccess": "Account registered successfully!",
+  "alreadyHaveAccount": "Already have an account? Sign In",
+  "dontHaveAccount": "Don't have an account? Register",
+  "passwordsDoNotMatch": "Passwords do not match",
+  "confirmPasswordLabel": "Confirm Password",
+  "scanLimitTitle": "Daily Scan Limit Reached",
+  "scanLimitMessage": "Free users are limited to 5 scans per day. Upgrade to Sawa Plus for unlimited scans!",
+  "upgradeSawaPlusButton": "Upgrade to Sawa Plus",
+  "unlimitedScans": "Unlimited Real-Time Scans",
+  "cartOptimizations": "Smart Cart Price Range",
+  "historicTrends": "Historic Price Trends & Analytics",
+  "subscriptionExplanationTitle": "App Store Billing Integration",
+  "subscriptionExplanationText": "Subscriptions are billed securely through your Google Play Store or Apple App Store account. Verification is handled by verifying cryptographic purchase tokens on our servers.",
+  "subscribeMockSuccess": "Purchase simulated! You are now subscribed to Sawa Plus.",
+  "priceDropAlerts": "Price Drop Alerts",
+  "priceDropAlertsDesc": "Get notified when items in your cart go on sale.",
+  "cartReminders": "Cart Reminders",
+  "cartRemindersDesc": "Remind you of pending items in your shopping cart.",
+  "newStoresAlerts": "New Stores & Offers",
+  "newStoresAlertsDesc": "Alert you when new stores are added in your region.",
+  "notificationSettingsTitle": "Notification Settings",
+  "privacyCommitmentTitle": "Privacy & Security",
+  "privacyCommitmentText": "Sawa is built with privacy in mind. We do not sell your personal data or scan history. Your scans are stored securely on your device.",
+  "deleteAccount": "Delete Account",
+  "deleteAccountConfirm": "Are you sure you want to permanently delete your account? This action cannot be undone.",
+  "deleteAccountSuccess": "Account deleted successfully",
+  "sawaPlusSubscriber": "Sawa Plus Subscriber",
+  "searchingStore": "Checking {store}...",
+  "@searchingStore": {
+    "placeholders": {
+      "store": { "type": "String" }
+    }
+  },
+  "storeNotFound": "{store}: Not found",
+  "@storeNotFound": {
+    "placeholders": {
+      "store": { "type": "String" }
+    }
+  },
+  "featuresTitle": "Discover Sawa's Features",
+  "featureScanTitle": "Real-Time Price Scanning",
+  "featureScanDesc": "Scan any grocery barcode to compare prices across 20+ local e-commerce stores instantly.",
+  "featureCartTitle": "Smart Shopping Cart",
+  "featureCartDesc": "Add items to your cart and check both Lowest Total and Highest Total to see how much you save.",
+  "signInPrompt": "Sign in to Sawa to access your history and sync your smart shopping cart across devices.",
+  "signInOrRegister": "Sign In / Register",
+  "confirmDelete": "Confirm Delete",
+  "yesDelete": "Delete",
+  "keepAccount": "Keep Account",
+  "visitStore": "Visit Store",
+  "lowPrice": "Low Price",
+  "highPrice": "High Price",
+  "commonPrice": "Common Price",
+  "inCart": "Added to Cart"
 }

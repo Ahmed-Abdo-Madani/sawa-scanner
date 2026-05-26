@@ -171,17 +171,20 @@ class ProductImageAdapter extends TypeAdapter<ProductImage> {
     return ProductImage(
       url: fields[0] as String,
       imageType: fields[1] as String,
+      source: fields[2] as String?,
     );
   }
 
   @override
   void write(BinaryWriter writer, ProductImage obj) {
     writer
-      ..writeByte(2)
+      ..writeByte(3)
       ..writeByte(0)
       ..write(obj.url)
       ..writeByte(1)
-      ..write(obj.imageType);
+      ..write(obj.imageType)
+      ..writeByte(2)
+      ..write(obj.source);
   }
 }
 
@@ -276,7 +279,7 @@ class ProductLocalDataSource {
   static const String cacheVersionBoxName = 'productCacheVersionBox';
   /// Cache schema version. Increment when Hive adapter field layout changes
   /// (e.g., adding sawaDbAvailable). Mismatch triggers cache invalidation.
-  static const int currentCacheVersion = 1;
+  static const int currentCacheVersion = 2;
   static const String cacheVersionKey = 'schemaVersion';
 
   Box<Product> get _productsBox => Hive.box<Product>(productsBoxName);
@@ -295,27 +298,28 @@ class ProductLocalDataSource {
     }
   }
 
-  /// Returns the cached [Product] for [gtin], or `null` if not cached.
-  Product? getCachedProduct(String gtin) {
-    return _productsBox.get(gtin);
+  /// Returns the cached [Product] for [key], or `null` if not cached.
+  Product? getCachedProduct(String key) {
+    return _productsBox.get(key);
   }
 
   /// Writes [product] to the products box and records the current timestamp.
   Future<void> cacheProduct(Product product) async {
-    await _productsBox.put(product.gtin, product);
-    await _timestampsBox.put(product.gtin, DateTime.now());
+    final key = product.gtin.isNotEmpty ? product.gtin : product.id;
+    await _productsBox.put(key, product);
+    await _timestampsBox.put(key, DateTime.now());
   }
 
   /// Returns `true` if the cached timestamp is older than [ttl] or missing.
-  bool isExpired(String gtin, Duration ttl) {
-    final cached = _timestampsBox.get(gtin);
+  bool isExpired(String key, Duration ttl) {
+    final cached = _timestampsBox.get(key);
     if (cached == null) return true;
     return DateTime.now().difference(cached) > ttl;
   }
 
-  /// Removes [gtin] from both the products and timestamps boxes.
-  Future<void> clearProduct(String gtin) async {
-    await _productsBox.delete(gtin);
-    await _timestampsBox.delete(gtin);
+  /// Removes [key] from both the products and timestamps boxes.
+  Future<void> clearProduct(String key) async {
+    await _productsBox.delete(key);
+    await _timestampsBox.delete(key);
   }
 }

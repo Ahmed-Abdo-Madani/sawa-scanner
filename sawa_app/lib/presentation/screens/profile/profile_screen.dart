@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sawa_app/l10n/app_localizations.dart';
 import '../../providers/locale_provider.dart';
@@ -11,6 +12,8 @@ import '../admin/quick_entry_screen.dart';
 import '../admin/missing_gtin_list_screen.dart';
 import '../admin/products_gtin_edit_screen.dart';
 import '../history/history_screen.dart';
+import 'auth_screen.dart';
+import 'subscription_screen.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
@@ -37,7 +40,48 @@ class ProfileScreen extends ConsumerWidget {
         padding: const EdgeInsets.all(16),
         children: [
           _buildProfileHeader(context, locale, user),
-          const SizedBox(height: 32),
+          const SizedBox(height: 24),
+          if (user == null) ...[
+            Card(
+              elevation: 0,
+              color: AppColors.primary.withOpacity(0.1),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text(
+                      l10n.signInOrRegister,
+                      style: AppTypography.body(locale).copyWith(fontWeight: FontWeight.bold, color: AppColors.primary),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      l10n.signInPrompt,
+                      style: AppTypography.caption(locale).copyWith(color: AppColors.onSurface.withOpacity(0.7)),
+                    ),
+                    const SizedBox(height: 16),
+                    ElevatedButton(
+                      onPressed: () {
+                        Navigator.push(context, MaterialPageRoute(builder: (_) => const AuthScreen()));
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      child: Text(
+                        l10n.signIn,
+                        style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+          ],
           _buildSectionTitle(l10n.profile),
           const SizedBox(height: 8),
           _buildSettingsTile(
@@ -63,15 +107,9 @@ class ProfileScreen extends ConsumerWidget {
           ),
           _buildSettingsTile(
             context: context,
-            icon: Icons.notifications_none,
-            title: l10n.notifications,
-            onTap: () {},
-          ),
-          _buildSettingsTile(
-            context: context,
             icon: Icons.security,
             title: l10n.privacyAndSecurity,
-            onTap: () {},
+            onTap: () => _showPrivacySheet(context, ref),
           ),
           const SizedBox(height: 24),
           _buildSectionTitle(l10n.sawaPlus),
@@ -80,17 +118,22 @@ class ProfileScreen extends ConsumerWidget {
             context: context,
             icon: Icons.star_outline,
             title: l10n.manageSubscription,
-            onTap: () {},
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const SubscriptionScreen()),
+              );
+            },
             trailing: Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
               decoration: BoxDecoration(
-                color: AppColors.primary.withOpacity(0.1),
+                color: (ref.watch(userPreferencesProvider).isSubscribed ? Colors.amber : AppColors.primary).withOpacity(0.1),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Text(
-                l10n.freePlan,
+                ref.watch(userPreferencesProvider).isSubscribed ? l10n.sawaPlusSubscriber : l10n.freePlan,
                 style: AppTypography.caption(locale).copyWith(
-                  color: AppColors.primary,
+                  color: ref.watch(userPreferencesProvider).isSubscribed ? Colors.amber.shade700 : AppColors.primary,
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -137,30 +180,18 @@ class ProfileScreen extends ConsumerWidget {
               },
             ),
           ],
-          const SizedBox(height: 24),
-          _buildSectionTitle(l10n.yourPreferences),
-          const SizedBox(height: 8),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Wrap(
-              spacing: 8,
-              children: PreferenceOptions.dietary.map((option) =>
-                _buildPreferenceChip(ref, option.id, option.labelOf(l10n)),
-              ).toList(),
+          if (user != null) ...[
+            const SizedBox(height: 16),
+            _buildSettingsTile(
+              context: context,
+              icon: Icons.logout,
+              title: l10n.signOut,
+              onTap: () {
+                ref.read(authDataSourceProvider).signOut();
+              },
             ),
-          ),
+          ],
           const SizedBox(height: 24),
-          _buildSectionTitle(l10n.yourAllergens),
-          const SizedBox(height: 8),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Wrap(
-              spacing: 8,
-              children: PreferenceOptions.allergens.map((option) =>
-                _buildAllergenChip(ref, option.id, option.labelOf(l10n)),
-              ).toList(),
-            ),
-          ),
         ],
       ),
     );
@@ -234,25 +265,127 @@ class ProfileScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildPreferenceChip(WidgetRef ref, String key, String label) {
-    final isSelected = ref.watch(userPreferencesProvider).dietaryPreferences.contains(key);
-    return FilterChip(
-      label: Text(label),
-      selected: isSelected,
-      onSelected: (_) => ref.read(userPreferencesProvider.notifier).toggleDietaryPreference(key),
-      selectedColor: AppColors.primary.withOpacity(0.2),
-      checkmarkColor: AppColors.primary,
+  void _showPrivacySheet(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context)!;
+    final locale = Localizations.localeOf(context);
+    final user = FirebaseAuth.instance.currentUser;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) {
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(24, 20, 24, 40),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.white24,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              Text(
+                l10n.privacyCommitmentTitle,
+                style: AppTypography.headline(locale).copyWith(fontSize: 20),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 20),
+              Card(
+                color: Colors.white.withOpacity(0.04),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                elevation: 0,
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Text(
+                    l10n.privacyCommitmentText,
+                    style: AppTypography.body(locale).copyWith(height: 1.4, color: AppColors.onSurface.withOpacity(0.8)),
+                  ),
+                ),
+              ),
+              if (user != null) ...[
+                const SizedBox(height: 24),
+                ElevatedButton.icon(
+                  onPressed: () => _confirmDeleteAccount(context, ref),
+                  icon: const Icon(Icons.delete_forever, color: Colors.white),
+                  label: Text(
+                    l10n.deleteAccount,
+                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.error,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    elevation: 0,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        );
+      },
     );
   }
 
-  Widget _buildAllergenChip(WidgetRef ref, String key, String label) {
-    final isSelected = ref.watch(userPreferencesProvider).allergenFilters.contains(key);
-    return FilterChip(
-      label: Text(label),
-      selected: isSelected,
-      onSelected: (_) => ref.read(userPreferencesProvider.notifier).toggleAllergenFilter(key),
-      selectedColor: AppColors.error.withOpacity(0.1),
-      checkmarkColor: AppColors.error,
+  void _confirmDeleteAccount(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context)!;
+    final locale = Localizations.localeOf(context);
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          backgroundColor: AppColors.surface,
+          title: Text(l10n.confirmDelete, style: AppTypography.headline(locale)),
+          content: Text(l10n.deleteAccountConfirm, style: AppTypography.body(locale)),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text(l10n.keepAccount, style: TextStyle(color: AppColors.primary)),
+            ),
+            TextButton(
+              onPressed: () async {
+                Navigator.of(context).pop(); // pop dialog
+                Navigator.of(context).pop(); // pop sheet
+                try {
+                  final user = FirebaseAuth.instance.currentUser;
+                  if (user != null) {
+                    await user.delete();
+                    await ref.read(authDataSourceProvider).signOut();
+                    if (!context.mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(l10n.deleteAccountSuccess),
+                        backgroundColor: Colors.green,
+                        behavior: SnackBarBehavior.floating,
+                      ),
+                    );
+                  }
+                } on FirebaseAuthException catch (e) {
+                  if (!context.mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(e.message ?? l10n.serverError),
+                      backgroundColor: AppColors.error,
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                }
+              },
+              child: Text(l10n.yesDelete, style: const TextStyle(color: AppColors.error, fontWeight: FontWeight.bold)),
+            ),
+          ],
+        );
+      },
     );
   }
 }

@@ -425,12 +425,14 @@ class ProductImageModel extends ProductImage {
   const ProductImageModel({
     required super.url,
     required super.imageType,
+    super.source,
   });
 
   factory ProductImageModel.fromJson(Map<String, dynamic> json) {
     return ProductImageModel(
       url: json['url'] ?? '',
       imageType: json['image_type'] ?? 'primary',
+      source: json['source']?.toString(),
     );
   }
 
@@ -438,6 +440,7 @@ class ProductImageModel extends ProductImage {
     return ProductImage(
       url: url,
       imageType: imageType,
+      source: source,
     );
   }
 }

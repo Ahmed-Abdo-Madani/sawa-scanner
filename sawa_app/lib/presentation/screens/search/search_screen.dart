@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sawa_app/l10n/app_localizations.dart';
 import '../../providers/search_provider.dart';
 import '../../widgets/nutri_score_badge.dart';
+import '../../widgets/fallback_image_network.dart';
 import '../product_detail/product_detail_screen.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
@@ -195,9 +196,11 @@ class _ProductResultCard extends StatelessWidget {
               ),
               child: Padding(
                 padding: const EdgeInsets.all(8.0),
-                child: product.images.isNotEmpty
-                    ? Image.network(product.images.first.url, fit: BoxFit.contain)
-                    : const Icon(Icons.inventory_2_outlined, color: AppColors.onSurface),
+                child: FallbackImageNetwork(
+                  imageUrls: FallbackImageNetwork.getPrioritizedImageUrls(product),
+                  fit: BoxFit.contain,
+                  fallback: const Icon(Icons.inventory_2_outlined, color: AppColors.onSurface),
+                ),
               ),
             ),
             const SizedBox(width: 16),

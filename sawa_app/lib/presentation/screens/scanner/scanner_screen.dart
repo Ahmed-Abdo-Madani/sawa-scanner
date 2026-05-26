@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
+import '../../../core/utils/store_logo_helper.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:sawa_app/l10n/app_localizations.dart';
 import 'package:image_picker/image_picker.dart';
@@ -7,7 +9,6 @@ import 'dart:async';
 import '../../providers/scanner_provider.dart';
 import '../../providers/product_provider.dart';
 import '../../providers/scan_history_provider.dart';
-import '../../widgets/mode_pill.dart';
 import '../../widgets/scan_frame_overlay.dart';
 import '../../widgets/surface_card.dart';
 import '../product_detail/product_detail_screen.dart';
@@ -21,6 +22,9 @@ import '../../widgets/nutri_score_badge.dart';
 import '../../../core/exceptions.dart';
 import '../../../data/models/product_model.dart';
 import '../../providers/cart_provider.dart';
+import '../../providers/user_preferences_provider.dart';
+import '../profile/subscription_screen.dart';
+import '../../widgets/fallback_image_network.dart';
 
 
 
@@ -50,6 +54,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> with WidgetsBindi
   Product? _streamingProduct;
   final Map<String, double> _storePrices = {};
   final Set<String> _failedStores = {};
+  bool _isUpgradeSheetShowing = false;
 
   @override
   void initState() {
@@ -95,6 +100,129 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> with WidgetsBindi
     super.dispose();
   }
 
+  void _showUpgradeBottomSheet() {
+    if (_isUpgradeSheetShowing) return;
+    setState(() {
+      _isUpgradeSheetShowing = true;
+    });
+    final l10n = AppLocalizations.of(context)!;
+    final locale = Localizations.localeOf(context);
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        padding: EdgeInsets.fromLTRB(24, 24, 24, MediaQuery.of(context).padding.bottom + 24),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          border: Border.all(color: Colors.amber.withOpacity(0.2), width: 1.5),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Center(
+              child: Container(
+                width: 48,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.white24,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.amber.withOpacity(0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.star_rounded,
+                    color: Colors.amber.shade700,
+                    size: 32,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        l10n.scanLimitTitle,
+                        style: AppTypography.body(locale).copyWith(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 20,
+                          color: AppColors.onSurface,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        l10n.scanLimitMessage,
+                        style: AppTypography.caption(locale).copyWith(
+                          color: AppColors.onSurface.withOpacity(0.7),
+                          fontSize: 14,
+                          height: 1.3,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 32),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const SubscriptionScreen()),
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.amber.shade700,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                elevation: 0,
+              ),
+              child: Text(
+                l10n.upgradeSawaPlusButton,
+                style: AppTypography.body(locale).copyWith(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(
+                l10n.close,
+                style: AppTypography.caption(locale).copyWith(
+                  color: AppColors.onSurface.withOpacity(0.5),
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    ).whenComplete(() {
+      if (mounted) {
+        setState(() {
+          _isUpgradeSheetShowing = false;
+          _lastScannedGtin = null;
+        });
+      }
+    });
+  }
+
   void _onDetect(BarcodeCapture capture) async {
     if (_isProcessing || _isLoadingProduct) return;
 
@@ -108,6 +236,13 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> with WidgetsBindi
       if (code != null) {
         if (code == _lastScannedGtin) return;
         _lastScannedGtin = code;
+
+        // Check Scan Limit
+        if (!ref.read(userPreferencesProvider.notifier).canScan()) {
+          _showUpgradeBottomSheet();
+          return;
+        }
+        await ref.read(userPreferencesProvider.notifier).incrementScanCount();
 
         setState(() {
           _isProcessing = true;
@@ -231,7 +366,14 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> with WidgetsBindi
   }
 
    Future<void> _navigateToDetail(String gtin) async {
+    if (!ref.read(userPreferencesProvider.notifier).canScan()) {
+      _showUpgradeBottomSheet();
+      return;
+    }
+    await ref.read(userPreferencesProvider.notifier).incrementScanCount();
+
     setState(() => _isProcessing = true);
+    
     
     try {
       // Fetch product details for the history entry
@@ -301,6 +443,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> with WidgetsBindi
     bool recordHistoryNow = true,
     bool historyAlreadyRecorded = false,
     bool resetLabelScan = true,
+    String? selectedMerchant,
   }) {
     setState(() => _isProcessing = true);
     final locale = Localizations.localeOf(context);
@@ -332,6 +475,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> with WidgetsBindi
               gtin: product.gtin,
               initialProduct: product,
               capturedImageBytes: capturedBytes,
+              selectedMerchant: selectedMerchant,
               // Skip history in detail if it was recorded here OR if it already exists (e.g. carousel re-open)
               historyAlreadyRecorded: recordHistoryNow || historyAlreadyRecorded,
             ),
@@ -632,11 +776,38 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> with WidgetsBindi
                           carouselChildren.add(
                             Padding(
                               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                              child: _ScannedProductLoadingCard(
+                              child: _ScannedProductCard(
+                                product: _streamingProduct,
                                 gtin: _loadingGtin!,
-                                streamingProduct: _streamingProduct,
+                                isScanning: true,
                                 storePrices: _storePrices,
                                 failedStores: _failedStores,
+                                onTap: () {},
+                                onTapStore: (merchant) {
+                                  if (_streamingProduct != null) {
+                                    _navigateToDetailWithProduct(
+                                      _streamingProduct!,
+                                      selectedMerchant: merchant,
+                                      historyAlreadyRecorded: true,
+                                    );
+                                  }
+                                },
+                                onClose: () {
+                                  _streamSubscription?.cancel();
+                                  setState(() {
+                                    _isLoadingProduct = false;
+                                    _loadingGtin = null;
+                                    _lastScannedGtin = null;
+                                    _streamingProduct = null;
+                                    _storePrices.clear();
+                                    _failedStores.clear();
+                                  });
+                                  _pageController.animateToPage(
+                                    0,
+                                    duration: const Duration(milliseconds: 300),
+                                    curve: Curves.easeOut,
+                                  );
+                                },
                               ),
                             ),
                           );
@@ -680,11 +851,22 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> with WidgetsBindi
                               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
                               child: _ScannedProductCard(
                                 product: product,
+                                gtin: product.gtin,
+                                isScanning: false,
+                                storePrices: const {},
+                                failedStores: const {},
                                 onTap: () => _navigateToDetailWithProduct(
                                   product,
                                   recordHistoryNow: false,
                                   historyAlreadyRecorded: true,
                                   resetLabelScan: false,
+                                ),
+                                onTapStore: (merchant) => _navigateToDetailWithProduct(
+                                  product,
+                                  recordHistoryNow: false,
+                                  historyAlreadyRecorded: true,
+                                  resetLabelScan: false,
+                                  selectedMerchant: merchant,
                                 ),
                                 onClose: () {
                                   setState(() {
@@ -853,12 +1035,23 @@ class _SearchWelcomeCard extends StatefulWidget {
   State<_SearchWelcomeCard> createState() => _SearchWelcomeCardState();
 }
 
-class _SearchWelcomeCardState extends State<_SearchWelcomeCard> {
+class _SearchWelcomeCardState extends State<_SearchWelcomeCard> with SingleTickerProviderStateMixin {
   final TextEditingController _controller = TextEditingController();
+  late AnimationController _logoAnimController;
+
+  @override
+  void initState() {
+    super.initState();
+    _logoAnimController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 4),
+    )..repeat();
+  }
 
   @override
   void dispose() {
     _controller.dispose();
+    _logoAnimController.dispose();
     super.dispose();
   }
 
@@ -931,6 +1124,39 @@ class _SearchWelcomeCardState extends State<_SearchWelcomeCard> {
                   ),
                 ),
               ),
+              const SizedBox(height: 24),
+              Center(
+                child: AnimatedBuilder(
+                  animation: _logoAnimController,
+                  builder: (context, child) {
+                    final screenWidth = MediaQuery.of(context).size.width;
+                    final buttonWidth = screenWidth - 96;
+                    final logoWidth = buttonWidth * 0.7;
+
+                    return ShaderMask(
+                      shaderCallback: (bounds) {
+                        return LinearGradient(
+                          colors: [
+                            AppColors.primary,
+                            const Color(0xFF6BFE9C), // Sawa's brand green
+                            AppColors.primary.withOpacity(0.8),
+                          ],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          transform: GradientRotation(_logoAnimController.value * 2 * 3.14159265),
+                        ).createShader(bounds);
+                      },
+                      blendMode: BlendMode.srcIn,
+                      child: SvgPicture.asset(
+                        'assets/SVG/Sawa-logo-01.svg',
+                        width: logoWidth,
+                        height: logoWidth * 0.7,
+                        fit: BoxFit.contain,
+                      ),
+                    );
+                  },
+                ),
+              ),
             ],
           ),
         ),
@@ -939,43 +1165,144 @@ class _SearchWelcomeCardState extends State<_SearchWelcomeCard> {
   }
 }
 
-class _ScannedProductCard extends ConsumerWidget {
-  final Product product;
+class _ScannedProductCard extends ConsumerStatefulWidget {
+  final Product? product;
+  final String gtin;
+  final bool isScanning;
+  final Map<String, double> storePrices;
+  final Set<String> failedStores;
   final VoidCallback onTap;
   final VoidCallback onClose;
+  final Function(String selectedMerchant)? onTapStore;
 
   const _ScannedProductCard({
     required this.product,
+    required this.gtin,
+    required this.isScanning,
+    required this.storePrices,
+    required this.failedStores,
     required this.onTap,
     required this.onClose,
+    this.onTapStore,
   });
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_ScannedProductCard> createState() => _ScannedProductCardState();
+}
+
+class _ScannedProductCardState extends ConsumerState<_ScannedProductCard>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _pulseController;
+  late Animation<double> _pulseAnimation;
+
+  static const _stores = [
+    {'en': 'Yasmin Store', 'ar': 'متجر ياسمين'},
+    {'en': 'Shonaksa', 'ar': 'شوناكسا'},
+    {'en': 'Mr Logman', 'ar': 'مستر لوقمان'},
+    {'en': 'Park Center', 'ar': 'بارك سنتر'},
+    {'en': 'Menhal', 'ar': 'منهل'},
+    {'en': 'Etaam Express', 'ar': 'إطعام إكسبريس'},
+    {'en': 'Hsd-Sh', 'ar': 'حصاد نجد'},
+    {'en': 'Nwsha', 'ar': 'نوشا'},
+    {'en': 'Alaqial Markets', 'ar': 'أسواق العقيل'},
+    {'en': 'Shaml', 'ar': 'نجمة الشمال'},
+    {'en': 'Aliaqtisadia', 'ar': 'صالة تبوك الاقتصادية'},
+    {'en': 'Mo3en', 'ar': 'معينكم'},
+    {'en': 'Mo0o0nat', 'ar': 'مونة سكر'},
+    {'en': 'Narjs Store', 'ar': 'متجر نرجس'},
+    {'en': 'Talbatuk', 'ar': 'طلباتك'},
+    {'en': 'Dukan Express', 'ar': 'الدكان المريح'},
+    {'en': 'Eanaab', 'ar': 'متجر عناب'},
+    {'en': 'Atayib', 'ar': 'أطايب'},
+    {'en': 'Mubarkiyah', 'ar': 'المباركية'},
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _pulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    );
+    if (widget.isScanning) {
+      _pulseController.repeat(reverse: true);
+    }
+    _pulseAnimation = Tween<double>(begin: 0.4, end: 0.85).animate(
+      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void didUpdateWidget(covariant _ScannedProductCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.isScanning && !_pulseController.isAnimating) {
+      _pulseController.repeat(reverse: true);
+    } else if (!widget.isScanning && _pulseController.isAnimating) {
+      _pulseController.stop();
+    }
+  }
+
+  @override
+  void dispose() {
+    _pulseController.dispose();
+    super.dispose();
+  }
+
+  double _calculateMostCommonPrice(List<double> prices) {
+    if (prices.isEmpty) return 0.0;
+    final counts = <double, int>{};
+    for (final p in prices) {
+      counts[p] = (counts[p] ?? 0) + 1;
+    }
+
+    double mode = prices.first;
+    int maxCount = 0;
+    for (final entry in counts.entries) {
+      if (entry.value > maxCount) {
+        maxCount = entry.value;
+        mode = entry.key;
+      } else if (entry.value == maxCount) {
+        if (entry.key < mode) {
+          mode = entry.key;
+        }
+      }
+    }
+    return mode;
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final locale = Localizations.localeOf(context);
     final l10n = AppLocalizations.of(context)!;
     final isRtl = locale.languageCode == 'ar';
 
-    // Calculate price points
-    final validPrices = product.prices
-        .where((p) => p.priceSarInclVat > 0)
-        .toList();
+    final validPrices = widget.product?.prices
+            .where((p) => p.priceSarInclVat > 0)
+            .toList() ??
+        [];
 
     double? lowest;
-    double? average;
+    double? common;
     double? highest;
+    int uniquePriceCount = 0;
 
-    if (validPrices.isNotEmpty) {
-      final numericalPrices = validPrices.map((p) => p.priceSarInclVat).toList();
-      lowest = numericalPrices.reduce((a, b) => a < b ? a : b);
-      highest = numericalPrices.reduce((a, b) => a > b ? a : b);
-      average = numericalPrices.reduce((a, b) => a + b) / numericalPrices.length;
+    final List<double> priceValues = widget.isScanning
+        ? widget.storePrices.values.toList()
+        : validPrices.map((p) => p.priceSarInclVat).toList();
+
+    if (priceValues.isNotEmpty) {
+      lowest = priceValues.reduce((a, b) => a < b ? a : b);
+      highest = priceValues.reduce((a, b) => a > b ? a : b);
+      common = _calculateMostCommonPrice(priceValues);
+
+      final uniquePrices = priceValues.toSet().toList();
+      uniquePriceCount = uniquePrices.length;
     }
 
     return Stack(
       children: [
         InkWell(
-          onTap: onTap,
+          onTap: widget.isScanning ? null : widget.onTap,
           borderRadius: BorderRadius.circular(24),
           child: Container(
             decoration: BoxDecoration(
@@ -992,290 +1319,43 @@ class _ScannedProductCard extends ConsumerWidget {
             ),
             clipBehavior: Clip.antiAlias,
             padding: const EdgeInsets.all(20.0),
-            child: SingleChildScrollView(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                // Top Product info
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Product Image
-                    Container(
-                      width: 72,
-                      height: 72,
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: Colors.white10, width: 1),
-                      ),
-                      padding: const EdgeInsets.all(6.0),
-                      child: product.images.isNotEmpty
-                          ? Image.network(
-                              product.images.first.url,
-                              fit: BoxFit.contain,
-                              cacheWidth: 200,
-                              errorBuilder: (context, error, stackTrace) =>
-                                  const Icon(Icons.inventory_2_outlined, size: 32, color: Colors.grey),
-                            )
-                          : const Icon(Icons.inventory_2_outlined, size: 32, color: Colors.grey),
-                    ),
-                    const SizedBox(width: 16),
-                    // Text details
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            product.brand.isNotEmpty ? product.brand : "Sawa Scanner",
-                            style: TextStyle(
-                              color: Colors.amber.shade300.withOpacity(0.8),
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              letterSpacing: 0.5,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            locale.languageCode == 'ar' ? product.nameAr : product.nameEn,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          const SizedBox(height: 6),
-                          Row(
-                            children: [
-                              if (product.nutriScoreGrade != null) ...[
-                                NutriScoreBadge(grade: product.nutriScoreGrade!, isMini: true),
-                                const SizedBox(width: 8),
-                              ],
-                              if (product.source == 'scraped_live')
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                  decoration: BoxDecoration(
-                                    color: Colors.cyan.withOpacity(0.2),
-                                    borderRadius: BorderRadius.circular(8),
-                                    border: Border.all(color: Colors.cyan.withOpacity(0.4), width: 0.5),
-                                  ),
-                                  child: const Text(
-                                    "Live Scraped",
-                                    style: TextStyle(
-                                      color: Colors.cyanAccent,
-                                      fontSize: 9,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 32),
-                  ],
-                ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // 1. Header (Product Image and Info)
+                _buildHeader(context, locale, l10n),
+                const SizedBox(height: 16),
 
-                const SizedBox(height: 20),
+                // 2. Price Pills (Lowest, Common, Highest)
+                _buildPriceSummary(context, l10n, lowest, common, highest, uniquePriceCount),
+                const SizedBox(height: 16),
 
-                // Price Pills Section
-                if (lowest != null && average != null && highest != null) ...[
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _buildPricePill(
-                          title: l10n.lowestPrice,
-                          price: lowest,
-                          gradient: LinearGradient(
-                            colors: [
-                              HSLColor.fromAHSL(1.0, 140, 0.8, 0.4).toColor(),
-                              HSLColor.fromAHSL(1.0, 160, 0.9, 0.35).toColor(),
-                            ],
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 6),
-                      Expanded(
-                        child: _buildPricePill(
-                          title: l10n.averagePrice,
-                          price: average,
-                          gradient: LinearGradient(
-                            colors: [
-                              HSLColor.fromAHSL(1.0, 210, 0.8, 0.45).toColor(),
-                              HSLColor.fromAHSL(1.0, 230, 0.9, 0.4).toColor(),
-                            ],
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 6),
-                      Expanded(
-                        child: _buildPricePill(
-                          title: l10n.highestPrice,
-                          price: highest,
-                          gradient: LinearGradient(
-                            colors: [
-                              HSLColor.fromAHSL(1.0, 350, 0.8, 0.45).toColor(),
-                              HSLColor.fromAHSL(1.0, 10, 0.9, 0.45).toColor(),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 20),
-                ],
-
-                // Tabular Comparison Grid
-                if (validPrices.isNotEmpty) ...[
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.04),
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: Colors.white.withOpacity(0.08), width: 1),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: 8.0),
-                          child: Text(
-                            l10n.priceComparison,
-                            style: const TextStyle(
-                              color: Colors.white70,
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                        const Divider(color: Colors.white10, height: 1),
-                        ...validPrices.map((priceInfo) {
-                          final storeName = locale.languageCode == 'ar'
-                              ? (priceInfo.merchantAr.isNotEmpty ? priceInfo.merchantAr : priceInfo.merchant)
-                              : priceInfo.merchant;
-                          
-                          return Container(
-                            padding: const EdgeInsets.symmetric(vertical: 8),
-                            decoration: const BoxDecoration(
-                              border: Border(
-                                bottom: BorderSide(color: Colors.white10, width: 0.5),
-                              ),
-                            ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Row(
-                                  children: [
-                                    if (priceInfo.logoUrl != null && priceInfo.logoUrl!.isNotEmpty)
-                                      ClipRRect(
-                                        borderRadius: BorderRadius.circular(4),
-                                        child: Image.network(
-                                          priceInfo.logoUrl!,
-                                          width: 20,
-                                          height: 20,
-                                          fit: BoxFit.cover,
-                                          errorBuilder: (context, error, stackTrace) =>
-                                              const Icon(Icons.store, size: 20, color: Colors.white30),
-                                        ),
-                                      )
-                                    else
-                                      const Icon(Icons.store, size: 20, color: Colors.white30),
-                                    const SizedBox(width: 8),
-                                    Text(
-                                      storeName,
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                Row(
-                                  children: [
-                                    Text(
-                                      "${priceInfo.priceSarInclVat.toStringAsFixed(2)} ${l10n.sar}",
-                                      style: TextStyle(
-                                        color: lowest == priceInfo.priceSarInclVat
-                                            ? Colors.greenAccent
-                                            : Colors.white,
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 4),
-                                    Icon(
-                                      Icons.arrow_forward_ios,
-                                      size: 10,
-                                      color: Colors.white.withOpacity(0.3),
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          );
-                        }).toList(),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                ] else ...[
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.04),
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: Text(
-                      l10n.noNearbyStores,
-                      style: const TextStyle(color: Colors.white54, fontSize: 12),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                ],
-
-                // Add to Cart Button
-                ElevatedButton.icon(
-                  onPressed: () {
-                    ref.read(cartProvider.notifier).addProduct(product);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(l10n.addedToCart),
-                        duration: const Duration(seconds: 2),
-                        backgroundColor: AppColors.primary,
-                        behavior: SnackBarBehavior.floating,
-                      ),
-                    );
-                  },
-                  icon: const Icon(Icons.add_shopping_cart, color: Colors.white, size: 18),
-                  label: Text(
-                    l10n.addToCart,
+                // 3. Price Comparison Title
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8.0),
+                  child: Text(
+                    l10n.priceComparison,
                     style: const TextStyle(
-                      color: Colors.white,
+                      color: Colors.white70,
+                      fontSize: 12,
                       fontWeight: FontWeight.bold,
-                      fontSize: 13,
-                    ),
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
                     ),
                   ),
                 ),
+                const Divider(color: Colors.white10, height: 1),
+
+                // 4. Scrollable Comparison List (wrapped in Expanded)
+                Expanded(
+                  child: _buildComparisonList(
+                      context, locale, l10n, validPrices, lowest),
+                ),
+                const SizedBox(height: 16),
+
+                // 5. Sticky Footer Button
+                _buildAddToCartButton(context, l10n),
               ],
             ),
           ),
-        ),
         ),
         Positioned(
           top: 8,
@@ -1284,7 +1364,7 @@ class _ScannedProductCard extends ConsumerWidget {
           child: Material(
             color: Colors.transparent,
             child: InkWell(
-              onTap: onClose,
+              onTap: widget.onClose,
               borderRadius: BorderRadius.circular(16),
               child: Container(
                 padding: const EdgeInsets.all(6),
@@ -1302,6 +1382,285 @@ class _ScannedProductCard extends ConsumerWidget {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildHeader(
+      BuildContext context, Locale locale, AppLocalizations l10n) {
+    if (widget.product == null) {
+      return Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          AnimatedBuilder(
+            animation: _pulseAnimation,
+            builder: (context, child) => Opacity(
+              opacity: _pulseAnimation.value,
+              child: Container(
+                width: 72,
+                height: 72,
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: const Icon(Icons.image_outlined, color: Colors.white30),
+              ),
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                AnimatedBuilder(
+                  animation: _pulseAnimation,
+                  builder: (context, child) => Opacity(
+                    opacity: _pulseAnimation.value,
+                    child: Container(
+                      width: 80,
+                      height: 12,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                AnimatedBuilder(
+                  animation: _pulseAnimation,
+                  builder: (context, child) => Opacity(
+                    opacity: _pulseAnimation.value,
+                    child: Container(
+                      width: 160,
+                      height: 16,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      );
+    }
+
+    final product = widget.product!;
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 72,
+          height: 72,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.white10, width: 1),
+          ),
+          padding: const EdgeInsets.all(6.0),
+          child: FallbackImageNetwork(
+            imageUrls: FallbackImageNetwork.getPrioritizedImageUrls(product),
+            fit: BoxFit.contain,
+            fallback: const Icon(
+              Icons.inventory_2_outlined,
+              size: 32,
+              color: Colors.grey,
+            ),
+          ),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                product.brand.isNotEmpty ? product.brand : "Sawa Scanner",
+                style: TextStyle(
+                  color: Colors.amber.shade300.withOpacity(0.8),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0.5,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 4),
+              Text(
+                locale.languageCode == 'ar' ? product.nameAr : product.nameEn,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 6),
+              Row(
+                children: [
+                  if (product.nutriScoreGrade != null) ...[
+                    NutriScoreBadge(
+                        grade: product.nutriScoreGrade!, isMini: true),
+                    const SizedBox(width: 8),
+                  ],
+                  if (product.source == 'scraped_live' || widget.isScanning)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: Colors.cyan.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                            color: Colors.cyan.withOpacity(0.4), width: 0.5),
+                      ),
+                      child: Text(
+                        widget.isScanning
+                            ? l10n.searchingLiveStores
+                            : "Live Scraped",
+                        style: const TextStyle(
+                          color: Colors.cyanAccent,
+                          fontSize: 9,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPriceSummary(
+    BuildContext context,
+    AppLocalizations l10n,
+    double? lowest,
+    double? common,
+    double? highest,
+    int uniquePriceCount,
+  ) {
+    if (lowest != null && common != null && highest != null) {
+      if (uniquePriceCount <= 1) {
+        return Row(
+          children: [
+            Expanded(
+              child: _buildPricePill(
+                title: l10n.commonPrice,
+                price: common,
+                gradient: LinearGradient(
+                  colors: [
+                    HSLColor.fromAHSL(1.0, 210, 0.8, 0.45).toColor(),
+                    HSLColor.fromAHSL(1.0, 230, 0.9, 0.4).toColor(),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        );
+      }
+      if (uniquePriceCount == 2) {
+        return Row(
+          children: [
+            Expanded(
+              child: _buildPricePill(
+                title: l10n.lowestPrice,
+                price: lowest,
+                gradient: LinearGradient(
+                  colors: [
+                    HSLColor.fromAHSL(1.0, 140, 0.8, 0.4).toColor(),
+                    HSLColor.fromAHSL(1.0, 160, 0.9, 0.35).toColor(),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(width: 6),
+            Expanded(
+              child: _buildPricePill(
+                title: l10n.highestPrice,
+                price: highest,
+                gradient: LinearGradient(
+                  colors: [
+                    HSLColor.fromAHSL(1.0, 350, 0.8, 0.45).toColor(),
+                    HSLColor.fromAHSL(1.0, 10, 0.9, 0.45).toColor(),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        );
+      }
+      return Row(
+        children: [
+          Expanded(
+            child: _buildPricePill(
+              title: l10n.lowestPrice,
+              price: lowest,
+              gradient: LinearGradient(
+                colors: [
+                  HSLColor.fromAHSL(1.0, 140, 0.8, 0.4).toColor(),
+                  HSLColor.fromAHSL(1.0, 160, 0.9, 0.35).toColor(),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(width: 6),
+          Expanded(
+            child: _buildPricePill(
+              title: l10n.commonPrice,
+              price: common,
+              gradient: LinearGradient(
+                colors: [
+                  HSLColor.fromAHSL(1.0, 210, 0.8, 0.45).toColor(),
+                  HSLColor.fromAHSL(1.0, 230, 0.9, 0.4).toColor(),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(width: 6),
+          Expanded(
+            child: _buildPricePill(
+              title: l10n.highestPrice,
+              price: highest,
+              gradient: LinearGradient(
+                colors: [
+                  HSLColor.fromAHSL(1.0, 350, 0.8, 0.45).toColor(),
+                  HSLColor.fromAHSL(1.0, 10, 0.9, 0.45).toColor(),
+                ],
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+
+    return AnimatedBuilder(
+      animation: _pulseAnimation,
+      builder: (context, child) => Opacity(
+        opacity: _pulseAnimation.value,
+        child: Row(
+          children: List.generate(
+            3,
+            (index) => Expanded(
+              child: Container(
+                height: 48,
+                margin: const EdgeInsets.symmetric(horizontal: 3),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.08),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Center(
+                  child: Icon(Icons.analytics_outlined,
+                      color: Colors.white24, size: 16),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 
@@ -1329,7 +1688,7 @@ class _ScannedProductCard extends ConsumerWidget {
             title.toUpperCase(),
             style: const TextStyle(
               color: Colors.white70,
-              fontSize: 8,
+              fontSize: 10,
               fontWeight: FontWeight.bold,
               letterSpacing: 0.5,
             ),
@@ -1341,7 +1700,7 @@ class _ScannedProductCard extends ConsumerWidget {
             "${price.toStringAsFixed(2)} SAR",
             style: const TextStyle(
               color: Colors.white,
-              fontSize: 11,
+              fontSize: 14,
               fontWeight: FontWeight.w800,
             ),
             maxLines: 1,
@@ -1351,315 +1710,229 @@ class _ScannedProductCard extends ConsumerWidget {
       ),
     );
   }
-}
 
-class _ScannedProductLoadingCard extends StatefulWidget {
-  final String gtin;
-  final Product? streamingProduct;
-  final Map<String, double> storePrices;
-  final Set<String> failedStores;
+  Widget _buildComparisonList(
+    BuildContext context,
+    Locale locale,
+    AppLocalizations l10n,
+    List<dynamic> validPrices,
+    double? lowest,
+  ) {
+    final isRtl = locale.languageCode == 'ar';
 
-  const _ScannedProductLoadingCard({
-    required this.gtin,
-    this.streamingProduct,
-    required this.storePrices,
-    required this.failedStores,
-  });
+    final List<_StoreRowData> storeRows = [];
+    if (widget.isScanning) {
+      for (final store in _stores) {
+        final storeNameEn = store['en']!;
+        final storeNameAr = store['ar']!;
+        final displayName = isRtl ? storeNameAr : storeNameEn;
 
-  @override
-  State<_ScannedProductLoadingCard> createState() => _ScannedProductLoadingCardState();
-}
-
-class _ScannedProductLoadingCardState extends State<_ScannedProductLoadingCard>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _pulseController;
-  late Animation<double> _pulseAnimation;
-
-  @override
-  void initState() {
-    super.initState();
-    _pulseController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1200),
-    )..repeat(reverse: true);
-    _pulseAnimation = Tween<double>(begin: 0.4, end: 0.85).animate(
-      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
-    );
-  }
-
-  @override
-  void dispose() {
-    _pulseController.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
-    final locale = Localizations.localeOf(context);
-    final isAr = locale.languageCode == 'ar';
-
-    final stores = [
-      {'en': 'Yasmin Store', 'ar': 'متجر ياسمين'},
-      {'en': 'Shonaksa', 'ar': 'شوناكسا'},
-      {'en': 'Mr Logman', 'ar': 'مستر لوقمان'},
-      {'en': 'Park Center', 'ar': 'بارك سنتر'},
-      {'en': 'Menhal', 'ar': 'منهل'},
-      {'en': 'Etaam Express', 'ar': 'إطعام إكسبريس'},
-      {'en': 'Hsd-Sh', 'ar': 'حصاد نجد'},
-      {'en': 'Nwsha', 'ar': 'نوشا'},
-      {'en': 'Alaqial Markets', 'ar': 'أسواق العقيل'},
-      {'en': 'Shaml', 'ar': 'نجمة الشمال'},
-      {'en': 'Aliaqtisadia', 'ar': 'صالة تبوك الاقتصادية'},
-      {'en': 'Mo3en', 'ar': 'معينكم'},
-      {'en': 'Mo0o0nat', 'ar': 'مونة سكر'},
-      {'en': 'Narjs Store', 'ar': 'متجر نرجس'},
-      {'en': 'Talbatuk', 'ar': 'طلباتك'},
-      {'en': 'Waw', 'ar': 'واو للتسوق'},
-      {'en': 'Dukan Express', 'ar': 'الدكان المريح'},
-      {'en': 'Eanaab', 'ar': 'متجر عناب'},
-      {'en': 'Atayib', 'ar': 'أطايب'},
-      {'en': 'Mubarkiyah', 'ar': 'المباركية'},
-    ];
-
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(24),
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.black.withOpacity(0.75),
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: Colors.white12, width: 1.5),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.4),
-              blurRadius: 20,
-              offset: const Offset(0, 10),
-            ),
-          ],
-        ),
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            // Product info or Pulsing storefront icon
-            if (widget.streamingProduct != null) ...[
-              ClipRRect(
-                borderRadius: BorderRadius.circular(16),
-                child: Container(
-                  color: Colors.white,
-                  width: 90,
-                  height: 90,
-                  child: widget.streamingProduct!.imageFrontUrl != null &&
-                          widget.streamingProduct!.imageFrontUrl!.isNotEmpty
-                      ? Image.network(
-                          widget.streamingProduct!.imageFrontUrl!,
-                          fit: BoxFit.contain,
-                          errorBuilder: (context, error, stackTrace) => const Icon(
-                            Icons.broken_image_outlined,
-                            size: 40,
-                            color: Colors.grey,
-                          ),
-                        )
-                      : const Icon(
-                          Icons.shopping_bag_outlined,
-                          size: 40,
-                          color: Colors.grey,
-                        ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                isAr
-                    ? widget.streamingProduct!.nameAr
-                    : widget.streamingProduct!.nameEn,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
-                textAlign: TextAlign.center,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-              if (widget.streamingProduct!.brand.isNotEmpty) ...[
-                const SizedBox(height: 4),
-                Text(
-                  widget.streamingProduct!.brand,
-                  style: const TextStyle(
-                    color: Colors.white54,
-                    fontSize: 13,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-              ],
-            ] else ...[
-              AnimatedBuilder(
-                animation: _pulseAnimation,
-                builder: (context, child) {
-                  return Opacity(
-                    opacity: _pulseAnimation.value,
-                    child: Container(
-                      width: 80,
-                      height: 80,
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: const Icon(
-                        Icons.storefront_outlined,
-                        size: 40,
-                        color: Colors.white54,
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ],
-            const SizedBox(height: 20),
-            // Pulsing text line
-            Text(
-              l10n.searchingLiveStores,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 15,
-                fontWeight: FontWeight.bold,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 6),
-            Text(
-              "${l10n.gtinBarcode}: ${widget.gtin}",
-              style: const TextStyle(
-                color: Colors.white38,
-                fontSize: 12,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 24),
-            // Parallel search store badges pulsing
-            AnimatedBuilder(
-              animation: _pulseAnimation,
-              builder: (context, child) {
-                return Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  alignment: WrapAlignment.center,
-                  children: stores.map((store) {
-                    final storeNameEn = store['en']!;
-                    final storeNameAr = store['ar']!;
-                    final displayName = isAr ? storeNameAr : storeNameEn;
-
-                    if (widget.storePrices.containsKey(storeNameEn)) {
-                      // Matched state
-                      final price = widget.storePrices[storeNameEn]!;
-                      return _buildStorePill(
-                        displayName,
-                        priceSar: price,
-                        status: 'matched',
-                        pulseOpacity: 1.0,
-                        isAr: isAr,
-                      );
-                    } else if (widget.failedStores.contains(storeNameEn)) {
-                      // Failed state
-                      return _buildStorePill(
-                        displayName,
-                        status: 'failed',
-                        pulseOpacity: 1.0,
-                        isAr: isAr,
-                      );
-                    } else {
-                      // Pending state
-                      return _buildStorePill(
-                        displayName,
-                        status: 'pending',
-                        pulseOpacity: _pulseAnimation.value,
-                        isAr: isAr,
-                      );
-                    }
-                  }).toList(),
-                );
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildStorePill(
-    String name, {
-    double? priceSar,
-    required String status,
-    required double pulseOpacity,
-    required bool isAr,
-  }) {
-    Color bg;
-    Color border;
-    Color textCol;
-    Widget? icon;
-
-    if (status == 'matched') {
-      bg = Colors.green.withOpacity(0.25);
-      border = Colors.green.withOpacity(0.6);
-      textCol = Colors.greenAccent;
-      icon = const Padding(
-        padding: EdgeInsets.only(right: 4, left: 4),
-        child: Icon(Icons.check_circle_outline, size: 12, color: Colors.greenAccent),
-      );
-    } else if (status == 'failed') {
-      bg = Colors.white.withOpacity(0.04);
-      border = Colors.white12;
-      textCol = Colors.white30;
-      icon = const Padding(
-        padding: EdgeInsets.only(right: 4, left: 4),
-        child: Icon(Icons.remove_circle_outline, size: 12, color: Colors.white24),
-      );
+        if (widget.storePrices.containsKey(storeNameEn)) {
+          storeRows.add(_StoreRowData(
+            name: displayName,
+            price: widget.storePrices[storeNameEn]!,
+            status: 'matched',
+          ));
+        } else if (widget.failedStores.contains(storeNameEn)) {
+          storeRows.add(_StoreRowData(
+            name: displayName,
+            status: 'failed',
+          ));
+        } else {
+          storeRows.add(_StoreRowData(
+            name: displayName,
+            status: 'pending',
+          ));
+        }
+      }
     } else {
-      bg = AppColors.primary.withOpacity(pulseOpacity * 0.15);
-      border = AppColors.primary.withOpacity(pulseOpacity * 0.35);
-      textCol = Colors.white70;
-      icon = const Padding(
-        padding: EdgeInsets.only(right: 4, left: 4),
-        child: SizedBox(
-          width: 10,
-          height: 10,
-          child: CircularProgressIndicator(
-            strokeWidth: 1.5,
-            valueColor: AlwaysStoppedAnimation<Color>(Colors.white38),
-          ),
+      for (final priceInfo in validPrices) {
+        final storeName = isRtl
+            ? (priceInfo.merchantAr.isNotEmpty
+                ? priceInfo.merchantAr
+                : priceInfo.merchant)
+            : priceInfo.merchant;
+        storeRows.add(_StoreRowData(
+          name: storeName,
+          price: priceInfo.priceSarInclVat,
+          status: 'matched',
+          logoUrl: priceInfo.logoUrl,
+        ));
+      }
+    }
+
+    if (!widget.isScanning && storeRows.isEmpty) {
+      return Center(
+        child: Text(
+          l10n.noNearbyStores,
+          style: const TextStyle(color: Colors.white54, fontSize: 12),
+          textAlign: TextAlign.center,
         ),
       );
     }
 
-    final priceText = priceSar != null ? " ${priceSar.toStringAsFixed(2)} ${isAr ? 'ر.س' : 'SAR'}" : "";
+    return ListView.builder(
+      padding: EdgeInsets.zero,
+      itemCount: storeRows.length,
+      itemBuilder: (context, index) {
+        final row = storeRows[index];
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: border, width: 1),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (icon != null && isAr) icon,
-          Text(
-            name + priceText,
-            style: TextStyle(
-              color: textCol,
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-              decoration: status == 'failed' ? TextDecoration.lineThrough : null,
+        Color textCol;
+        Widget statusWidget;
+
+        if (row.status == 'matched') {
+          textCol = lowest == row.price ? Colors.greenAccent : Colors.white;
+          statusWidget = Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                "${row.price!.toStringAsFixed(2)} ${l10n.sar}",
+                style: TextStyle(
+                  color: textCol,
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(width: 4),
+              Icon(
+                Icons.arrow_forward_ios,
+                size: 10,
+                color: Colors.white.withOpacity(0.3),
+              ),
+            ],
+          );
+        } else if (row.status == 'failed') {
+          textCol = Colors.white30;
+          statusWidget = const Icon(Icons.remove_circle_outline,
+              size: 14, color: Colors.white24);
+        } else {
+          textCol = Colors.white70;
+          statusWidget = const SizedBox(
+            width: 10,
+            height: 10,
+            child: CircularProgressIndicator(
+              strokeWidth: 1.5,
+              valueColor: AlwaysStoppedAnimation<Color>(Colors.white38),
+            ),
+          );
+        }
+
+        final rowContent = Container(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          decoration: const BoxDecoration(
+            border: Border(
+              bottom: BorderSide(color: Colors.white10, width: 0.5),
             ),
           ),
-          if (icon != null && !isAr) icon,
-        ],
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(4),
+                    child: StoreLogoHelper.buildStoreLogo(
+                      row.name,
+                      size: 20,
+                      networkFallbackUrl: row.logoUrl,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    row.name,
+                    style: TextStyle(
+                      color: textCol,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      decoration: row.status == 'failed'
+                          ? TextDecoration.lineThrough
+                          : null,
+                    ),
+                  ),
+                ],
+              ),
+              statusWidget,
+            ],
+          ),
+        );
+
+        if (row.status == 'matched' && widget.product != null) {
+          return InkWell(
+            onTap: () {
+              if (widget.onTapStore != null) {
+                widget.onTapStore!(row.name);
+              }
+            },
+            child: rowContent,
+          );
+        }
+
+        return rowContent;
+      },
+    );
+  }
+
+  Widget _buildAddToCartButton(BuildContext context, AppLocalizations l10n) {
+    final isEnabled = widget.product != null;
+    final cart = ref.watch(cartProvider);
+    final isInCart = isEnabled && cart.any((item) =>
+        item.product.gtin == widget.product!.gtin ||
+        item.product.id == widget.product!.id);
+
+    return ElevatedButton.icon(
+      onPressed: isEnabled && !isInCart
+          ? () {
+              ref.read(cartProvider.notifier).addProduct(widget.product!);
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(l10n.addedToCart),
+                  duration: const Duration(seconds: 2),
+                  backgroundColor: AppColors.primary,
+                  behavior: SnackBarBehavior.floating,
+                ),
+              );
+            }
+          : null,
+      icon: Icon(isInCart ? Icons.check : Icons.add_shopping_cart,
+          color: Colors.white, size: 18),
+      label: Text(
+        isInCart ? l10n.inCart : l10n.addToCart,
+        style: const TextStyle(
+          color: Colors.white,
+          fontWeight: FontWeight.bold,
+          fontSize: 13,
+        ),
+      ),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: AppColors.primary,
+        foregroundColor: Colors.white,
+        disabledBackgroundColor: isInCart ? Colors.grey.shade600 : Colors.white12,
+        disabledForegroundColor: isInCart ? Colors.white70 : Colors.white38,
+        padding: const EdgeInsets.symmetric(vertical: 14),
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
       ),
     );
   }
 }
+
+class _StoreRowData {
+  final String name;
+  final double? price;
+  final String status;
+  final String? logoUrl;
+
+  _StoreRowData({
+    required this.name,
+    this.price,
+    required this.status,
+    this.logoUrl,
+  });
+}
+
+
 
 class _ScannedProductNotFoundCard extends StatefulWidget {
   final String gtin;

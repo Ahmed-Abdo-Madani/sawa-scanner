@@ -916,4 +916,157 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get priceSummary => 'Price Summary';
+
+  @override
+  String get authTitle => 'Sign In or Register';
+
+  @override
+  String get registerButton => 'Register';
+
+  @override
+  String get signUpSuccess => 'Account registered successfully!';
+
+  @override
+  String get alreadyHaveAccount => 'Already have an account? Sign In';
+
+  @override
+  String get dontHaveAccount => 'Don\'t have an account? Register';
+
+  @override
+  String get passwordsDoNotMatch => 'Passwords do not match';
+
+  @override
+  String get confirmPasswordLabel => 'Confirm Password';
+
+  @override
+  String get scanLimitTitle => 'Daily Scan Limit Reached';
+
+  @override
+  String get scanLimitMessage =>
+      'Free users are limited to 5 scans per day. Upgrade to Sawa Plus for unlimited scans!';
+
+  @override
+  String get upgradeSawaPlusButton => 'Upgrade to Sawa Plus';
+
+  @override
+  String get unlimitedScans => 'Unlimited Real-Time Scans';
+
+  @override
+  String get cartOptimizations => 'Smart Cart Price Range';
+
+  @override
+  String get historicTrends => 'Historic Price Trends & Analytics';
+
+  @override
+  String get subscriptionExplanationTitle => 'App Store Billing Integration';
+
+  @override
+  String get subscriptionExplanationText =>
+      'Subscriptions are billed securely through your Google Play Store or Apple App Store account. Verification is handled by verifying cryptographic purchase tokens on our servers.';
+
+  @override
+  String get subscribeMockSuccess =>
+      'Purchase simulated! You are now subscribed to Sawa Plus.';
+
+  @override
+  String get priceDropAlerts => 'Price Drop Alerts';
+
+  @override
+  String get priceDropAlertsDesc =>
+      'Get notified when items in your cart go on sale.';
+
+  @override
+  String get cartReminders => 'Cart Reminders';
+
+  @override
+  String get cartRemindersDesc =>
+      'Remind you of pending items in your shopping cart.';
+
+  @override
+  String get newStoresAlerts => 'New Stores & Offers';
+
+  @override
+  String get newStoresAlertsDesc =>
+      'Alert you when new stores are added in your region.';
+
+  @override
+  String get notificationSettingsTitle => 'Notification Settings';
+
+  @override
+  String get privacyCommitmentTitle => 'Privacy & Security';
+
+  @override
+  String get privacyCommitmentText =>
+      'Sawa is built with privacy in mind. We do not sell your personal data or scan history. Your scans are stored securely on your device.';
+
+  @override
+  String get deleteAccount => 'Delete Account';
+
+  @override
+  String get deleteAccountConfirm =>
+      'Are you sure you want to permanently delete your account? This action cannot be undone.';
+
+  @override
+  String get deleteAccountSuccess => 'Account deleted successfully';
+
+  @override
+  String get sawaPlusSubscriber => 'Sawa Plus Subscriber';
+
+  @override
+  String searchingStore(String store) {
+    return 'Checking $store...';
+  }
+
+  @override
+  String storeNotFound(String store) {
+    return '$store: Not found';
+  }
+
+  @override
+  String get featuresTitle => 'Discover Sawa\'s Features';
+
+  @override
+  String get featureScanTitle => 'Real-Time Price Scanning';
+
+  @override
+  String get featureScanDesc =>
+      'Scan any grocery barcode to compare prices across 20+ local e-commerce stores instantly.';
+
+  @override
+  String get featureCartTitle => 'Smart Shopping Cart';
+
+  @override
+  String get featureCartDesc =>
+      'Add items to your cart and check both Lowest Total and Highest Total to see how much you save.';
+
+  @override
+  String get signInPrompt =>
+      'Sign in to Sawa to access your history and sync your smart shopping cart across devices.';
+
+  @override
+  String get signInOrRegister => 'Sign In / Register';
+
+  @override
+  String get confirmDelete => 'Confirm Delete';
+
+  @override
+  String get yesDelete => 'Delete';
+
+  @override
+  String get keepAccount => 'Keep Account';
+
+  @override
+  String get visitStore => 'Visit Store';
+
+  @override
+  String get lowPrice => 'Low Price';
+
+  @override
+  String get highPrice => 'High Price';
+
+  @override
+  String get commonPrice => 'Common Price';
+
+  @override
+  String get inCart => 'Added to Cart';
 }
