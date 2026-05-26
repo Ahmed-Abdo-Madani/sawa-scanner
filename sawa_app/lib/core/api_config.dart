@@ -7,7 +7,7 @@ class ApiConfig {
   /// flutter run --dart-define=API_BASE_URL=http://10.0.2.2:3000
   static const String baseUrl = String.fromEnvironment(
     'API_BASE_URL',
-    // No default value here; forces explicit configuration for development
+    defaultValue: 'https://above-sidonnie-madnaloyalty-71f491c4.koyeb.app',
   );
 
   /// AI model to use for client-side recognition.
