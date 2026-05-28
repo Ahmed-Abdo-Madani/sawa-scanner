@@ -53,6 +53,12 @@
 	<string>We use your location to display grocery stores and price comparisons near you.</string>
 	<key>NSLocationAlwaysUsageDescription</key>
 	<string>We use your location to display grocery stores and price comparisons near you.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>We need access to your photo library to select and upload product barcode images.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>We need permission to save scanned product pictures to your photo library.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>We need access to your microphone to record video feeds of product barcodes.</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
 </dict>
