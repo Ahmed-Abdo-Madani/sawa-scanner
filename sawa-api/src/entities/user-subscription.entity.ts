@@ -10,10 +10,10 @@ export class UserSubscription {
   firebaseUid: string;
 
   @Index()
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   originalTransactionId: string | null;
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   productId: string | null;
 
   @Column({ default: 'expired' })
