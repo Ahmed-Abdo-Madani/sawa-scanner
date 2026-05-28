@@ -47,6 +47,9 @@ sawa_app/android/.gradle/
 .env.test.local
 .env.production.local
 sawa-api/.env
+**/.env*
+**/service-account.json
+**/firebase-adminsdk*.json
 
 # IDE stuff
 .idea/
