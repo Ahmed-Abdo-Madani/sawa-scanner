@@ -111,6 +111,7 @@ class IapNotifier extends StateNotifier<IapState> {
     state = state.copyWith(isLoading: true, errorMessage: null, hasRestored: false);
     try {
       await _iap.restorePurchases();
+      state = state.copyWith(isLoading: false);
     } catch (e) {
       state = state.copyWith(
         isLoading: false,

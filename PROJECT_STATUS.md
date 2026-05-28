@@ -94,6 +94,8 @@
 - [x] GitHub Pages Setup & Repository Security: Removed and untracked sensitive Firebase/Google service account credentials (`service-account.json`) from Git tracking, added generic ignore patterns (`**/.env*` and `**/service-account.json`) to all `.gitignore` files to defensively prevent credential leaks, and deployed a premium bilingual (Arabic/English) static website layout under the `docs/` folder containing Sawa landing page, support forum, and a PDPL-compliant privacy policy.
 - [x] Profile Admin Tools & Subscription Status Bug Fix: Restricted admin tools visibility strictly to signed-in user `toni91994@gmail.com` on the Profile screen, removing them from guest and non-admin accounts. Added an active Firebase Auth state changes listener in the Riverpod `userPreferencesProvider` definition to automatically clear local subscription preferences on sign-out, verify custom token claims (`sawaPlus: true`) on sign-in, and implement a 2-minute local purchase timestamp guard to bypass token refresh race conditions.
 - [x] Apple Privacy Manifest Reason Fix (Build 9): Corrected invalid reason code typo `C61E.1` to the approved code `C617.1` for the `NSPrivacyAccessedAPICategoryFileTimestamp` API category inside the `PrivacyInfo.xcprivacy` manifest, resolving Apple submission rejection `ITMS-91055`. Incremented build version to `1.0.0+9`.
+- [x] Purchase Restoration Loading Spinner Fix (Build 10): Fixed infinite loading spinner hang on tapping "Restore Purchase" when no past transactions exist by ensuring `isLoading` is set to `false` when the async platform call completes. Incremented build version to `1.0.0+10`.
+
 
 
 
