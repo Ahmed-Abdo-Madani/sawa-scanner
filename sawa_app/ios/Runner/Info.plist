@@ -49,10 +49,6 @@
 	<string>This app requires access to the camera to scan product barcodes.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>We use your location to display grocery stores and price comparisons near you.</string>
-	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-	<string>We use your location to display grocery stores and price comparisons near you.</string>
-	<key>NSLocationAlwaysUsageDescription</key>
-	<string>We use your location to display grocery stores and price comparisons near you.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>We need access to your photo library to select and upload product barcode images.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
