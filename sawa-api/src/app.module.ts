@@ -19,6 +19,7 @@ import { StoresModule } from './stores/stores.module';
 import { NutritionModule } from './nutrition/nutrition.module';
 import { ComparisonModule } from './comparison/comparison.module';
 import { OffExplorerModule } from './off-explorer/off-explorer.module';
+import { BillingModule } from './billing/billing.module';
 
 import { getRedisOptions } from './config/redis.config';
 import { validate } from './config/env.validation';
@@ -63,6 +64,8 @@ import { validate } from './config/env.validation';
     NutritionModule,
     ComparisonModule,
     OffExplorerModule,
+    BillingModule,
+
     ServeStaticModule.forRoot({
       rootPath: join(__dirname, '..', '..', 'uploads'),
       serveRoot: '/uploads',

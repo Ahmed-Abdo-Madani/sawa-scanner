@@ -2,8 +2,11 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
+import 'package:firebase_auth/firebase_auth.dart' as fb;
 import '../../core/iap_config.dart';
 import 'user_preferences_provider.dart';
+import 'auth_provider.dart';
+
 
 class IapState {
   final bool isLoading;
@@ -88,7 +91,13 @@ class IapNotifier extends StateNotifier<IapState> {
   Future<void> buySubscription(ProductDetails product) async {
     state = state.copyWith(isLoading: true, errorMessage: null);
     try {
-      final PurchaseParam purchaseParam = PurchaseParam(productDetails: product);
+      final billingSource = _ref.read(billingRemoteDataSourceProvider);
+      final String accountToken = await billingSource.getOrCreateAccountToken();
+
+      final PurchaseParam purchaseParam = PurchaseParam(
+        productDetails: product,
+        applicationUserName: accountToken,
+      );
       await _iap.buyNonConsumable(purchaseParam: purchaseParam);
     } catch (e) {
       state = state.copyWith(
@@ -134,6 +143,15 @@ class IapNotifier extends StateNotifier<IapState> {
                  purchaseDetails.status == PurchaseStatus.restored) {
         state = state.copyWith(isLoading: false);
         await _ref.read(userPreferencesProvider.notifier).setSubscribed(true);
+
+        try {
+          final currentUser = fb.FirebaseAuth.instance.currentUser;
+          if (currentUser != null) {
+            await currentUser.getIdToken(true); // force refresh ID token
+          }
+        } catch (e) {
+          debugPrint('Failed to refresh Firebase token claims: $e');
+        }
         
         if (purchaseDetails.status == PurchaseStatus.restored) {
           state = state.copyWith(hasRestored: true);

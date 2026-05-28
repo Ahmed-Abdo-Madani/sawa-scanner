@@ -56,7 +56,7 @@ export class FirebaseAuthGuard implements CanActivate {
         if (admin.apps.length) {
           const decodedToken = await admin.auth().verifyIdToken(token);
           // Only trust uid from the verified token, never from the body.
-          request.user = { uid: decodedToken.uid };
+          request.user = { uid: decodedToken.uid, sawaPlus: !!decodedToken.sawaPlus };
         }
       } catch {
         // Silently ignore bad tokens on optional-auth routes.

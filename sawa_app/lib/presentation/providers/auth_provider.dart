@@ -5,6 +5,7 @@ import '../../data/datasources/auth_data_source.dart';
 import 'package:http/http.dart' as http;
 import '../../data/datasources/authed_http_client.dart';
 import '../../data/datasources/admin_product_remote_data_source.dart';
+import '../../data/datasources/billing_remote_data_source.dart';
 import 'product_provider.dart';
 
 final authDataSourceProvider = Provider<AuthDataSource>((ref) {
@@ -32,7 +33,14 @@ final authedHttpClientProvider = Provider<AuthedHttpClient>((ref) {
   );
 });
 
+
 final adminProductDataSourceProvider = Provider<AdminProductRemoteDataSource>((ref) {
   final authedClient = ref.watch(authedHttpClientProvider);
   return AdminProductRemoteDataSource(authedClient: authedClient);
 });
+
+final billingRemoteDataSourceProvider = Provider<BillingRemoteDataSource>((ref) {
+  final authedClient = ref.watch(authedHttpClientProvider);
+  return BillingRemoteDataSource(authedClient: authedClient);
+});
+
