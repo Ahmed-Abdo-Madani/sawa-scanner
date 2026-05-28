@@ -91,6 +91,7 @@
 - [x] App Store Deliverables (Screenshots & Coverage): Generated high-resolution portrait marketing screenshots (1284x2778 resolution) for App Store Connect showcasing Scan, Cart (spelling: "احسب توفيرك وتسوّق بذكاء"), and Sawa Plus premium screen. Formatted Saudi Arabia routing app coverage GeoJSON to have a single `MultiPolygon` at the root and verified it complies with the counter-clockwise winding order (RFC 7946).
 - [x] Real In-App Purchase Integration (Sawa Plus): Added the `in_app_purchase` package dependency, mapped the product ID to your App Store Connect subscription ID `'sawaplus'` inside `iap_config.dart`, created the Riverpod provider `iapProvider` to handle transaction flows, purchase stream callbacks, and restoration hooks, and wired the `SubscriptionScreen` UI to show real localized pricing and support subscription setting management.
 - [x] Backend App Store Webhook Integration (NestJS) & Koyeb Deployment Fix: Configured TypeORM entity `UserSubscription` with explicit `type: 'varchar'` properties to bypass reflect-metadata union type mapping issues, preventing PostgreSQL startup failures.
+- [x] GitHub Pages Setup & Repository Security: Removed and untracked sensitive Firebase/Google service account credentials (`service-account.json`) from Git tracking, added generic ignore patterns (`**/.env*` and `**/service-account.json`) to all `.gitignore` files to defensively prevent credential leaks, and deployed a premium bilingual (Arabic/English) static website layout under the `docs/` folder containing Sawa landing page, support forum, and a PDPL-compliant privacy policy.
 
 ## Architecture Decisions
 - **Self-Healing Scraper Browser Contexts**: To prevent browser contexts from getting locked in a permanently broken/closed state after background crashes (e.g. Chromium terminated by OS memory pressure or page closing exceptions), `BaseScraper` now listens to the `'close'` event on `BrowserContext` and `'disconnected'` on `Browser` to immediately nullify active singleton references. Additionally, `isLaunched()` executes a lightweight, synchronous `this.context.pages()` sanity check at the start of every request. If this check throws an exception, the scraper immediately invalidates its context and browser references, guaranteeing that a fresh, healthy browser instance is automatically launched on the next scrape job.
@@ -220,5 +221,8 @@ Ensure you have updated the `.env` settings to match the optimizations:
 | `sawa_app/ios/saudi_arabia_coverage.geojson` | Routing app coverage file targeting Saudi Arabia, structured as a single `MultiPolygon` at root with counter-clockwise winding order (RFC 7946). |
 | `sawa_app/lib/core/iap_config.dart` | In-app purchase configuration mapping the monthly Sawa Plus product identifier. |
 | `sawa_app/lib/presentation/providers/iap_provider.dart` | StateNotifier provider for standard app store billing events, stream listening, and restorations. |
+| `docs/index.html` | Marketing landing page for Sawa Scanner (deployed via GitHub Pages). |
+| `docs/support.html` | Support URL page containing contact forms and account deletion request details. |
+| `docs/privacy.html` | Privacy Policy URL page compliant with Saudi Arabian PDPL and Apple App Store constraints. |
 | `.env.example` | Template for configuring thresholds and batch sizes. |
 
