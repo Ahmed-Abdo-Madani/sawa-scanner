@@ -410,5 +410,12 @@
   "lowPrice": "Low Price",
   "highPrice": "High Price",
   "commonPrice": "Common Price",
-  "inCart": "Added to Cart"
+  "inCart": "Added to Cart",
+  "iapLoadingProducts": "Loading subscription details...",
+  "iapPurchaseFailed": "Purchase failed. Please try again.",
+  "iapRestoreSuccess": "Subscription successfully restored!",
+  "iapRestoreNotFound": "No active subscription found to restore.",
+  "iapStoreUnavailable": "In-App Store is currently unavailable.",
+  "restorePurchaseButton": "Restore Purchase"
 }
+

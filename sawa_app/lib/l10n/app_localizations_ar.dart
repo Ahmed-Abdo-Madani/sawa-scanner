@@ -1068,4 +1068,22 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get inCart => 'في السلة';
+
+  @override
+  String get iapLoadingProducts => 'جاري تحميل تفاصيل الاشتراك...';
+
+  @override
+  String get iapPurchaseFailed => 'فشلت عملية الشراء. يرجى المحاولة مرة أخرى.';
+
+  @override
+  String get iapRestoreSuccess => 'تم استعادة الاشتراك بنجاح!';
+
+  @override
+  String get iapRestoreNotFound => 'لم يتم العثور على اشتراك نشط لاستعادته.';
+
+  @override
+  String get iapStoreUnavailable => 'متجر التطبيقات غير متوفر حالياً.';
+
+  @override
+  String get restorePurchaseButton => 'استعادة المشتريات';
 }

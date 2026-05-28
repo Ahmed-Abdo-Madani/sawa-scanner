@@ -1,9 +1,15 @@
+import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:in_app_purchase/in_app_purchase.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../l10n/app_localizations.dart';
+import '../../../core/iap_config.dart';
 import '../../providers/user_preferences_provider.dart';
+import '../../providers/iap_provider.dart';
 
 class SubscriptionScreen extends ConsumerStatefulWidget {
   const SubscriptionScreen({super.key});
@@ -12,58 +18,42 @@ class SubscriptionScreen extends ConsumerStatefulWidget {
   ConsumerState<SubscriptionScreen> createState() => _SubscriptionScreenState();
 }
 
-class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> with SingleTickerProviderStateMixin {
-  late AnimationController _checkController;
-  late Animation<double> _checkScale;
-  bool _showSuccessAnimation = false;
+class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
 
   @override
   void initState() {
     super.initState();
-    _checkController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 600),
-    );
-    _checkScale = CurvedAnimation(parent: _checkController, curve: Curves.elasticOut);
+
+    // Load App Store/Play Store products on screen initialization
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(iapProvider.notifier).loadProducts();
+    });
   }
 
-  @override
-  void dispose() {
-    _checkController.dispose();
-    super.dispose();
-  }
+  Future<void> _manageSubscription() async {
+    final String urlString = kIsWeb 
+        ? 'https://apps.apple.com/account/subscriptions' 
+        : Platform.isAndroid 
+            ? 'https://play.google.com/store/account/subscriptions'
+            : 'https://apps.apple.com/account/subscriptions';
+    final Uri url = Uri.parse(urlString);
 
-  Future<void> _simulatePurchase() async {
-    setState(() => _showSuccessAnimation = true);
-    await _checkController.forward();
-    await Future.delayed(const Duration(milliseconds: 1000));
-    
-    if (!mounted) return;
-    
-    final l10n = AppLocalizations.of(context)!;
-    ref.read(userPreferencesProvider.notifier).setSubscribed(true);
-    
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(l10n.subscribeMockSuccess),
-        backgroundColor: Colors.green,
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
-    Navigator.of(context).pop();
-  }
-
-  Future<void> _cancelSubscription() async {
-    ref.read(userPreferencesProvider.notifier).setSubscribed(false);
-    final l10n = AppLocalizations.of(context)!;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(l10n.freePlan),
-        backgroundColor: AppColors.primary,
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
-    Navigator.of(context).pop();
+    try {
+      if (await canLaunchUrl(url)) {
+        await launchUrl(url, mode: LaunchMode.externalApplication);
+      } else {
+        throw 'Could not launch store subscription manager.';
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.toString()),
+          backgroundColor: AppColors.error,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
   }
 
   @override
@@ -71,6 +61,50 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> with Si
     final l10n = AppLocalizations.of(context)!;
     final locale = Localizations.localeOf(context);
     final isSubscribed = ref.watch(userPreferencesProvider).isSubscribed;
+    final iapState = ref.watch(iapProvider);
+
+    // Watch IAP Provider state updates for transaction errors/success
+    ref.listen<IapState>(iapProvider, (previous, next) {
+      if (next.errorMessage != null) {
+        String message = next.errorMessage!;
+        if (message == 'store_unavailable') {
+          message = l10n.iapStoreUnavailable;
+        } else if (message == 'products_not_found') {
+          message = l10n.iapLoadingProducts;
+        } else {
+          message = '${l10n.iapPurchaseFailed} (${next.errorMessage})';
+        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(message),
+            backgroundColor: AppColors.error,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        ref.read(iapProvider.notifier).clearError();
+      }
+
+      if (next.hasRestored && previous?.hasRestored != true) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(l10n.iapRestoreSuccess),
+            backgroundColor: Colors.green,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        ref.read(iapProvider.notifier).resetRestoreFlag();
+        Navigator.of(context).pop();
+      }
+    });
+
+    // Locate the Sawa Plus monthly subscription product
+    ProductDetails? plusProduct;
+    for (final p in iapState.products) {
+      if (p.id == IapConfig.subscriptionProductId) {
+        plusProduct = p;
+        break;
+      }
+    }
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -195,23 +229,25 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> with Si
                 // Action Button
                 if (isSubscribed)
                   OutlinedButton(
-                    onPressed: _cancelSubscription,
+                    onPressed: _manageSubscription,
                     style: OutlinedButton.styleFrom(
-                      side: const BorderSide(color: AppColors.error),
+                      side: const BorderSide(color: AppColors.primary),
                       padding: const EdgeInsets.symmetric(vertical: 18),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                     ),
                     child: Text(
-                      l10n.cancel,
+                      l10n.manageSubscription,
                       style: AppTypography.body(locale).copyWith(
-                        color: AppColors.error,
+                        color: AppColors.primary,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                   )
-                else
+                else ...[
                   ElevatedButton(
-                    onPressed: _simulatePurchase,
+                    onPressed: plusProduct != null
+                        ? () => ref.read(iapProvider.notifier).buySubscription(plusProduct!)
+                        : null,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.amber.shade700,
                       foregroundColor: Colors.white,
@@ -220,37 +256,39 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> with Si
                       elevation: 0,
                     ),
                     child: Text(
-                      l10n.upgradeSawaPlusButton,
+                      plusProduct != null
+                          ? "${l10n.upgradeSawaPlusButton} (${plusProduct.price})"
+                          : l10n.iapLoadingProducts,
                       style: AppTypography.body(locale).copyWith(
                         color: Colors.white,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                   ),
+                  const SizedBox(height: 16),
+                  TextButton(
+                    onPressed: () => ref.read(iapProvider.notifier).restorePurchases(),
+                    child: Text(
+                      l10n.restorePurchaseButton,
+                      style: AppTypography.body(locale).copyWith(
+                        color: AppColors.primary,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 24),
               ],
             ),
           ),
           
-          // Success Animation Overlay
-          if (_showSuccessAnimation)
+          // Loading Indicator Overlay
+          if (iapState.isLoading)
             Container(
-              color: Colors.black.withOpacity(0.8),
-              child: Center(
-                child: ScaleTransition(
-                  scale: _checkScale,
-                  child: Container(
-                    padding: const EdgeInsets.all(24),
-                    decoration: const BoxDecoration(
-                      color: Colors.white,
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.check,
-                      size: 80,
-                      color: Colors.green,
-                    ),
-                  ),
+              color: Colors.black.withOpacity(0.5),
+              child: const Center(
+                child: CircularProgressIndicator(
+                  valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
                 ),
               ),
             ),

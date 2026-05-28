@@ -410,5 +410,12 @@
   "lowPrice": "سعر منخفض",
   "highPrice": "سعر مرتفع",
   "commonPrice": "سعر شائع",
-  "inCart": "في السلة"
+  "inCart": "في السلة",
+  "iapLoadingProducts": "جاري تحميل تفاصيل الاشتراك...",
+  "iapPurchaseFailed": "فشلت عملية الشراء. يرجى المحاولة مرة أخرى.",
+  "iapRestoreSuccess": "تم استعادة الاشتراك بنجاح!",
+  "iapRestoreNotFound": "لم يتم العثور على اشتراك نشط لاستعادته.",
+  "iapStoreUnavailable": "متجر التطبيقات غير متوفر حالياً.",
+  "restorePurchaseButton": "استعادة المشتريات"
 }
+

@@ -2071,6 +2071,42 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Added to Cart'**
   String get inCart;
+
+  /// No description provided for @iapLoadingProducts.
+  ///
+  /// In en, this message translates to:
+  /// **'Loading subscription details...'**
+  String get iapLoadingProducts;
+
+  /// No description provided for @iapPurchaseFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Purchase failed. Please try again.'**
+  String get iapPurchaseFailed;
+
+  /// No description provided for @iapRestoreSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Subscription successfully restored!'**
+  String get iapRestoreSuccess;
+
+  /// No description provided for @iapRestoreNotFound.
+  ///
+  /// In en, this message translates to:
+  /// **'No active subscription found to restore.'**
+  String get iapRestoreNotFound;
+
+  /// No description provided for @iapStoreUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'In-App Store is currently unavailable.'**
+  String get iapStoreUnavailable;
+
+  /// No description provided for @restorePurchaseButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore Purchase'**
+  String get restorePurchaseButton;
 }
 
 class _AppLocalizationsDelegate

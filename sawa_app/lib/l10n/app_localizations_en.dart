@@ -1069,4 +1069,22 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get inCart => 'Added to Cart';
+
+  @override
+  String get iapLoadingProducts => 'Loading subscription details...';
+
+  @override
+  String get iapPurchaseFailed => 'Purchase failed. Please try again.';
+
+  @override
+  String get iapRestoreSuccess => 'Subscription successfully restored!';
+
+  @override
+  String get iapRestoreNotFound => 'No active subscription found to restore.';
+
+  @override
+  String get iapStoreUnavailable => 'In-App Store is currently unavailable.';
+
+  @override
+  String get restorePurchaseButton => 'Restore Purchase';
 }
