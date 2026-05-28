@@ -142,7 +142,7 @@ class IapNotifier extends StateNotifier<IapState> {
       } else if (purchaseDetails.status == PurchaseStatus.purchased ||
                  purchaseDetails.status == PurchaseStatus.restored) {
         state = state.copyWith(isLoading: false);
-        await _ref.read(userPreferencesProvider.notifier).setSubscribed(true);
+        await _ref.read(userPreferencesProvider.notifier).setSubscribed(true, isLocalUpdate: true);
 
         try {
           final currentUser = fb.FirebaseAuth.instance.currentUser;

@@ -1,8 +1,10 @@
 import 'dart:async';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:sawa_app/l10n/app_localizations.dart';
+import 'auth_provider.dart';
 
 /// Hive storage key constants shared by [UserPreferencesNotifier] and [main].
 /// Using these instead of raw strings prevents silent mismatch if a key
@@ -146,6 +148,9 @@ class UserPreferences {
 class UserPreferencesNotifier extends StateNotifier<UserPreferences> {
   final Box _box = Hive.box(UserPreferencesKeys.boxName);
   Future<void>? _pendingWrite;
+  DateTime? _lastLocalSubscriptionTime;
+
+  UserPreferences get currentPreferences => state;
 
   UserPreferencesNotifier() : super(
     UserPreferences(
@@ -201,7 +206,10 @@ class UserPreferencesNotifier extends StateNotifier<UserPreferences> {
     await _persist();
   }
 
-  Future<void> setSubscribed(bool subscribed) async {
+  Future<void> setSubscribed(bool subscribed, {bool isLocalUpdate = false}) async {
+    if (isLocalUpdate) {
+      _lastLocalSubscriptionTime = DateTime.now();
+    }
     state = state.copyWith(isSubscribed: subscribed);
     await _persist();
   }
@@ -277,5 +285,32 @@ class UserPreferencesNotifier extends StateNotifier<UserPreferences> {
 }
 
 final userPreferencesProvider = StateNotifierProvider<UserPreferencesNotifier, UserPreferences>((ref) {
-  return UserPreferencesNotifier();
+  final notifier = UserPreferencesNotifier();
+  
+  ref.listen<AsyncValue<User?>>(currentUserProvider, (previous, next) async {
+    final user = next.value;
+    if (user == null) {
+      await notifier.setSubscribed(false);
+    } else {
+      try {
+        final idTokenResult = await user.getIdTokenResult(true);
+        final hasSawaPlus = idTokenResult.claims?['sawaPlus'] == true;
+        
+        if (hasSawaPlus) {
+          await notifier.setSubscribed(true);
+        } else {
+          final lastLocalUpdate = notifier._lastLocalSubscriptionTime;
+          if (lastLocalUpdate == null || 
+              DateTime.now().difference(lastLocalUpdate) > const Duration(minutes: 2) ||
+              notifier.currentPreferences.isSubscribed == false) {
+            await notifier.setSubscribed(false);
+          }
+        }
+      } catch (e) {
+        debugPrint('Failed to refresh Firebase token claims: $e');
+      }
+    }
+  });
+
+  return notifier;
 });

@@ -22,7 +22,6 @@ class ProfileScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context)!;
     final locale = Localizations.localeOf(context);
-    final isAdmin = ref.watch(isAdminProvider).value ?? false;
     final user = ref.watch(currentUserProvider).value;
 
     return Scaffold(
@@ -139,7 +138,7 @@ class ProfileScreen extends ConsumerWidget {
               ),
             ),
           ),
-          if (isAdmin || user == null) ...[
+          if (user != null && user.email == 'toni91994@gmail.com') ...[
             const SizedBox(height: 24),
             _buildSectionTitle(l10n.adminTools),
             const SizedBox(height: 8),
