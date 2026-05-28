@@ -93,6 +93,8 @@
 - [x] Backend App Store Webhook Integration (NestJS) & Koyeb Deployment Fix: Configured TypeORM entity `UserSubscription` with explicit `type: 'varchar'` properties to bypass reflect-metadata union type mapping issues, preventing PostgreSQL startup failures.
 - [x] GitHub Pages Setup & Repository Security: Removed and untracked sensitive Firebase/Google service account credentials (`service-account.json`) from Git tracking, added generic ignore patterns (`**/.env*` and `**/service-account.json`) to all `.gitignore` files to defensively prevent credential leaks, and deployed a premium bilingual (Arabic/English) static website layout under the `docs/` folder containing Sawa landing page, support forum, and a PDPL-compliant privacy policy.
 - [x] Profile Admin Tools & Subscription Status Bug Fix: Restricted admin tools visibility strictly to signed-in user `toni91994@gmail.com` on the Profile screen, removing them from guest and non-admin accounts. Added an active Firebase Auth state changes listener in the Riverpod `userPreferencesProvider` definition to automatically clear local subscription preferences on sign-out, verify custom token claims (`sawaPlus: true`) on sign-in, and implement a 2-minute local purchase timestamp guard to bypass token refresh race conditions.
+- [x] Apple Privacy Manifest Reason Fix (Build 9): Corrected invalid reason code typo `C61E.1` to the approved code `C617.1` for the `NSPrivacyAccessedAPICategoryFileTimestamp` API category inside the `PrivacyInfo.xcprivacy` manifest, resolving Apple submission rejection `ITMS-91055`. Incremented build version to `1.0.0+9`.
+
 
 
 ## Architecture Decisions
