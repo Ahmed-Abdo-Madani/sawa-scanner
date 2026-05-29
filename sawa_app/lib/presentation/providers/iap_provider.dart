@@ -111,7 +111,19 @@ class IapNotifier extends StateNotifier<IapState> {
     state = state.copyWith(isLoading: true, errorMessage: null, hasRestored: false);
     try {
       await _iap.restorePurchases();
-      state = state.copyWith(isLoading: false);
+      // Small delay to allow the purchase stream callback _onPurchaseUpdate to run
+      // and update the subscription state if any restored items exist.
+      await Future.delayed(const Duration(milliseconds: 500));
+
+      final bool isSubscribed = _ref.read(userPreferencesProvider).isSubscribed;
+      if (!isSubscribed) {
+        state = state.copyWith(
+          isLoading: false,
+          errorMessage: 'restore_not_found',
+        );
+      } else {
+        state = state.copyWith(isLoading: false, hasRestored: true);
+      }
     } catch (e) {
       state = state.copyWith(
         isLoading: false,

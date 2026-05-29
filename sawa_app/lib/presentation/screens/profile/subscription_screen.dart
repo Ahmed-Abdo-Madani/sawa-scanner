@@ -71,6 +71,8 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
           message = l10n.iapStoreUnavailable;
         } else if (message == 'products_not_found') {
           message = l10n.iapLoadingProducts;
+        } else if (message == 'restore_not_found') {
+          message = l10n.iapRestoreNotFound;
         } else {
           message = '${l10n.iapPurchaseFailed} (${next.errorMessage})';
         }
