@@ -1,6 +1,6 @@
 import { Processor, WorkerHost, InjectQueue } from '@nestjs/bullmq';
 import { Job, Queue, UnrecoverableError } from 'bullmq';
-import { Logger, NotFoundException, Inject, forwardRef } from '@nestjs/common';
+import { Logger, NotFoundException, Inject, forwardRef, OnModuleInit } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource, IsNull } from 'typeorm';
 import axios from 'axios';
@@ -86,7 +86,7 @@ const HS_DAILY_STAGGER_MS = Number.parseInt(
   lockDuration: 300000,
   stalledInterval: 60000,
 })
-export class IngestionProcessor extends WorkerHost {
+export class IngestionProcessor extends WorkerHost implements OnModuleInit {
   private readonly logger = new Logger(IngestionProcessor.name);
   private rejectedProductsCount = 0;
 
@@ -134,6 +134,13 @@ export class IngestionProcessor extends WorkerHost {
     this.logger.log(
       'IngestionProcessor initialized and ready to pick up jobs.',
     );
+  }
+
+  async onModuleInit() {
+    if (process.env.DISABLE_QUEUE_PROCESSORS === 'true') {
+      this.logger.warn('DISABLE_QUEUE_PROCESSORS is enabled. Pausing ingestion worker...');
+      await this.worker.pause();
+    }
   }
 
   async process(job: Job<IngestionJobDto>): Promise<any> {

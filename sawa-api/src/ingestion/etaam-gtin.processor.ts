@@ -1,6 +1,6 @@
 import { Processor, WorkerHost } from '@nestjs/bullmq';
 import { Job } from 'bullmq';
-import { Logger, OnModuleDestroy } from '@nestjs/common';
+import { Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Product } from '../entities/product.entity';
@@ -24,7 +24,7 @@ function isBrowserCrash(err: Error): boolean {
   lockDuration: 300000,
   stalledInterval: 60000,
 })
-export class EtaamGtinProcessor extends WorkerHost implements OnModuleDestroy {
+export class EtaamGtinProcessor extends WorkerHost implements OnModuleDestroy, OnModuleInit {
   private readonly logger = new Logger(EtaamGtinProcessor.name);
 
   constructor(
@@ -34,6 +34,13 @@ export class EtaamGtinProcessor extends WorkerHost implements OnModuleDestroy {
   ) {
     super();
     this.logger.log('EtaamGtinProcessor initialized and ready.');
+  }
+
+  async onModuleInit() {
+    if (process.env.DISABLE_QUEUE_PROCESSORS === 'true') {
+      this.logger.warn('DISABLE_QUEUE_PROCESSORS is enabled. Pausing Etaam GTIN worker...');
+      await this.worker.pause();
+    }
   }
 
   /** Shut down the shared browser cleanly when the NestJS module is destroyed. */

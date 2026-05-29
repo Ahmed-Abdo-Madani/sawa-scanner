@@ -1,6 +1,6 @@
 import { Processor, WorkerHost } from '@nestjs/bullmq';
 import { Job } from 'bullmq';
-import { Logger } from '@nestjs/common';
+import { Logger, OnModuleInit } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
 import * as path from 'path';
@@ -25,7 +25,7 @@ import { PricesService } from '../prices/prices.service';
   lockDuration: 300000,
   stalledInterval: 60000,
 })
-export class PriceScrapingProcessor extends WorkerHost {
+export class PriceScrapingProcessor extends WorkerHost implements OnModuleInit {
   private readonly logger = new Logger(PriceScrapingProcessor.name);
 
   constructor(
@@ -40,6 +40,13 @@ export class PriceScrapingProcessor extends WorkerHost {
     private readonly pricesService: PricesService,
   ) {
     super();
+  }
+
+  async onModuleInit() {
+    if (process.env.DISABLE_QUEUE_PROCESSORS === 'true') {
+      this.logger.warn('DISABLE_QUEUE_PROCESSORS is enabled. Pausing price scraping worker...');
+      await this.worker.pause();
+    }
   }
 
   async process(job: Job<PriceScrapingJobDto>): Promise<any> {

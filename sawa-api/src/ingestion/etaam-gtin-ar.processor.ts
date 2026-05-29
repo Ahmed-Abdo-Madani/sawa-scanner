@@ -1,6 +1,6 @@
 import { Processor, WorkerHost } from '@nestjs/bullmq';
 import { Job } from 'bullmq';
-import { Logger, OnModuleDestroy } from '@nestjs/common';
+import { Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Product } from '../entities/product.entity';
@@ -24,7 +24,7 @@ function isBrowserCrash(err: Error): boolean {
   lockDuration: 300000,
   stalledInterval: 60000,
 })
-export class EtaamGtinArProcessor extends WorkerHost implements OnModuleDestroy {
+export class EtaamGtinArProcessor extends WorkerHost implements OnModuleDestroy, OnModuleInit {
   private readonly logger = new Logger(EtaamGtinArProcessor.name);
 
   constructor(
@@ -35,6 +35,13 @@ export class EtaamGtinArProcessor extends WorkerHost implements OnModuleDestroy 
   ) {
     super();
     this.logger.log('EtaamGtinArProcessor (Arabic Multi-Store) initialized and ready.');
+  }
+
+  async onModuleInit() {
+    if (process.env.DISABLE_QUEUE_PROCESSORS === 'true') {
+      this.logger.warn('DISABLE_QUEUE_PROCESSORS is enabled. Pausing Etaam GTIN Arabic worker...');
+      await this.worker.pause();
+    }
   }
 
   async onModuleDestroy(): Promise<void> {
