@@ -1,7 +1,7 @@
 name: sawa_app
 description: "A new Flutter project."
 publish_to: "none"
-version: 1.0.0+10
+version: 1.0.0+11
 
 environment:
   sdk: ">=3.8.0 <4.0.0"
@@ -26,9 +26,9 @@ dependencies:
   flutter_svg: ^2.0.10
   geolocator: ^13.0.2
   cached_network_image: ^3.4.1
-  firebase_core: ^4.4.0
-  firebase_ai: ^3.6.0
-  firebase_auth: ^6.4.0
+  firebase_core: ^4.9.0
+  firebase_ai: ^3.12.1
+  firebase_auth: ^6.5.1
   in_app_purchase: ^3.2.0
 
 

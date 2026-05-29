@@ -47,7 +47,11 @@ class AuthedHttpClient {
   Future<http.Response> post(Uri url, {Map<String, String>? headers, Object? body}) async {
     final finalHeaders = await _getHeaders(headers);
     try {
-      return await _client.post(url, headers: finalHeaders, body: jsonEncode(body)).timeout(_timeout);
+      return await _client.post(
+        url,
+        headers: finalHeaders,
+        body: body != null ? jsonEncode(body) : null,
+      ).timeout(_timeout);
     } on TimeoutException {
       throw NetworkTimeoutException();
     }
@@ -56,7 +60,11 @@ class AuthedHttpClient {
   Future<http.Response> patch(Uri url, {Map<String, String>? headers, Object? body}) async {
     final finalHeaders = await _getHeaders(headers);
     try {
-      return await _client.patch(url, headers: finalHeaders, body: jsonEncode(body)).timeout(_timeout);
+      return await _client.patch(
+        url,
+        headers: finalHeaders,
+        body: body != null ? jsonEncode(body) : null,
+      ).timeout(_timeout);
     } on TimeoutException {
       throw NetworkTimeoutException();
     }
