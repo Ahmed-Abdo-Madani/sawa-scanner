@@ -1883,8 +1883,20 @@ abstract class AppLocalizations {
   /// No description provided for @subscriptionExplanationText.
   ///
   /// In en, this message translates to:
-  /// **'Subscriptions are billed securely through your Google Play Store or Apple App Store account. Verification is handled by verifying cryptographic purchase tokens on our servers.'**
+  /// **'Subscriptions are billed securely through your App Store account. Verification is handled by verifying cryptographic purchase tokens on our servers.'**
   String get subscriptionExplanationText;
+
+  /// No description provided for @privacyPolicy.
+  ///
+  /// In en, this message translates to:
+  /// **'Privacy Policy'**
+  String get privacyPolicy;
+
+  /// No description provided for @termsOfUse.
+  ///
+  /// In en, this message translates to:
+  /// **'Terms of Use (EULA)'**
+  String get termsOfUse;
 
   /// No description provided for @subscribeMockSuccess.
   ///

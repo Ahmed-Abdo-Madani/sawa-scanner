@@ -962,7 +962,13 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get subscriptionExplanationText =>
-      'يتم فوترة الاشتراكات بشكل آمن من خلال حساب متجر Google Play أو Apple App Store الخاص بك. يتم التحقق من صحة رموز الشراء المشفرة على خوادمنا.';
+      'يتم فوترة الاشتراكات بشكل آمن من خلال حساب متجر التطبيقات الخاص بك. يتم التحقق من صحة رموز الشراء المشفرة على خوادمنا.';
+
+  @override
+  String get privacyPolicy => 'سياسة الخصوصية';
+
+  @override
+  String get termsOfUse => 'شروط الاستخدام (EULA)';
 
   @override
   String get subscribeMockSuccess =>

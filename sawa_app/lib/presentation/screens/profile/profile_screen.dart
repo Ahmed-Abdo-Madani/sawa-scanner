@@ -183,6 +183,16 @@ class ProfileScreen extends ConsumerWidget {
             const SizedBox(height: 16),
             _buildSettingsTile(
               context: context,
+              icon: Icons.delete_forever,
+              title: l10n.deleteAccount,
+              iconColor: AppColors.error,
+              textColor: AppColors.error,
+              onTap: () {
+                _confirmDeleteAccount(context, ref, fromSheet: false);
+              },
+            ),
+            _buildSettingsTile(
+              context: context,
               icon: Icons.logout,
               title: l10n.signOut,
               onTap: () {
@@ -254,11 +264,18 @@ class ProfileScreen extends ConsumerWidget {
     required String title,
     required VoidCallback onTap,
     Widget? trailing,
+    Color? iconColor,
+    Color? textColor,
   }) {
     return ListTile(
-      leading: Icon(icon, color: AppColors.onBackground),
-      title: Text(title, style: AppTypography.body(Localizations.localeOf(context))),
-      trailing: trailing ?? const Icon(Icons.chevron_right, size: 20),
+      leading: Icon(icon, color: iconColor ?? AppColors.onBackground),
+      title: Text(
+        title,
+        style: AppTypography.body(Localizations.localeOf(context)).copyWith(
+          color: textColor,
+        ),
+      ),
+      trailing: trailing ?? Icon(Icons.chevron_right, size: 20, color: iconColor),
       onTap: onTap,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
     );
@@ -314,7 +331,7 @@ class ProfileScreen extends ConsumerWidget {
               if (user != null) ...[
                 const SizedBox(height: 24),
                 ElevatedButton.icon(
-                  onPressed: () => _confirmDeleteAccount(context, ref),
+                  onPressed: () => _confirmDeleteAccount(context, ref, fromSheet: true),
                   icon: const Icon(Icons.delete_forever, color: Colors.white),
                   label: Text(
                     l10n.deleteAccount,
@@ -335,7 +352,7 @@ class ProfileScreen extends ConsumerWidget {
     );
   }
 
-  void _confirmDeleteAccount(BuildContext context, WidgetRef ref) {
+  void _confirmDeleteAccount(BuildContext context, WidgetRef ref, {required bool fromSheet}) {
     final l10n = AppLocalizations.of(context)!;
     final locale = Localizations.localeOf(context);
 
@@ -354,7 +371,9 @@ class ProfileScreen extends ConsumerWidget {
             TextButton(
               onPressed: () async {
                 Navigator.of(context).pop(); // pop dialog
-                Navigator.of(context).pop(); // pop sheet
+                if (fromSheet) {
+                  Navigator.of(context).pop(); // pop sheet
+                }
                 try {
                   final user = FirebaseAuth.instance.currentUser;
                   if (user != null) {

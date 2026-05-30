@@ -962,7 +962,13 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get subscriptionExplanationText =>
-      'Subscriptions are billed securely through your Google Play Store or Apple App Store account. Verification is handled by verifying cryptographic purchase tokens on our servers.';
+      'Subscriptions are billed securely through your App Store account. Verification is handled by verifying cryptographic purchase tokens on our servers.';
+
+  @override
+  String get privacyPolicy => 'Privacy Policy';
+
+  @override
+  String get termsOfUse => 'Terms of Use (EULA)';
 
   @override
   String get subscribeMockSuccess =>

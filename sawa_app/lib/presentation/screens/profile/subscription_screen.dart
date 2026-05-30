@@ -56,6 +56,26 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
     }
   }
 
+  Future<void> _launchURL(String urlString) async {
+    final Uri url = Uri.parse(urlString);
+    try {
+      if (await canLaunchUrl(url)) {
+        await launchUrl(url, mode: LaunchMode.externalApplication);
+      } else {
+        throw 'Could not launch $urlString';
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.toString()),
+          backgroundColor: AppColors.error,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
@@ -279,6 +299,37 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
                     ),
                   ),
                 ],
+                const SizedBox(height: 24),
+                const Divider(height: 32, color: Colors.white10),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    TextButton(
+                      onPressed: () => _launchURL('https://ahmed-abdo-madani.github.io/sawa-scanner/privacy.html'),
+                      child: Text(
+                        l10n.privacyPolicy,
+                        style: AppTypography.caption(locale).copyWith(
+                          color: AppColors.primary,
+                          decoration: TextDecoration.underline,
+                        ),
+                      ),
+                    ),
+                    Text(
+                      ' | ',
+                      style: AppTypography.caption(locale).copyWith(color: Colors.white24),
+                    ),
+                    TextButton(
+                      onPressed: () => _launchURL('https://ahmed-abdo-madani.github.io/sawa-scanner/terms.html'),
+                      child: Text(
+                        l10n.termsOfUse,
+                        style: AppTypography.caption(locale).copyWith(
+                          color: AppColors.primary,
+                          decoration: TextDecoration.underline,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
                 const SizedBox(height: 24),
               ],
             ),
