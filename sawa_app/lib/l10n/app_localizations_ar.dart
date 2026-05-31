@@ -962,13 +962,30 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get subscriptionExplanationText =>
-      'يتم فوترة الاشتراكات بشكل آمن من خلال حساب متجر التطبيقات الخاص بك. يتم التحقق من صحة رموز الشراء المشفرة على خوادمنا.';
+      'يتم فوترة الاشتراكات شهرياً (\$0.49/شهرياً) بشكل آمن من خلال حساب متجر التطبيقات الخاص بك. يتجدد الاشتراك تلقائياً كل شهر ما لم يتم إلغاؤه في إعدادات حسابك قبل 24 ساعة على الأقل من نهاية الفترة الحالية. يتم التحقق من صحة رموز الشراء بأمان على خوادمنا.';
 
   @override
   String get privacyPolicy => 'سياسة الخصوصية';
 
   @override
   String get termsOfUse => 'شروط الاستخدام (EULA)';
+
+  @override
+  String get monthly => 'شهرياً';
+
+  @override
+  String get subscriptionPeriod => 'فترة الاشتراك';
+
+  @override
+  String get oneMonth => 'شهر واحد';
+
+  @override
+  String get autoRenewable => 'تجديد تلقائي';
+
+  @override
+  String upgradeButtonWithPrice(String price) {
+    return 'الترقية إلى سوا بلس ($price / شهرياً)';
+  }
 
   @override
   String get subscribeMockSuccess =>

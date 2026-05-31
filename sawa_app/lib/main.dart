@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'app.dart';
 import 'package:openfoodfacts/openfoodfacts.dart' show OpenFoodAPIConfiguration, UserAgent;
 import 'firebase_options.dart';
@@ -18,6 +19,17 @@ void main() async {
   
   // Initialize Firebase
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  
+  // Authenticate anonymously on startup if not already logged in
+  try {
+    final auth = FirebaseAuth.instance;
+    if (auth.currentUser == null) {
+      await auth.signInAnonymously();
+      debugPrint('Signed in anonymously: ${auth.currentUser?.uid}');
+    }
+  } catch (e) {
+    debugPrint('Firebase anonymous authentication failed on startup: $e');
+  }
   
   // Configure OpenFoodFacts globally
   OpenFoodAPIConfiguration.userAgent = UserAgent(

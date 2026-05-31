@@ -369,9 +369,19 @@
   "cartOptimizations": "نطاق أسعار السلة الذكية",
   "historicTrends": "اتجاهات الأسعار التاريخية والتحليلات",
   "subscriptionExplanationTitle": "تكامل الفوترة مع متجر التطبيقات",
-  "subscriptionExplanationText": "يتم فوترة الاشتراكات بشكل آمن من خلال حساب متجر التطبيقات الخاص بك. يتم التحقق من صحة رموز الشراء المشفرة على خوادمنا.",
+  "subscriptionExplanationText": "يتم فوترة الاشتراكات شهرياً ($0.49/شهرياً) بشكل آمن من خلال حساب متجر التطبيقات الخاص بك. يتجدد الاشتراك تلقائياً كل شهر ما لم يتم إلغاؤه في إعدادات حسابك قبل 24 ساعة على الأقل من نهاية الفترة الحالية. يتم التحقق من صحة رموز الشراء بأمان على خوادمنا.",
   "privacyPolicy": "سياسة الخصوصية",
   "termsOfUse": "شروط الاستخدام (EULA)",
+  "monthly": "شهرياً",
+  "subscriptionPeriod": "فترة الاشتراك",
+  "oneMonth": "شهر واحد",
+  "autoRenewable": "تجديد تلقائي",
+  "upgradeButtonWithPrice": "الترقية إلى سوا بلس ({price} / شهرياً)",
+  "@upgradeButtonWithPrice": {
+    "placeholders": {
+      "price": { "type": "String" }
+    }
+  },
   "subscribeMockSuccess": "تمت محاكاة الشراء! أنت الآن مشترك في سوا بلس.",
   "priceDropAlerts": "تنبيهات انخفاض الأسعار",
   "priceDropAlertsDesc": "احصل على تنبيهات عندما تنخفض أسعار المنتجات في سلتك.",

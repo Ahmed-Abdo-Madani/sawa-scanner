@@ -175,14 +175,26 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
                       const Icon(Icons.star, size: 64, color: Colors.white),
                       const SizedBox(height: 16),
                       Text(
-                        l10n.sawaPlus,
-                        style: AppTypography.display(locale).copyWith(color: Colors.white, fontSize: 32, fontWeight: FontWeight.w900),
+                        "${l10n.sawaPlus} (${l10n.monthly})",
+                        style: AppTypography.display(locale).copyWith(color: Colors.white, fontSize: 28, fontWeight: FontWeight.w900),
                       ),
                       const SizedBox(height: 8),
                       Text(
                         isSubscribed ? l10n.sawaPlusSubscriber : l10n.upgradeSawaPlusButton,
                         style: AppTypography.body(locale).copyWith(color: Colors.white.withOpacity(0.9), fontWeight: FontWeight.bold),
                         textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.autorenew, size: 16, color: Colors.white70),
+                          const SizedBox(width: 6),
+                          Text(
+                            "${l10n.subscriptionPeriod}: ${l10n.oneMonth} (${l10n.autoRenewable})",
+                            style: AppTypography.caption(locale).copyWith(color: Colors.white.withOpacity(0.8), fontWeight: FontWeight.bold),
+                          ),
+                        ],
                       ),
                     ],
                   ),
@@ -279,7 +291,7 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
                     ),
                     child: Text(
                       plusProduct != null
-                          ? "${l10n.upgradeSawaPlusButton} (${plusProduct.price})"
+                          ? l10n.upgradeButtonWithPrice(plusProduct.price)
                           : l10n.iapLoadingProducts,
                       style: AppTypography.body(locale).copyWith(
                         color: Colors.white,

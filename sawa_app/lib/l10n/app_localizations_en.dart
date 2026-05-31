@@ -962,13 +962,30 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get subscriptionExplanationText =>
-      'Subscriptions are billed securely through your App Store account. Verification is handled by verifying cryptographic purchase tokens on our servers.';
+      'Subscriptions are billed monthly (\$0.49/month) securely through your App Store account. The subscription auto-renews monthly unless cancelled in your account settings at least 24 hours before the end of the current period. Verification is handled securely on our servers.';
 
   @override
   String get privacyPolicy => 'Privacy Policy';
 
   @override
   String get termsOfUse => 'Terms of Use (EULA)';
+
+  @override
+  String get monthly => 'Monthly';
+
+  @override
+  String get subscriptionPeriod => 'Period';
+
+  @override
+  String get oneMonth => '1 Month';
+
+  @override
+  String get autoRenewable => 'Auto-Renewable';
+
+  @override
+  String upgradeButtonWithPrice(String price) {
+    return 'Upgrade to Sawa Plus ($price / Monthly)';
+  }
 
   @override
   String get subscribeMockSuccess =>

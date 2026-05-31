@@ -1883,7 +1883,7 @@ abstract class AppLocalizations {
   /// No description provided for @subscriptionExplanationText.
   ///
   /// In en, this message translates to:
-  /// **'Subscriptions are billed securely through your App Store account. Verification is handled by verifying cryptographic purchase tokens on our servers.'**
+  /// **'Subscriptions are billed monthly (\$0.49/month) securely through your App Store account. The subscription auto-renews monthly unless cancelled in your account settings at least 24 hours before the end of the current period. Verification is handled securely on our servers.'**
   String get subscriptionExplanationText;
 
   /// No description provided for @privacyPolicy.
@@ -1897,6 +1897,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Terms of Use (EULA)'**
   String get termsOfUse;
+
+  /// No description provided for @monthly.
+  ///
+  /// In en, this message translates to:
+  /// **'Monthly'**
+  String get monthly;
+
+  /// No description provided for @subscriptionPeriod.
+  ///
+  /// In en, this message translates to:
+  /// **'Period'**
+  String get subscriptionPeriod;
+
+  /// No description provided for @oneMonth.
+  ///
+  /// In en, this message translates to:
+  /// **'1 Month'**
+  String get oneMonth;
+
+  /// No description provided for @autoRenewable.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto-Renewable'**
+  String get autoRenewable;
+
+  /// No description provided for @upgradeButtonWithPrice.
+  ///
+  /// In en, this message translates to:
+  /// **'Upgrade to Sawa Plus ({price} / Monthly)'**
+  String upgradeButtonWithPrice(String price);
 
   /// No description provided for @subscribeMockSuccess.
   ///

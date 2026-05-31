@@ -16,6 +16,11 @@ class AuthDataSource {
 
   Future<void> signOut() async {
     await _firebaseAuth.signOut();
+    try {
+      await _firebaseAuth.signInAnonymously();
+    } catch (e) {
+      // ignore
+    }
   }
 
   Future<String?> getIdToken({bool forceRefresh = false}) async {

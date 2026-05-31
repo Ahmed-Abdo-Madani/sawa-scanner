@@ -369,9 +369,19 @@
   "cartOptimizations": "Smart Cart Price Range",
   "historicTrends": "Historic Price Trends & Analytics",
   "subscriptionExplanationTitle": "App Store Billing Integration",
-  "subscriptionExplanationText": "Subscriptions are billed securely through your App Store account. Verification is handled by verifying cryptographic purchase tokens on our servers.",
+  "subscriptionExplanationText": "Subscriptions are billed monthly ($0.49/month) securely through your App Store account. The subscription auto-renews monthly unless cancelled in your account settings at least 24 hours before the end of the current period. Verification is handled securely on our servers.",
   "privacyPolicy": "Privacy Policy",
   "termsOfUse": "Terms of Use (EULA)",
+  "monthly": "Monthly",
+  "subscriptionPeriod": "Period",
+  "oneMonth": "1 Month",
+  "autoRenewable": "Auto-Renewable",
+  "upgradeButtonWithPrice": "Upgrade to Sawa Plus ({price} / Monthly)",
+  "@upgradeButtonWithPrice": {
+    "placeholders": {
+      "price": { "type": "String" }
+    }
+  },
   "subscribeMockSuccess": "Purchase simulated! You are now subscribed to Sawa Plus.",
   "priceDropAlerts": "Price Drop Alerts",
   "priceDropAlertsDesc": "Get notified when items in your cart go on sale.",

@@ -40,7 +40,7 @@ class ProfileScreen extends ConsumerWidget {
         children: [
           _buildProfileHeader(context, locale, user),
           const SizedBox(height: 24),
-          if (user == null) ...[
+          if (user == null || user.isAnonymous) ...[
             Card(
               elevation: 0,
               color: AppColors.primary.withOpacity(0.1),
@@ -179,7 +179,7 @@ class ProfileScreen extends ConsumerWidget {
               },
             ),
           ],
-          if (user != null) ...[
+          if (user != null && !user.isAnonymous) ...[
             const SizedBox(height: 16),
             _buildSettingsTile(
               context: context,
