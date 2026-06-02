@@ -12,7 +12,7 @@ class AuthedHttpClient {
   AuthedHttpClient({
     required http.Client client,
     required Future<String?> Function() tokenProvider,
-    Duration timeout = const Duration(seconds: 15),
+    Duration timeout = const Duration(seconds: 30),
   })  : _client = client,
         _tokenProvider = tokenProvider,
         _timeout = timeout;
