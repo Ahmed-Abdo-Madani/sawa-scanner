@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sawa_app/l10n/app_localizations.dart';
 import '../../providers/search_provider.dart';
-import '../../providers/cart_provider.dart';
 import '../../widgets/nutri_score_badge.dart';
 import '../../widgets/fallback_image_network.dart';
 import '../product_detail/product_detail_screen.dart';
@@ -159,18 +158,15 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   }
 }
 
-class _ProductResultCard extends ConsumerWidget {
+class _ProductResultCard extends StatelessWidget {
   final Product product;
 
   const _ProductResultCard({required this.product});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final locale = Localizations.localeOf(context);
     final theme = Theme.of(context);
-    final l10n = AppLocalizations.of(context)!;
-    final cartItems = ref.watch(cartProvider);
-    final cartItem = cartItems.where((item) => item.product.gtin == product.gtin).firstOrNull;
 
     return InkWell(
       onTap: () {
@@ -231,73 +227,16 @@ class _ProductResultCard extends ConsumerWidget {
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      if (product.nutriScoreGrade != null) ...[
-                        NutriScoreBadge(grade: product.nutriScoreGrade!, isMini: true),
-                        const SizedBox(width: 8),
-                      ],
-                      const Spacer(),
-                      // Add to Cart Button or Quantity Selector
-                      cartItem != null
-                          ? Container(
-                              height: 32,
-                              decoration: BoxDecoration(
-                                color: AppColors.primary.withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  IconButton(
-                                    icon: const Icon(Icons.remove, size: 14, color: AppColors.primary),
-                                    onPressed: () {
-                                      ref.read(cartProvider.notifier).updateQuantity(product.gtin, cartItem.quantity - 1);
-                                    },
-                                    constraints: const BoxConstraints(),
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                  ),
-                                  Text(
-                                    '${cartItem.quantity}',
-                                    style: AppTypography.body(locale).copyWith(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 14,
-                                      color: AppColors.primary,
-                                    ),
-                                  ),
-                                  IconButton(
-                                    icon: const Icon(Icons.add, size: 14, color: AppColors.primary),
-                                    onPressed: () {
-                                      ref.read(cartProvider.notifier).updateQuantity(product.gtin, cartItem.quantity + 1);
-                                    },
-                                    constraints: const BoxConstraints(),
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                  ),
-                                ],
-                              ),
-                            )
-                          : ElevatedButton.icon(
-                              onPressed: () {
-                                ref.read(cartProvider.notifier).addProduct(product);
-                              },
-                              icon: const Icon(Icons.add_shopping_cart, size: 14),
-                              label: Text(l10n.addToCart),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: AppColors.primary,
-                                foregroundColor: Colors.white,
-                                elevation: 0,
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                                minimumSize: Size.zero,
-                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                              ),
-                            ),
-                    ],
-                  ),
+                  if (product.nutriScoreGrade != null)
+                    NutriScoreBadge(grade: product.nutriScoreGrade!, isMini: true),
                 ],
               ),
+            ),
+            Icon(
+              locale.languageCode == 'ar'
+                  ? Icons.chevron_left
+                  : Icons.chevron_right,
+              color: AppColors.onSurface,
             ),
           ],
         ),

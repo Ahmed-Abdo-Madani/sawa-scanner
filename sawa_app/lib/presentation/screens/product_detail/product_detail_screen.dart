@@ -7,6 +7,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../core/utils/store_logo_helper.dart';
 import '../../providers/product_provider.dart';
 import '../../providers/scan_history_provider.dart';
+import '../../providers/cart_provider.dart';
 import '../../widgets/halal_badge.dart';
 import '../../widgets/fallback_image_network.dart';
 import '../../../core/theme/app_colors.dart';
@@ -329,6 +330,9 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
             : selectedPrice.merchant)
         : selectedPrice.merchant;
 
+    final cartItems = ref.watch(cartProvider);
+    final cartItem = cartItems.where((item) => item.product.gtin == product.gtin).firstOrNull;
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Column(
@@ -479,6 +483,72 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
               ),
             ),
           ],
+          const SizedBox(height: 16),
+          cartItem != null
+              ? Container(
+                  height: 52,
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: AppColors.primary.withOpacity(0.3)),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.remove, color: AppColors.primary),
+                        onPressed: () {
+                          ref.read(cartProvider.notifier).updateQuantity(product.gtin, cartItem.quantity - 1);
+                        },
+                      ),
+                      Text(
+                        '${cartItem.quantity} ${locale.languageCode == 'ar' ? 'في السلة' : 'in Cart'}',
+                        style: AppTypography.body(locale).copyWith(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.add, color: AppColors.primary),
+                        onPressed: () {
+                          ref.read(cartProvider.notifier).updateQuantity(product.gtin, cartItem.quantity + 1);
+                        },
+                      ),
+                    ],
+                  ),
+                )
+              : ElevatedButton.icon(
+                  onPressed: () {
+                    ref.read(cartProvider.notifier).addProduct(product);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(l10n.addedToCart),
+                        duration: const Duration(seconds: 2),
+                        backgroundColor: AppColors.primary,
+                        behavior: SnackBarBehavior.floating,
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.add_shopping_cart, color: Colors.white, size: 18),
+                  label: Text(
+                    l10n.addToCart,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    elevation: 0,
+                  ),
+                ),
         ],
       ),
     );
