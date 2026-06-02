@@ -21,6 +21,13 @@ export class SchemaCompatibilityService implements OnModuleInit {
   constructor(@InjectDataSource() private dataSource: DataSource) {}
 
   async onModuleInit(): Promise<void> {
+    if (
+      process.env.NODE_ENV === 'production' ||
+      process.env.DISABLE_SCHEMA_CHECK === 'true'
+    ) {
+      this.logger.log('Bypassing schema compatibility check in production.');
+      return;
+    }
     await this.checkSchemaCompatibility();
   }
 

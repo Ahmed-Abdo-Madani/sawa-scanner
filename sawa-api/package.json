@@ -21,6 +21,7 @@
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "migration:generate": "typeorm-ts-node-commonjs migration:generate -d src/data-source.ts src/migrations/Migration",
     "migration:run": "typeorm-ts-node-commonjs migration:run -d src/data-source.ts",
+    "migration:run:prod": "typeorm migration:run -d dist/src/data-source.js",
     "migration:revert": "typeorm-ts-node-commonjs migration:revert -d src/data-source.ts",
     "admin:board": "npx ts-node src/scripts/open-bull-board.ts",
     "image-hash:dry-run": "npx ts-node src/scripts/backfill-image-hashes-dry-run.ts",
