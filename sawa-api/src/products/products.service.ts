@@ -161,6 +161,10 @@ export class ProductsService {
     ];
 
     if (!product) {
+      if (process.env.DISABLE_LIVE_SCRAPING === 'true' || process.env.DISABLE_QUEUE_PROCESSORS === 'true') {
+        this.logger.log(`Product with GTIN ${gtin} not found in database. Live scraping is disabled.`);
+        throw new NotFoundException(`Product with GTIN ${gtin} not found`);
+      }
       this.logger.log(`Product with GTIN ${gtin} not found in database. Starting parallel live seeding...`);
       
       const promises = storeConfigs.map(async (store) => {
@@ -307,6 +311,11 @@ export class ProductsService {
     const missingStores = storeConfigs.filter(store => !existingMerchantNames.has(store.nameEn));
 
     if (missingStores.length > 0) {
+      if (process.env.DISABLE_LIVE_SCRAPING === 'true' || process.env.DISABLE_QUEUE_PROCESSORS === 'true') {
+        this.logger.log(`Product with GTIN ${gtin} found in database. Missing prices from ${missingStores.length} stores. Live scraping is disabled.`);
+        product.prices = existingPrices;
+        return product;
+      }
       this.logger.log(`Product with GTIN ${gtin} found in database, but missing prices from ${missingStores.length} stores. Gathering missing prices dynamically...`);
       
       const promises = missingStores.map(async (store) => {
@@ -459,6 +468,12 @@ export class ProductsService {
               return;
             }
 
+            if (process.env.DISABLE_LIVE_SCRAPING === 'true' || process.env.DISABLE_QUEUE_PROCESSORS === 'true') {
+              this.logger.log(`[Stream Seeding] Product found but missing prices from ${missingStores.length} stores. Live scraping is disabled.`);
+              subscriber.next({ data: { type: 'done', payload: product } });
+              subscriber.complete();
+              return;
+            }
             this.logger.log(`[Stream Seeding] Product found but missing prices from ${missingStores.length} stores. Initiating live background scraping...`);
 
             const successfulMatches: any[] = [];
@@ -574,6 +589,19 @@ export class ProductsService {
           }
 
           // If product is not in database, we start parallel live seeding!
+          if (process.env.DISABLE_LIVE_SCRAPING === 'true' || process.env.DISABLE_QUEUE_PROCESSORS === 'true') {
+            this.logger.log(`[Stream Seeding] Product with GTIN ${gtin} not found. Live scraping is disabled.`);
+            subscriber.next({
+              data: {
+                type: 'error',
+                payload: {
+                  message: `Product with GTIN ${gtin} not found`,
+                },
+              },
+            });
+            subscriber.complete();
+            return;
+          }
           this.logger.log(`[Stream Seeding] Product with GTIN ${gtin} not found. Starting streaming live seeding...`);
 
           const successfulMatches: any[] = [];

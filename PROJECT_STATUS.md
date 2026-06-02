@@ -105,6 +105,7 @@
 - [x] Sawa Plus Anonymous Purchases & Subscriptions Compliance Fix (Build 16): Resolved client-side 401 Unauthorized errors when purchasing a subscription as a guest (Guideline 2.1(b)) by implementing under-the-hood Firebase Anonymous Authentication, automatically signing in unauthenticated users on app startup and after sign-out/account-deletion. Exposed explicit subscription length (Monthly) and auto-renewable terms on the `SubscriptionScreen` card header, buttons, and explanation texts in compliance with Guideline 3.1.2(c). Incremented build version to `1.0.0+16`.
 - [x] Sawa Plus In-App Purchase API Timeout Expansion (Build 17): Increased default HTTP request timeout duration in `AuthedHttpClient` from 15 seconds to 30 seconds to prevent network timeouts when the Koyeb backend server experiences cold starts or high latency. Incremented build version to `1.0.0+17`.
 - [x] Sawa Plus Layout Restructure & Search Add to Cart Button (Build 18): Restructured `SubscriptionScreen` by moving purchase/restore buttons and EULA links into the Scaffold's `bottomNavigationBar` inside a `SafeArea` to keep checkout buttons locked and visible on small screen devices without scrolling (Guideline 2.1(b)). Integrated an interactive "Add to Cart" button (transitioning to a `[ - ] qty [ + ]` selector when in the cart) on `_ProductResultCard` in `SearchScreen` below the product title, removing the navigation chevron to prevent horizontal layout crowding. Incremented build version to `1.0.0+18`.
+- [x] Production Live-Scraping Bypass: Implemented environment variable `DISABLE_LIVE_SCRAPING` (and fallback checking for `DISABLE_QUEUE_PROCESSORS`) in `ProductsService` to allow the production Koyeb server to completely bypass Playwright browser launches and live web scraping, serving existing database records normally.
 
 ## Architecture Decisions
 - **Self-Healing Scraper Browser Contexts**: To prevent browser contexts from getting locked in a permanently broken/closed state after background crashes (e.g. Chromium terminated by OS memory pressure or page closing exceptions), `BaseScraper` now listens to the `'close'` event on `BrowserContext` and `'disconnected'` on `Browser` to immediately nullify active singleton references. Additionally, `isLaunched()` executes a lightweight, synchronous `this.context.pages()` sanity check at the start of every request. If this check throws an exception, the scraper immediately invalidates its context and browser references, guaranteeing that a fresh, healthy browser instance is automatically launched on the next scrape job.
@@ -172,6 +173,7 @@ Ensure you have updated the `.env` settings to match the optimizations:
 - `HS_CATALOG_MAX_PRODUCTS_PER_CAT=0` (0 = all products)
 - `HS_CATALOG_REQUEST_DELAY_MS=2000`
 - `ETAAM_SCRAPER_REQUEST_DELAY_MS=3000` (base delay in ms for Salla scraper navigations, subject to ±20% jitter)
+- `DISABLE_LIVE_SCRAPING=false` (disable parallel live web scraping on client requests; set to true in production)
 
 ## Key File References
 | File | Role |
