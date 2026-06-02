@@ -310,7 +310,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> with WidgetsBindi
                 // Record to history
                 ref.read(scanHistoryProvider.notifier).addEntry(
                       ScanHistoryEntry(
-                        barcode: fullProduct.gtin,
+                        barcode: fullProduct.gtin.isNotEmpty ? fullProduct.gtin : fullProduct.id,
                         productName: locale.languageCode == 'ar' ? fullProduct.nameAr : fullProduct.nameEn,
                         brand: fullProduct.brand,
                         nutriScore: fullProduct.nutriScoreGrade,
@@ -383,7 +383,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> with WidgetsBindi
       // Record to history
       ref.read(scanHistoryProvider.notifier).addEntry(
             ScanHistoryEntry(
-              barcode: product.gtin,
+              barcode: product.gtin.isNotEmpty ? product.gtin : product.id,
               productName: locale.languageCode == 'ar' ? product.nameAr : product.nameEn,
               brand: product.brand,
               nutriScore: product.nutriScoreGrade,
@@ -400,7 +400,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> with WidgetsBindi
       Navigator.of(context).push(
         MaterialPageRoute(
           builder: (context) => ProductDetailScreen(
-            gtin: gtin,
+            gtin: product.gtin.isNotEmpty ? product.gtin : product.id,
             initialProduct: product,
             // History was already recorded above at line 118
             historyAlreadyRecorded: true,
@@ -452,7 +452,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> with WidgetsBindi
     if (recordHistoryNow) {
       ref.read(scanHistoryProvider.notifier).addEntry(
             ScanHistoryEntry(
-              barcode: product.gtin,
+              barcode: product.gtin.isNotEmpty ? product.gtin : product.id,
               productName:
                   locale.languageCode == 'ar' ? product.nameAr : product.nameEn,
               brand: product.brand,
@@ -472,7 +472,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> with WidgetsBindi
         .push(
           MaterialPageRoute(
             builder: (context) => ProductDetailScreen(
-              gtin: product.gtin,
+              gtin: product.gtin.isNotEmpty ? product.gtin : product.id,
               initialProduct: product,
               capturedImageBytes: capturedBytes,
               selectedMerchant: selectedMerchant,
@@ -1875,9 +1875,11 @@ class _ScannedProductCardState extends ConsumerState<_ScannedProductCard>
   Widget _buildAddToCartButton(BuildContext context, AppLocalizations l10n) {
     final isEnabled = widget.product != null;
     final cart = ref.watch(cartProvider);
-    final isInCart = isEnabled && cart.any((item) =>
-        item.product.gtin == widget.product!.gtin ||
-        item.product.id == widget.product!.id);
+    final isInCart = isEnabled && cart.any((item) {
+      final itemKey = item.product.gtin.isNotEmpty ? item.product.gtin : item.product.id;
+      final targetKey = widget.product!.gtin.isNotEmpty ? widget.product!.gtin : widget.product!.id;
+      return itemKey == targetKey;
+    });
 
     return ElevatedButton.icon(
       onPressed: isEnabled && !isInCart

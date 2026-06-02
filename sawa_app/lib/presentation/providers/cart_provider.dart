@@ -65,47 +65,52 @@ class CartNotifier extends StateNotifier<List<CartItem>> {
     state = items;
   }
 
+  String _getProductKey(Product product) {
+    return product.gtin.isNotEmpty ? product.gtin : product.id;
+  }
+
   Future<void> addProduct(Product product, {int quantity = 1}) async {
     // 1. Cache product locally to guarantee it persists in Hive
     final localDataSource = ref.read(productLocalDataSourceProvider);
     await localDataSource.cacheProduct(product);
 
     // 2. Update state and Hive
-    final existingIndex = state.indexWhere((item) => item.product.gtin == product.gtin);
+    final productKey = _getProductKey(product);
+    final existingIndex = state.indexWhere((item) => _getProductKey(item.product) == productKey);
     final List<CartItem> newList = List.from(state);
 
     if (existingIndex != -1) {
       final oldItem = newList[existingIndex];
       final newQty = oldItem.quantity + quantity;
       newList[existingIndex] = oldItem.copyWith(quantity: newQty);
-      await _cartBox.put(product.gtin, newQty);
+      await _cartBox.put(productKey, newQty);
     } else {
       newList.add(CartItem(product: product, quantity: quantity));
-      await _cartBox.put(product.gtin, quantity);
+      await _cartBox.put(productKey, quantity);
     }
 
     state = newList;
   }
 
-  Future<void> updateQuantity(String gtin, int quantity) async {
+  Future<void> updateQuantity(String key, int quantity) async {
     if (quantity <= 0) {
-      await removeProduct(gtin);
+      await removeProduct(key);
       return;
     }
 
-    final index = state.indexWhere((item) => item.product.gtin == gtin);
+    final index = state.indexWhere((item) => _getProductKey(item.product) == key);
     if (index == -1) return;
 
     final List<CartItem> newList = List.from(state);
     newList[index] = newList[index].copyWith(quantity: quantity);
     state = newList;
 
-    await _cartBox.put(gtin, quantity);
+    await _cartBox.put(key, quantity);
   }
 
-  Future<void> removeProduct(String gtin) async {
-    state = state.where((item) => item.product.gtin != gtin).toList();
-    await _cartBox.delete(gtin);
+  Future<void> removeProduct(String key) async {
+    state = state.where((item) => _getProductKey(item.product) != key).toList();
+    await _cartBox.delete(key);
   }
 
   Future<void> clearCart() async {

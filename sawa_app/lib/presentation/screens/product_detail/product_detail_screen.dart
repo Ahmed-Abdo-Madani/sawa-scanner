@@ -57,7 +57,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
     _hasRecordedHistory = true;
 
     final entry = ScanHistoryEntry(
-      barcode: product.gtin,
+      barcode: product.gtin.isNotEmpty ? product.gtin : product.id,
       productName: locale.languageCode == 'ar' ? product.nameAr : product.nameEn,
       brand: product.brand,
       nutriScore: product.nutriScoreGrade,
@@ -331,7 +331,11 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
         : selectedPrice.merchant;
 
     final cartItems = ref.watch(cartProvider);
-    final cartItem = cartItems.where((item) => item.product.gtin == product.gtin).firstOrNull;
+    final productKey = product.gtin.isNotEmpty ? product.gtin : product.id;
+    final cartItem = cartItems.where((item) {
+      final itemKey = item.product.gtin.isNotEmpty ? item.product.gtin : item.product.id;
+      return itemKey == productKey;
+    }).firstOrNull;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -498,7 +502,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                       IconButton(
                         icon: const Icon(Icons.remove, color: AppColors.primary),
                         onPressed: () {
-                          ref.read(cartProvider.notifier).updateQuantity(product.gtin, cartItem.quantity - 1);
+                          ref.read(cartProvider.notifier).updateQuantity(productKey, cartItem.quantity - 1);
                         },
                       ),
                       Text(
@@ -512,7 +516,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                       IconButton(
                         icon: const Icon(Icons.add, color: AppColors.primary),
                         onPressed: () {
-                          ref.read(cartProvider.notifier).updateQuantity(product.gtin, cartItem.quantity + 1);
+                          ref.read(cartProvider.notifier).updateQuantity(productKey, cartItem.quantity + 1);
                         },
                       ),
                     ],

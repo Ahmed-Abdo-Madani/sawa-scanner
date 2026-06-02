@@ -172,7 +172,10 @@ class _ProductResultCard extends StatelessWidget {
       onTap: () {
         Navigator.of(context).push(
           MaterialPageRoute(
-            builder: (context) => ProductDetailScreen(gtin: product.gtin, initialProduct: product),
+            builder: (context) => ProductDetailScreen(
+              gtin: product.gtin.isNotEmpty ? product.gtin : product.id,
+              initialProduct: product,
+            ),
           ),
         );
       },
