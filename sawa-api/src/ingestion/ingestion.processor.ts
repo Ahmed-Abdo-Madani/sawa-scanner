@@ -479,7 +479,7 @@ export class IngestionProcessor extends WorkerHost implements OnModuleInit {
             platform_branch_id: branch.platform_branch_id,
             platform_branch_uuid: branch.platform_branch_uuid,
             merchant_name_en: normalizeHsMerchantName(branch.merchant_name_en),
-            merchant_name_ar: branch.merchant_name_ar,
+            merchant_name_ar: branch.merchant_name_ar ? normalizeHsMerchantName(branch.merchant_name_ar, true) : undefined,
             vertical: branch.vertical,
             city_slug: citySlug!,
             city_name_en,

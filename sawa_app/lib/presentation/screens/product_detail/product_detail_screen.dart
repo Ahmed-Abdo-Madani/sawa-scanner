@@ -15,6 +15,8 @@ import '../../../core/theme/app_typography.dart';
 import '../../../domain/entities/product.dart';
 import '../../../domain/entities/price_info.dart';
 import '../../../core/exceptions.dart';
+import '../../providers/nearby_prices_provider.dart';
+import '../../../data/datasources/location_service.dart';
 
 
 class ProductDetailScreen extends ConsumerStatefulWidget {
@@ -52,6 +54,196 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
     _hasRecordedHistory = widget.historyAlreadyRecorded;
   }
 
+  String _cleanMerchantName(String name) {
+    if (name.isEmpty) return '';
+    String cleaned = name.replaceAll(
+      RegExp(
+        r'(?:[\d\u0660-\u0669]+(?:\.[\d\u0660-\u0669]+)?\s*-?\s*[\d\u0660-\u0669]+(?:\.[\d\u0660-\u0669]+)?|[\d\u0660-\u0669]+(?:\.[\d\u0660-\u0669]+)?)\s*(?:mins|min|hours|hour|hour-min|hours-mins|دقيقة|دقيقه|د|ساعة|ساعه|س).*$',
+        caseSensitive: false,
+      ),
+      '',
+    ).trim();
+
+    cleaned = cleaned
+        .replaceAll(RegExp(r'\s*\(HungerStation\)', caseSensitive: false), '')
+        .replaceAll(RegExp(r'\s*\(هنقرستيشن\)', caseSensitive: false), '')
+        .replaceAll(RegExp(r'\s*\(Hunger\s+Station\)', caseSensitive: false), '')
+        .replaceAll(RegExp(r'\s*HungerStation\b', caseSensitive: false), '')
+        .replaceAll(RegExp(r'\s*Hunger\s+Station\b', caseSensitive: false), '')
+        .replaceAll(RegExp(r'\s*هنقرستيشن\b', caseSensitive: false), '')
+        .trim();
+
+    return cleaned;
+  }
+
+  List<PriceInfo> _deduplicatePrices(List<PriceInfo> prices, ({double lat, double lng})? userLocation) {
+    final groups = <String, List<PriceInfo>>{};
+    for (final p in prices) {
+      final key = _cleanMerchantName(p.merchant).toLowerCase().trim();
+      groups.putIfAbsent(key, () => []).add(p);
+    }
+
+    final List<PriceInfo> result = [];
+    for (final group in groups.values) {
+      if (group.length == 1) {
+        final p = group.first;
+        if (userLocation != null && p.storeLat != null && p.storeLng != null) {
+          final dist = LocationService.distanceKm(
+            userLocation.lat,
+            userLocation.lng,
+            p.storeLat!,
+            p.storeLng!,
+          );
+          result.add(PriceInfo(
+            merchant: p.merchant,
+            merchantAr: p.merchantAr,
+            logoUrl: p.logoUrl,
+            sourceUrl: p.sourceUrl,
+            priceSarInclVat: p.priceSarInclVat,
+            promoPriceSar: p.promoPriceSar,
+            unitPriceSar: p.unitPriceSar,
+            unitPriceUnit: p.unitPriceUnit,
+            inStock: p.inStock,
+            scrapedAt: p.scrapedAt,
+            storeId: p.storeId,
+            storeName: p.storeName,
+            storeNameAr: p.storeNameAr,
+            districtName: p.districtName,
+            districtNameAr: p.districtNameAr,
+            storeLat: p.storeLat,
+            storeLng: p.storeLng,
+            distanceKm: dist,
+          ));
+        } else {
+          result.add(p);
+        }
+      } else {
+        PriceInfo best = group.first;
+        double? bestDist;
+        if (userLocation != null) {
+          double minDistance = double.infinity;
+          for (final p in group) {
+            if (p.storeLat != null && p.storeLng != null) {
+              final dist = LocationService.distanceKm(
+                userLocation.lat,
+                userLocation.lng,
+                p.storeLat!,
+                p.storeLng!,
+              );
+              if (dist < minDistance) {
+                minDistance = dist;
+                best = p;
+                bestDist = dist;
+              }
+            }
+          }
+        } else {
+          // Fallback: cheapest price
+          double minPrice = double.infinity;
+          for (final p in group) {
+            if (p.priceSarInclVat < minPrice) {
+              minPrice = p.priceSarInclVat;
+              best = p;
+            }
+          }
+        }
+
+        result.add(PriceInfo(
+          merchant: best.merchant,
+          merchantAr: best.merchantAr,
+          logoUrl: best.logoUrl,
+          sourceUrl: best.sourceUrl,
+          priceSarInclVat: best.priceSarInclVat,
+          promoPriceSar: best.promoPriceSar,
+          unitPriceSar: best.unitPriceSar,
+          unitPriceUnit: best.unitPriceUnit,
+          inStock: best.inStock,
+          scrapedAt: best.scrapedAt,
+          storeId: best.storeId,
+          storeName: best.storeName,
+          storeNameAr: best.storeNameAr,
+          districtName: best.districtName,
+          districtNameAr: best.districtNameAr,
+          storeLat: best.storeLat,
+          storeLng: best.storeLng,
+          distanceKm: bestDist,
+        ));
+      }
+    }
+
+    // Sort: HungerStation first, then cheapest
+    result.sort((a, b) {
+      final aIsHs = a.storeId != null;
+      final bIsHs = b.storeId != null;
+      if (aIsHs && !bIsHs) return -1;
+      if (!aIsHs && bIsHs) return 1;
+      return a.priceSarInclVat.compareTo(b.priceSarInclVat);
+    });
+
+    return result;
+  }
+
+  Map<double, String> _classifyPrices(List<PriceInfo> prices) {
+    if (prices.isEmpty) return {};
+    final uniquePrices = prices.map((p) => p.priceSarInclVat).toSet().toList();
+    if (uniquePrices.length == 1) {
+      return {uniquePrices.first: 'common'};
+    }
+
+    // Count frequencies
+    final counts = <double, int>{};
+    for (final p in prices) {
+      counts[p.priceSarInclVat] = (counts[p.priceSarInclVat] ?? 0) + 1;
+    }
+
+    // Find the max frequency
+    int maxCount = 0;
+    for (final count in counts.values) {
+      if (count > maxCount) {
+        maxCount = count;
+      }
+    }
+
+    // Find all prices that have this max frequency
+    final modes = counts.entries
+        .where((e) => e.value == maxCount)
+        .map((e) => e.key)
+        .toList();
+
+    // If all unique prices have same frequency, we use lowest as low, highest as high, and others as common.
+    final allSameFrequency = counts.values.toSet().length == 1;
+
+    if (allSameFrequency) {
+      final lowest = uniquePrices.reduce((a, b) => a < b ? a : b);
+      final highest = uniquePrices.reduce((a, b) => a > b ? a : b);
+      final classification = <double, String>{};
+      for (final pr in uniquePrices) {
+        if (pr == lowest) {
+          classification[pr] = 'low';
+        } else if (pr == highest) {
+          classification[pr] = 'high';
+        } else {
+          classification[pr] = 'common';
+        }
+      }
+      return classification;
+    }
+
+    // Otherwise, we have a clear mode (common price)
+    final commonPrice = modes.first;
+    final classification = <double, String>{};
+    for (final pr in uniquePrices) {
+      if (pr == commonPrice) {
+        classification[pr] = 'common';
+      } else if (pr < commonPrice) {
+        classification[pr] = 'low';
+      } else {
+        classification[pr] = 'high';
+      }
+    }
+    return classification;
+  }
+
   void _maybeSaveHistory(Product product, Locale locale) {
     if (_hasRecordedHistory) return;
     _hasRecordedHistory = true;
@@ -83,6 +275,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
     final productAsync = ref.watch(productByGtinProvider(widget.gtin));
     final l10n = AppLocalizations.of(context)!;
     final locale = Localizations.localeOf(context);
+    final userLocation = ref.watch(userLocationProvider);
 
     // Record history once when a product loads successfully.
     ref.listen<AsyncValue<Product>>(productByGtinProvider(widget.gtin),
@@ -97,15 +290,15 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
       floatingActionButton: null,
       body: productAsync.when(
         data: (product) =>
-            _buildContent(context, product, l10n, locale),
+            _buildContent(context, product, l10n, locale, userLocation),
         loading: () => widget.initialProduct != null
-            ? _buildContent(context, widget.initialProduct!, l10n, locale)
+            ? _buildContent(context, widget.initialProduct!, l10n, locale, userLocation)
             : const Center(
                 child: CircularProgressIndicator(color: AppColors.primary)),
         error: (err, stack) {
           if (widget.initialProduct != null) {
             return _buildContent(
-                context, widget.initialProduct!, l10n, locale);
+                context, widget.initialProduct!, l10n, locale, userLocation);
           }
           return _buildError(context, err, l10n, locale);
         },
@@ -122,6 +315,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
     Product product,
     AppLocalizations l10n,
     Locale locale,
+    ({double lat, double lng})? userLocation,
   ) {
     return RefreshIndicator(
       color: AppColors.primary,
@@ -146,7 +340,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
           SliverList(
             delegate: SliverChildListDelegate([
               const SizedBox(height: 16),
-              _buildPriceDashboard(context, product, l10n, locale),
+              _buildPriceDashboard(context, product, l10n, locale, userLocation),
               const SizedBox(height: 24),
             ]),
           ),
@@ -266,6 +460,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
     Product product,
     AppLocalizations l10n,
     Locale locale,
+    ({double lat, double lng})? userLocation,
   ) {
     if (product.prices.isEmpty) {
       return Padding(
@@ -298,14 +493,8 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
         .where((p) => p.priceSarInclVat > 0)
         .toList();
 
-    double? lowest;
-    double? highest;
-
-    if (validPrices.isNotEmpty) {
-      final numericalPrices = validPrices.map((p) => p.priceSarInclVat).toList();
-      lowest = numericalPrices.reduce((a, b) => a < b ? a : b);
-      highest = numericalPrices.reduce((a, b) => a > b ? a : b);
-    }
+    final deduplicatedPrices = _deduplicatePrices(validPrices, userLocation);
+    final classifications = _classifyPrices(validPrices);
 
     final cartItems = ref.watch(cartProvider);
     final productKey = product.gtin.isNotEmpty ? product.gtin : product.id;
@@ -319,13 +508,15 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          ...validPrices.map((price) {
-            final isLow = lowest != null && highest != null && lowest != highest && price.priceSarInclVat == lowest;
-            final isHigh = lowest != null && highest != null && lowest != highest && price.priceSarInclVat == highest;
+          ...deduplicatedPrices.map((price) {
+            final priceClass = classifications[price.priceSarInclVat] ?? 'common';
+            final isLow = priceClass == 'low';
+            final isHigh = priceClass == 'high';
 
-            final storeName = locale.languageCode == 'ar'
+            final rawStoreName = locale.languageCode == 'ar'
                 ? (price.merchantAr.isNotEmpty ? price.merchantAr : price.merchant)
                 : price.merchant;
+            final storeName = _cleanMerchantName(rawStoreName);
 
             return Card(
               margin: const EdgeInsets.only(bottom: 12),
@@ -360,6 +551,35 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                               color: AppColors.onBackground,
                             ),
                           ),
+                          if (price.districtName != null && price.districtName!.isNotEmpty) ...[
+                            const SizedBox(height: 2),
+                            Text(
+                              locale.languageCode == 'ar'
+                                  ? (price.districtNameAr ?? price.districtName!)
+                                  : price.districtName!,
+                              style: AppTypography.caption(locale).copyWith(
+                                color: AppColors.onSurface.withOpacity(0.6),
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                          if (price.distanceKm != null) ...[
+                            const SizedBox(height: 2),
+                            Row(
+                              children: [
+                                const Icon(Icons.near_me, size: 10, color: AppColors.primary),
+                                const SizedBox(width: 4),
+                                Text(
+                                  l10n.storeDistance(price.distanceKm!.toStringAsFixed(1)),
+                                  style: AppTypography.caption(locale).copyWith(
+                                    color: AppColors.primary,
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 11,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
                           const SizedBox(height: 4),
                           if (isLow)
                             _buildPriceTierBadge(

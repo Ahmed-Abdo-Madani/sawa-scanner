@@ -133,13 +133,24 @@ class PriceInfoAdapter extends TypeAdapter<PriceInfo> {
       priceSarInclVat: fields[4] as double,
       inStock: fields[5] as bool,
       scrapedAt: fields[6] as DateTime,
+      promoPriceSar: fields[7] as double?,
+      unitPriceSar: fields[8] as double?,
+      unitPriceUnit: fields[9] as String?,
+      storeId: fields[10] as String?,
+      storeName: fields[11] as String?,
+      storeNameAr: fields[12] as String?,
+      districtName: fields[13] as String?,
+      districtNameAr: fields[14] as String?,
+      storeLat: fields[15] as double?,
+      storeLng: fields[16] as double?,
+      distanceKm: fields[17] as double?,
     );
   }
 
   @override
   void write(BinaryWriter writer, PriceInfo obj) {
     writer
-      ..writeByte(7)
+      ..writeByte(18)
       ..writeByte(0)
       ..write(obj.merchant)
       ..writeByte(1)
@@ -153,7 +164,29 @@ class PriceInfoAdapter extends TypeAdapter<PriceInfo> {
       ..writeByte(5)
       ..write(obj.inStock)
       ..writeByte(6)
-      ..write(obj.scrapedAt);
+      ..write(obj.scrapedAt)
+      ..writeByte(7)
+      ..write(obj.promoPriceSar)
+      ..writeByte(8)
+      ..write(obj.unitPriceSar)
+      ..writeByte(9)
+      ..write(obj.unitPriceUnit)
+      ..writeByte(10)
+      ..write(obj.storeId)
+      ..writeByte(11)
+      ..write(obj.storeName)
+      ..writeByte(12)
+      ..write(obj.storeNameAr)
+      ..writeByte(13)
+      ..write(obj.districtName)
+      ..writeByte(14)
+      ..write(obj.districtNameAr)
+      ..writeByte(15)
+      ..write(obj.storeLat)
+      ..writeByte(16)
+      ..write(obj.storeLng)
+      ..writeByte(17)
+      ..write(obj.distanceKm);
   }
 }
 
@@ -279,7 +312,7 @@ class ProductLocalDataSource {
   static const String cacheVersionBoxName = 'productCacheVersionBox';
   /// Cache schema version. Increment when Hive adapter field layout changes
   /// (e.g., adding sawaDbAvailable). Mismatch triggers cache invalidation.
-  static const int currentCacheVersion = 2;
+  static const int currentCacheVersion = 3;
   static const String cacheVersionKey = 'schemaVersion';
 
   Box<Product> get _productsBox => Hive.box<Product>(productsBoxName);

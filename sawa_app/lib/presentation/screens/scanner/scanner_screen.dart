@@ -1299,10 +1299,32 @@ class _ScannedProductCardState extends ConsumerState<_ScannedProductCard>
     return mode;
   }
 
+  String _cleanMerchantName(String name) {
+    if (name.isEmpty) return '';
+    String cleaned = name.replaceAll(
+      RegExp(
+        r'(?:[\d\u0660-\u0669]+(?:\.[\d\u0660-\u0669]+)?\s*-?\s*[\d\u0660-\u0669]+(?:\.[\d\u0660-\u0669]+)?|[\d\u0660-\u0669]+(?:\.[\d\u0660-\u0669]+)?)\s*(?:mins|min|hours|hour|hour-min|hours-mins|دقيقة|دقيقه|د|ساعة|ساعه|س).*$',
+        caseSensitive: false,
+      ),
+      '',
+    ).trim();
+
+    cleaned = cleaned
+        .replaceAll(RegExp(r'\s*\(HungerStation\)', caseSensitive: false), '')
+        .replaceAll(RegExp(r'\s*\(هنقرستيشن\)', caseSensitive: false), '')
+        .replaceAll(RegExp(r'\s*\(Hunger\s+Station\)', caseSensitive: false), '')
+        .replaceAll(RegExp(r'\s*HungerStation\b', caseSensitive: false), '')
+        .replaceAll(RegExp(r'\s*Hunger\s+Station\b', caseSensitive: false), '')
+        .replaceAll(RegExp(r'\s*هنقرستيشن\b', caseSensitive: false), '')
+        .trim();
+
+    return cleaned;
+  }
+
   List<PriceInfo> _deduplicatePrices(List<PriceInfo> prices, ({double lat, double lng})? userLocation) {
     final groups = <String, List<PriceInfo>>{};
     for (final p in prices) {
-      final key = p.merchant.toLowerCase().trim();
+      final key = _cleanMerchantName(p.merchant).toLowerCase().trim();
       groups.putIfAbsent(key, () => []).add(p);
     }
 
@@ -1426,7 +1448,7 @@ class _ScannedProductCardState extends ConsumerState<_ScannedProductCard>
 
     final List<double> priceValues = widget.isScanning
         ? widget.storePrices.values.toList()
-        : validPrices.map((p) => p.priceSarInclVat).toList();
+        : rawPrices.map((p) => p.priceSarInclVat).toList();
 
     if (priceValues.isNotEmpty) {
       lowest = priceValues.reduce((a, b) => a < b ? a : b);
@@ -1885,11 +1907,12 @@ class _ScannedProductCardState extends ConsumerState<_ScannedProductCard>
       }
     } else {
       for (final priceInfo in validPrices) {
-        final storeName = isRtl
+        final rawStoreName = isRtl
             ? (priceInfo.merchantAr.isNotEmpty
                 ? priceInfo.merchantAr
                 : priceInfo.merchant)
             : priceInfo.merchant;
+        final storeName = _cleanMerchantName(rawStoreName);
         final distName = isRtl
             ? (priceInfo.districtNameAr ?? priceInfo.districtName)
             : priceInfo.districtName;

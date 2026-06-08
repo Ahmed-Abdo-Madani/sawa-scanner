@@ -1,100 +1,6 @@
-/**
- * Brute-force JSON-object extractor used by hydration sweeps.
- *
- * Scans `text` for every occurrence of `marker` and walks backwards to find
- * the smallest enclosing `{…}` that is valid JSON. Duplicate containment is
- * avoided because we break as soon as the first valid enclosure is found.
- */
-export function findJSONObjects(text: string, marker: string): any[] {
-  const results: any[] = [];
-  let searchIndex = 0;
+import { MigrationInterface, QueryRunner } from "typeorm";
 
-  while ((searchIndex = text.indexOf(marker, searchIndex)) !== -1) {
-    let pos = searchIndex;
-
-    // Search backwards for potential starting braces
-    while (pos >= 0) {
-      pos = text.lastIndexOf('{', pos);
-      if (pos === -1) break;
-
-      let braceCount = 0;
-      let inString = false;
-      let isEscaped = false;
-      let closedIndex = -1;
-
-      for (let i = pos; i < text.length; i++) {
-        const char = text[i];
-        if (inString) {
-          if (char === '\\') {
-            isEscaped = !isEscaped;
-          } else if (char === '"' && !isEscaped) {
-            inString = false;
-          } else {
-            isEscaped = false;
-          }
-        } else {
-          if (char === '"') {
-            inString = true;
-          } else if (char === '{') {
-            braceCount++;
-          } else if (char === '}') {
-            braceCount--;
-            if (braceCount === 0) {
-              closedIndex = i;
-              break;
-            }
-          }
-        }
-      }
-
-      if (closedIndex !== -1 && closedIndex >= searchIndex) {
-        const potentialJson = text.substring(pos, closedIndex + 1);
-        try {
-          const parsed = JSON.parse(potentialJson);
-          results.push(parsed);
-          break; // Found the immediate containing object; move to next marker occurrence
-        } catch (_) {
-          /* not valid JSON at this bracket level — try a wider one */
-        }
-      }
-      pos--; // Move before this '{' to look for a parent
-    }
-
-    searchIndex += marker.length;
-  }
-  return results;
-}
-
-/**
- * Decodes a Next.js RSC (React Server Component) stream from a script block.
- * Handles escaping and Unicode sequences using JSON.parse for robustness.
- */
-export function decodeRscStream(text: string): any[] {
-  const chunks: string[] = [];
-  const regexNextF =
-    /self\.__next_f\.push\(\[\d+,\s*"(?<content>(?:[^"\\]|\\.)*)"\]\)/gs;
-  let match: RegExpExecArray | null;
-
-  while ((match = regexNextF.exec(text)) !== null) {
-    try {
-      const rawEncoded = (match.groups as any).content as string;
-      // Using JSON.parse to correctly handle all escape sequences including Unicode
-      const decoded = JSON.parse('"' + rawEncoded + '"');
-      chunks.push(decoded);
-    } catch (_) {
-      /* skip malformed chunk */
-    }
-  }
-
-  const fullStream = chunks.join('');
-  return [
-    ...findJSONObjects(fullStream, '"slug"'),
-    ...findJSONObjects(fullStream, '"name_en"'),
-    ...findJSONObjects(fullStream, '"nameEn"'),
-  ];
-}
-
-export function normalizeHsMerchantName(rawName: string, isArabic = false): string {
+function normalizeHsMerchantName(rawName: string, isArabic = false): string {
   if (!rawName) return '';
   let name = rawName.trim();
 
@@ -155,4 +61,73 @@ export function normalizeHsMerchantName(rawName: string, isArabic = false): stri
   if (name.includes('لولو')) return 'لولو';
 
   return name;
+}
+
+export class FixArabicMerchantNamesAndDeduplicate1780824526175 implements MigrationInterface {
+    name = 'FixArabicMerchantNamesAndDeduplicate1780824526175'
+
+    public async up(queryRunner: QueryRunner): Promise<void> {
+        const merchants = await queryRunner.query('SELECT id, name_en, name_ar FROM merchant');
+        
+        const normalizedMap = new Map<string, { id: string; name_en: string; cleanEn: string; cleanAr: string }>();
+        const merges: { sourceId: string; targetId: string; cleanEn: string; cleanAr: string }[] = [];
+        const updates: { id: string; cleanEn: string; cleanAr: string }[] = [];
+
+        for (const row of merchants) {
+            const cleanEn = normalizeHsMerchantName(row.name_en, false);
+            const cleanAr = row.name_ar ? normalizeHsMerchantName(row.name_ar, true) : normalizeHsMerchantName(row.name_en, true);
+
+            const key = cleanEn.toLowerCase();
+            const existing = normalizedMap.get(key);
+            
+            if (existing) {
+                merges.push({
+                    sourceId: row.id,
+                    targetId: existing.id,
+                    cleanEn,
+                    cleanAr: existing.cleanAr || cleanAr,
+                });
+            } else {
+                normalizedMap.set(key, { id: row.id, name_en: row.name_en, cleanEn, cleanAr });
+                if (row.name_en !== cleanEn || row.name_ar !== cleanAr) {
+                    updates.push({
+                        id: row.id,
+                        cleanEn,
+                        cleanAr,
+                    });
+                }
+            }
+        }
+
+        // Execute merges first
+        for (const m of merges) {
+            // Update stores to point to the target merchant
+            await queryRunner.query(
+                `UPDATE "store" SET "merchant_id" = $1 WHERE "merchant_id" = $2`,
+                [m.targetId, m.sourceId]
+            );
+            // Update product prices to point to the target merchant
+            await queryRunner.query(
+                `UPDATE "product_price" SET "merchant_id" = $1 WHERE "merchant_id" = $2`,
+                [m.targetId, m.sourceId]
+            );
+            // Delete the duplicate merchant
+            await queryRunner.query(
+                `DELETE FROM "merchant" WHERE "id" = $1`,
+                [m.sourceId]
+            );
+        }
+
+        // Execute renames/updates
+        for (const u of updates) {
+            await queryRunner.query(
+                `UPDATE "merchant" SET "name_en" = $1, "name_ar" = $2 WHERE "id" = $3`,
+                [u.cleanEn, u.cleanAr, u.id]
+            );
+        }
+    }
+
+    public async down(queryRunner: QueryRunner): Promise<void> {
+        // renaming and merging is destructive/one-way
+    }
 }

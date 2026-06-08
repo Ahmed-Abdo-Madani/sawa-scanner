@@ -22,10 +22,32 @@ class PriceComparisonScreen extends ConsumerWidget {
     required this.productName,
   });
 
+  String _cleanMerchantName(String name) {
+    if (name.isEmpty) return '';
+    String cleaned = name.replaceAll(
+      RegExp(
+        r'(?:[\d\u0660-\u0669]+(?:\.[\d\u0660-\u0669]+)?\s*-?\s*[\d\u0660-\u0669]+(?:\.[\d\u0660-\u0669]+)?|[\d\u0660-\u0669]+(?:\.[\d\u0660-\u0669]+)?)\s*(?:mins|min|hours|hour|hour-min|hours-mins|دقيقة|دقيقه|د|ساعة|ساعه|س).*$',
+        caseSensitive: false,
+      ),
+      '',
+    ).trim();
+
+    cleaned = cleaned
+        .replaceAll(RegExp(r'\s*\(HungerStation\)', caseSensitive: false), '')
+        .replaceAll(RegExp(r'\s*\(هنقرستيشن\)', caseSensitive: false), '')
+        .replaceAll(RegExp(r'\s*\(Hunger\s+Station\)', caseSensitive: false), '')
+        .replaceAll(RegExp(r'\s*HungerStation\b', caseSensitive: false), '')
+        .replaceAll(RegExp(r'\s*Hunger\s+Station\b', caseSensitive: false), '')
+        .replaceAll(RegExp(r'\s*هنقرستيشن\b', caseSensitive: false), '')
+        .trim();
+
+    return cleaned;
+  }
+
   List<PriceInfo> _deduplicatePrices(List<PriceInfo> prices, ({double lat, double lng})? userLocation) {
     final groups = <String, List<PriceInfo>>{};
     for (final p in prices) {
-      final key = p.merchant.toLowerCase().trim();
+      final key = _cleanMerchantName(p.merchant).toLowerCase().trim();
       groups.putIfAbsent(key, () => []).add(p);
     }
 
@@ -177,7 +199,7 @@ class PriceComparisonScreen extends ConsumerWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      locale.languageCode == 'ar' ? price.merchantAr : price.merchant,
+                      locale.languageCode == 'ar' ? _cleanMerchantName(price.merchantAr) : _cleanMerchantName(price.merchant),
                       style: AppTypography.body(locale).copyWith(fontWeight: FontWeight.bold),
                     ),
                     if (price.districtName != null && price.districtName!.isNotEmpty) ...[
