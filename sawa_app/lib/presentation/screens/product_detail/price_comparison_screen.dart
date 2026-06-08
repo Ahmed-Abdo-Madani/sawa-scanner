@@ -6,6 +6,8 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:intl/intl.dart' as intl;
 
 import '../../providers/price_comparison_provider.dart';
+import '../../providers/nearby_prices_provider.dart';
+import '../../../data/datasources/location_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../domain/entities/price_info.dart';
@@ -20,11 +22,67 @@ class PriceComparisonScreen extends ConsumerWidget {
     required this.productName,
   });
 
+  List<PriceInfo> _deduplicatePrices(List<PriceInfo> prices, ({double lat, double lng})? userLocation) {
+    final groups = <String, List<PriceInfo>>{};
+    for (final p in prices) {
+      final key = p.merchant.toLowerCase().trim();
+      groups.putIfAbsent(key, () => []).add(p);
+    }
+
+    final List<PriceInfo> result = [];
+    for (final group in groups.values) {
+      if (group.length == 1) {
+        result.add(group.first);
+      } else {
+        PriceInfo best = group.first;
+        if (userLocation != null) {
+          double minDistance = double.infinity;
+          for (final p in group) {
+            if (p.storeLat != null && p.storeLng != null) {
+              final dist = LocationService.distanceKm(
+                userLocation.lat,
+                userLocation.lng,
+                p.storeLat!,
+                p.storeLng!,
+              );
+              if (dist < minDistance) {
+                minDistance = dist;
+                best = p;
+              }
+            }
+          }
+        } else {
+          // Fallback: cheapest price
+          double minPrice = double.infinity;
+          for (final p in group) {
+            if (p.priceSarInclVat < minPrice) {
+              minPrice = p.priceSarInclVat;
+              best = p;
+            }
+          }
+        }
+        result.add(best);
+      }
+    }
+
+    // Sort: HungerStation first, then cheapest
+    result.sort((a, b) {
+      final aIsHs = a.storeId != null;
+      final bIsHs = b.storeId != null;
+      if (aIsHs && !bIsHs) return -1;
+      if (!aIsHs && bIsHs) return 1;
+      return a.priceSarInclVat.compareTo(b.priceSarInclVat);
+    });
+
+    return result;
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final pricesAsync = ref.watch(latestPricesProvider(gtin));
     final historyAsync = ref.watch(priceHistoryProvider(gtin));
     final isPlus = ref.watch(isSawaPlusProvider);
+    final userLocation = ref.watch(userLocationProvider);
     
     final l10n = AppLocalizations.of(context)!;
     final locale = Localizations.localeOf(context);
@@ -50,7 +108,7 @@ class PriceComparisonScreen extends ConsumerWidget {
             
             // Latest Prices List
             pricesAsync.when(
-              data: (prices) => _buildPriceList(context, prices, l10n, locale),
+              data: (prices) => _buildPriceList(context, prices, userLocation, l10n, locale),
               loading: () => const Center(child: CircularProgressIndicator(color: AppColors.primary)),
               error: (err, _) => Center(child: Text(l10n.serverError)),
             ),
@@ -67,11 +125,19 @@ class PriceComparisonScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildPriceList(BuildContext context, List<PriceInfo> prices, AppLocalizations l10n, Locale locale) {
+  Widget _buildPriceList(
+    BuildContext context,
+    List<PriceInfo> prices,
+    ({double lat, double lng})? userLocation,
+    AppLocalizations l10n,
+    Locale locale,
+  ) {
     if (prices.isEmpty) return const SizedBox.shrink();
 
+    final deduplicated = _deduplicatePrices(prices, userLocation);
+
     return Column(
-      children: prices.map((price) => _buildPriceCard(context, price, l10n, locale)).toList(),
+      children: deduplicated.map((price) => _buildPriceCard(context, price, l10n, locale)).toList(),
     );
   }
 
@@ -114,6 +180,32 @@ class PriceComparisonScreen extends ConsumerWidget {
                       locale.languageCode == 'ar' ? price.merchantAr : price.merchant,
                       style: AppTypography.body(locale).copyWith(fontWeight: FontWeight.bold),
                     ),
+                    if (price.districtName != null && price.districtName!.isNotEmpty) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        locale.languageCode == 'ar'
+                            ? (price.districtNameAr ?? price.districtName!)
+                            : price.districtName!,
+                        style: AppTypography.caption(locale).copyWith(color: AppColors.onSurface.withOpacity(0.6)),
+                      ),
+                    ],
+                    if (price.distanceKm != null) ...[
+                      const SizedBox(height: 2),
+                      Row(
+                        children: [
+                          const Icon(Icons.near_me, size: 12, color: AppColors.primary),
+                          const SizedBox(width: 4),
+                          Text(
+                            l10n.storeDistance(price.distanceKm!.toStringAsFixed(1)),
+                            style: AppTypography.caption(locale).copyWith(
+                              color: AppColors.primary,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                    const SizedBox(height: 4),
                     Text(
                       intl.DateFormat.yMMMd(locale.languageCode).format(price.scrapedAt),
                       style: AppTypography.caption(locale).copyWith(color: AppColors.onSurface),

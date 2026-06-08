@@ -6,6 +6,10 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:sawa_app/l10n/app_localizations.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:async';
+import 'package:geolocator/geolocator.dart';
+import '../../../data/datasources/location_service.dart';
+import '../../providers/nearby_prices_provider.dart';
+import '../../../domain/entities/price_info.dart';
 import '../../providers/scanner_provider.dart';
 import '../../providers/product_provider.dart';
 import '../../providers/scan_history_provider.dart';
@@ -60,11 +64,34 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> with WidgetsBindi
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _silentlyFetchLocation();
     // Barcode mode is now the primary mode
     Future.microtask(() => ref.read(scannerModeProvider.notifier).state = ScannerMode.barcode);
     
     if (widget.isActive) {
       _cameraController.start();
+    }
+  }
+
+  Future<void> _silentlyFetchLocation() async {
+    try {
+      final isEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!isEnabled) return;
+      final permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.whileInUse || permission == LocationPermission.always) {
+        final pos = await Geolocator.getCurrentPosition(
+          locationSettings: const LocationSettings(
+            accuracy: LocationAccuracy.medium,
+            timeLimit: Duration(seconds: 3),
+          ),
+        );
+        ref.read(userLocationProvider.notifier).state = (
+          lat: pos.latitude,
+          lng: pos.longitude,
+        );
+      }
+    } catch (_) {
+      // ignore
     }
   }
 
@@ -1272,16 +1299,125 @@ class _ScannedProductCardState extends ConsumerState<_ScannedProductCard>
     return mode;
   }
 
+  List<PriceInfo> _deduplicatePrices(List<PriceInfo> prices, ({double lat, double lng})? userLocation) {
+    final groups = <String, List<PriceInfo>>{};
+    for (final p in prices) {
+      final key = p.merchant.toLowerCase().trim();
+      groups.putIfAbsent(key, () => []).add(p);
+    }
+
+    final List<PriceInfo> result = [];
+    for (final group in groups.values) {
+      if (group.length == 1) {
+        final p = group.first;
+        if (userLocation != null && p.storeLat != null && p.storeLng != null) {
+          final dist = LocationService.distanceKm(
+            userLocation.lat,
+            userLocation.lng,
+            p.storeLat!,
+            p.storeLng!,
+          );
+          result.add(PriceInfo(
+            merchant: p.merchant,
+            merchantAr: p.merchantAr,
+            logoUrl: p.logoUrl,
+            sourceUrl: p.sourceUrl,
+            priceSarInclVat: p.priceSarInclVat,
+            promoPriceSar: p.promoPriceSar,
+            unitPriceSar: p.unitPriceSar,
+            unitPriceUnit: p.unitPriceUnit,
+            inStock: p.inStock,
+            scrapedAt: p.scrapedAt,
+            storeId: p.storeId,
+            storeName: p.storeName,
+            storeNameAr: p.storeNameAr,
+            districtName: p.districtName,
+            districtNameAr: p.districtNameAr,
+            storeLat: p.storeLat,
+            storeLng: p.storeLng,
+            distanceKm: dist,
+          ));
+        } else {
+          result.add(p);
+        }
+      } else {
+        PriceInfo best = group.first;
+        double? bestDist;
+        if (userLocation != null) {
+          double minDistance = double.infinity;
+          for (final p in group) {
+            if (p.storeLat != null && p.storeLng != null) {
+              final dist = LocationService.distanceKm(
+                userLocation.lat,
+                userLocation.lng,
+                p.storeLat!,
+                p.storeLng!,
+              );
+              if (dist < minDistance) {
+                minDistance = dist;
+                best = p;
+                bestDist = dist;
+              }
+            }
+          }
+        } else {
+          // Fallback: cheapest price
+          double minPrice = double.infinity;
+          for (final p in group) {
+            if (p.priceSarInclVat < minPrice) {
+              minPrice = p.priceSarInclVat;
+              best = p;
+            }
+          }
+        }
+
+        result.add(PriceInfo(
+          merchant: best.merchant,
+          merchantAr: best.merchantAr,
+          logoUrl: best.logoUrl,
+          sourceUrl: best.sourceUrl,
+          priceSarInclVat: best.priceSarInclVat,
+          promoPriceSar: best.promoPriceSar,
+          unitPriceSar: best.unitPriceSar,
+          unitPriceUnit: best.unitPriceUnit,
+          inStock: best.inStock,
+          scrapedAt: best.scrapedAt,
+          storeId: best.storeId,
+          storeName: best.storeName,
+          storeNameAr: best.storeNameAr,
+          districtName: best.districtName,
+          districtNameAr: best.districtNameAr,
+          storeLat: best.storeLat,
+          storeLng: best.storeLng,
+          distanceKm: bestDist,
+        ));
+      }
+    }
+
+    // Sort: HungerStation first, then cheapest
+    result.sort((a, b) {
+      final aIsHs = a.storeId != null;
+      final bIsHs = b.storeId != null;
+      if (aIsHs && !bIsHs) return -1;
+      if (!aIsHs && bIsHs) return 1;
+      return a.priceSarInclVat.compareTo(b.priceSarInclVat);
+    });
+
+    return result;
+  }
+
   @override
   Widget build(BuildContext context) {
     final locale = Localizations.localeOf(context);
     final l10n = AppLocalizations.of(context)!;
     final isRtl = locale.languageCode == 'ar';
 
-    final validPrices = widget.product?.prices
+    final rawPrices = widget.product?.prices
             .where((p) => p.priceSarInclVat > 0)
             .toList() ??
         [];
+    final userLocation = ref.watch(userLocationProvider);
+    final validPrices = _deduplicatePrices(rawPrices, userLocation);
 
     double? lowest;
     double? common;
@@ -1754,11 +1890,16 @@ class _ScannedProductCardState extends ConsumerState<_ScannedProductCard>
                 ? priceInfo.merchantAr
                 : priceInfo.merchant)
             : priceInfo.merchant;
+        final distName = isRtl
+            ? (priceInfo.districtNameAr ?? priceInfo.districtName)
+            : priceInfo.districtName;
         storeRows.add(_StoreRowData(
           name: storeName,
           price: priceInfo.priceSarInclVat,
           status: 'matched',
           logoUrl: priceInfo.logoUrl,
+          districtName: distName,
+          distanceKm: priceInfo.distanceKm,
         ));
       }
     }
@@ -1840,16 +1981,50 @@ class _ScannedProductCardState extends ConsumerState<_ScannedProductCard>
                     ),
                   ),
                   const SizedBox(width: 8),
-                  Text(
-                    row.name,
-                    style: TextStyle(
-                      color: textCol,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                      decoration: row.status == 'failed'
-                          ? TextDecoration.lineThrough
-                          : null,
-                    ),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        row.name,
+                        style: TextStyle(
+                          color: textCol,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                          decoration: row.status == 'failed'
+                              ? TextDecoration.lineThrough
+                              : null,
+                        ),
+                      ),
+                      if (row.districtName != null && row.districtName!.isNotEmpty) ...[
+                        const SizedBox(height: 1),
+                        Text(
+                          row.districtName!,
+                          style: const TextStyle(
+                            color: Colors.white38,
+                            fontSize: 10,
+                          ),
+                        ),
+                      ],
+                      if (row.distanceKm != null) ...[
+                        const SizedBox(height: 1),
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.near_me, size: 10, color: AppColors.primary),
+                            const SizedBox(width: 2),
+                            Text(
+                              l10n.storeDistance(row.distanceKm!.toStringAsFixed(1)),
+                              style: const TextStyle(
+                                color: AppColors.primary,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ],
                   ),
                 ],
               ),
@@ -1927,12 +2102,16 @@ class _StoreRowData {
   final double? price;
   final String status;
   final String? logoUrl;
+  final String? districtName;
+  final double? distanceKm;
 
   _StoreRowData({
     required this.name,
     this.price,
     required this.status,
     this.logoUrl,
+    this.districtName,
+    this.distanceKm,
   });
 }
 

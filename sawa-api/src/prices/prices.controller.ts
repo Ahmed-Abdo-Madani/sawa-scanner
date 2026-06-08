@@ -78,10 +78,6 @@ export class PricesController {
 
       let merchantName = displayMerchant?.name_en || 'Unknown';
       let merchantNameAr = displayMerchant?.name_ar || '';
-      if (isHungerStation) {
-        merchantName = `${merchantName} (HungerStation)`;
-        merchantNameAr = `${merchantNameAr || merchantName} (هنقرستيشن)`;
-      }
 
       return {
         merchant: {
@@ -93,6 +89,13 @@ export class PricesController {
         price_sar_incl_vat: p.price_sar_incl_vat,
         in_stock: p.in_stock,
         scraped_at: p.scraped_at,
+        store_id: p.store_id || null,
+        store_name: p.store?.platform_branch_id || p.store?.platform_branch_uuid || null,
+        store_name_ar: p.store?.platform_branch_id || p.store?.platform_branch_uuid || null,
+        district_name: p.store?.district_name_en || null,
+        district_name_ar: p.store?.district_name_ar || null,
+        store_lat: p.store?.lat !== null && p.store?.lat !== undefined ? Number(p.store.lat) : null,
+        store_lng: p.store?.lng !== null && p.store?.lng !== undefined ? Number(p.store.lng) : null,
       };
     });
   }
@@ -136,10 +139,6 @@ export class PricesController {
 
       let merchantName = displayMerchant?.name_en || 'Unknown';
       let merchantNameAr = displayMerchant?.name_ar || '';
-      if (isHungerStation) {
-        merchantName = `${merchantName} (HungerStation)`;
-        merchantNameAr = `${merchantNameAr || merchantName} (هنقرستيشن)`;
-      }
 
       return {
         merchant: {
@@ -175,10 +174,6 @@ export class PricesController {
 
       let merchantName = displayMerchant?.name_en || 'Unknown';
       let merchantNameAr = displayMerchant?.name_ar || '';
-      if (isHungerStation) {
-        merchantName = `${merchantName} (HungerStation)`;
-        merchantNameAr = `${merchantNameAr || merchantName} (هنقرستيشن)`;
-      }
 
       return {
         store_id: p.store_id,
@@ -198,6 +193,8 @@ export class PricesController {
           name_ar: p.store?.district_name_ar,
           name_en: p.store?.district_name_en,
         },
+        store_lat: p.store?.lat !== null && p.store?.lat !== undefined ? Number(p.store.lat) : null,
+        store_lng: p.store?.lng !== null && p.store?.lng !== undefined ? Number(p.store.lng) : null,
         source_url: p.store?.source_url,
         price_sar_incl_vat: p.price_sar_incl_vat,
         in_stock: p.in_stock,
