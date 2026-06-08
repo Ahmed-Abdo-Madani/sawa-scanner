@@ -111,15 +111,20 @@ export class ProductsController {
       })),
       prices: (() => {
         const rawPrices = product.prices || [];
+
+        const isHsPrice = (p: any) => {
+          if (!p) return false;
+          const name = p.merchant?.name_en?.toLowerCase() || '';
+          return name === 'hungerstation' || name === 'hunger station' || p.store?.platform === 'hungerstation';
+        };
+
         const hasSpecificHsPrices = rawPrices.some(
-          (p) =>
-            (p.store?.platform === 'hungerstation' || p.merchant?.name_en?.toLowerCase() === 'hungerstation') &&
-            p.store_id !== null && p.store_id !== undefined
+          (p) => isHsPrice(p) && p.store_id !== null && p.store_id !== undefined
         );
 
         // Filter out HungerStation prices with null store_id if specific ones exist
         const filteredPrices = rawPrices.filter((p) => {
-          const isHs = p.store?.platform === 'hungerstation' || p.merchant?.name_en?.toLowerCase() === 'hungerstation';
+          const isHs = isHsPrice(p);
           if (isHs && p.store_id === null && hasSpecificHsPrices) {
             return false;
           }
@@ -142,19 +147,20 @@ export class ProductsController {
 
         // Sort HungerStation results first, then by price
         uniquePrices.sort((a, b) => {
-          const aIsHs = a.store?.platform === 'hungerstation' || a.merchant?.name_en?.toLowerCase() === 'hungerstation';
-          const bIsHs = b.store?.platform === 'hungerstation' || b.merchant?.name_en?.toLowerCase() === 'hungerstation';
+          const aIsHs = isHsPrice(a);
+          const bIsHs = isHsPrice(b);
           if (aIsHs && !bIsHs) return -1;
           if (!aIsHs && bIsHs) return 1;
           return a.price_sar_incl_vat - b.price_sar_incl_vat;
         });
 
         return uniquePrices.map((p) => {
-          const isHungerStation = p.merchant?.name_en?.toLowerCase() === 'hungerstation' || p.store?.platform === 'hungerstation';
+          const isHungerStation = isHsPrice(p);
           let displayMerchant = (isHungerStation && p.store?.merchant) ? p.store.merchant : p.merchant;
 
           // Fallback: If it is HungerStation but has no store association, try to infer the merchant from the source_url
-          if (isHungerStation && (!displayMerchant || displayMerchant.name_en?.toLowerCase() === 'hungerstation') && p.source_url) {
+          const displayMerchantName = displayMerchant?.name_en?.toLowerCase() || '';
+          if (isHungerStation && (!displayMerchant || displayMerchantName === 'hungerstation' || displayMerchantName === 'hunger station') && p.source_url) {
             try {
               const urlObj = new URL(p.source_url);
               const pathSegments = urlObj.pathname.split('/');

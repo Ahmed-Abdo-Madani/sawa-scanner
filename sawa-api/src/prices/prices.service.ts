@@ -59,16 +59,19 @@ export class PricesService {
       relations: ['merchant', 'store', 'store.merchant'],
     });
 
+    const isHsPrice = (p: any) => {
+      if (!p) return false;
+      const name = p.merchant?.name_en?.toLowerCase() || '';
+      return name === 'hungerstation' || name === 'hunger station' || p.store?.platform === 'hungerstation';
+    };
+
     const hasSpecificHsPrices = prices.some(
-      (p) =>
-        (p.store?.platform === 'hungerstation' || p.merchant?.name_en?.toLowerCase() === 'hungerstation') &&
-        p.store_id !== null && p.store_id !== undefined
+      (p) => isHsPrice(p) && p.store_id !== null && p.store_id !== undefined
     );
 
     // Filter out HungerStation prices with null store_id if specific ones exist
     const filteredPrices = prices.filter((p) => {
-      const isHs = p.store?.platform === 'hungerstation' || p.merchant?.name_en?.toLowerCase() === 'hungerstation';
-      if (isHs && p.store_id === null && hasSpecificHsPrices) {
+      if (isHsPrice(p) && p.store_id === null && hasSpecificHsPrices) {
         return false;
       }
       return true;
@@ -91,8 +94,8 @@ export class PricesService {
 
     // Sort HungerStation results first, then by price
     latestPrices.sort((a, b) => {
-      const aIsHs = a.store?.platform === 'hungerstation' || a.merchant?.name_en?.toLowerCase() === 'hungerstation';
-      const bIsHs = b.store?.platform === 'hungerstation' || b.merchant?.name_en?.toLowerCase() === 'hungerstation';
+      const aIsHs = isHsPrice(a);
+      const bIsHs = isHsPrice(b);
       if (aIsHs && !bIsHs) return -1;
       if (!aIsHs && bIsHs) return 1;
       return a.price_sar_incl_vat - b.price_sar_incl_vat;

@@ -1313,9 +1313,9 @@ class _ScannedProductCardState extends ConsumerState<_ScannedProductCard>
         .replaceAll(RegExp(r'\s*\(HungerStation\)', caseSensitive: false), '')
         .replaceAll(RegExp(r'\s*\(هنقرستيشن\)', caseSensitive: false), '')
         .replaceAll(RegExp(r'\s*\(Hunger\s+Station\)', caseSensitive: false), '')
-        .replaceAll(RegExp(r'\s*HungerStation\b', caseSensitive: false), '')
-        .replaceAll(RegExp(r'\s*Hunger\s+Station\b', caseSensitive: false), '')
-        .replaceAll(RegExp(r'\s*هنقرستيشن\b', caseSensitive: false), '')
+        .replaceAll(RegExp(r'\s*HungerStation$', caseSensitive: false), '')
+        .replaceAll(RegExp(r'\s*Hunger\s+Station$', caseSensitive: false), '')
+        .replaceAll(RegExp(r'\s*هنقرستيشن$', caseSensitive: false), '')
         .trim();
 
     return cleaned;
@@ -1723,30 +1723,43 @@ class _ScannedProductCardState extends ConsumerState<_ScannedProductCard>
         );
       }
       if (uniquePriceCount == 2) {
+        final showCommonAsLowest = common == lowest;
+        final showCommonAsHighest = common == highest;
+
         return Row(
           children: [
             Expanded(
               child: _buildPricePill(
-                title: l10n.lowestPrice,
+                title: showCommonAsLowest ? l10n.commonPrice : l10n.lowestPrice,
                 price: lowest,
                 gradient: LinearGradient(
-                  colors: [
-                    HSLColor.fromAHSL(1.0, 140, 0.8, 0.4).toColor(),
-                    HSLColor.fromAHSL(1.0, 160, 0.9, 0.35).toColor(),
-                  ],
+                  colors: showCommonAsLowest
+                      ? [
+                          HSLColor.fromAHSL(1.0, 210, 0.8, 0.45).toColor(),
+                          HSLColor.fromAHSL(1.0, 230, 0.9, 0.4).toColor(),
+                        ]
+                      : [
+                          HSLColor.fromAHSL(1.0, 140, 0.8, 0.4).toColor(),
+                          HSLColor.fromAHSL(1.0, 160, 0.9, 0.35).toColor(),
+                        ],
                 ),
               ),
             ),
             const SizedBox(width: 6),
             Expanded(
               child: _buildPricePill(
-                title: l10n.highestPrice,
+                title: showCommonAsHighest ? l10n.commonPrice : l10n.highestPrice,
                 price: highest,
                 gradient: LinearGradient(
-                  colors: [
-                    HSLColor.fromAHSL(1.0, 350, 0.8, 0.45).toColor(),
-                    HSLColor.fromAHSL(1.0, 10, 0.9, 0.45).toColor(),
-                  ],
+                  colors: showCommonAsHighest
+                      ? [
+                          HSLColor.fromAHSL(1.0, 210, 0.8, 0.45).toColor(),
+                          HSLColor.fromAHSL(1.0, 230, 0.9, 0.4).toColor(),
+                        ]
+                      : [
+                          HSLColor.fromAHSL(1.0, 350, 0.8, 0.45).toColor(),
+                          HSLColor.fromAHSL(1.0, 10, 0.9, 0.45).toColor(),
+                        ],
                 ),
               ),
             ),

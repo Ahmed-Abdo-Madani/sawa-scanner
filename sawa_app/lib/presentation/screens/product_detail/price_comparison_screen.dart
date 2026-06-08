@@ -36,9 +36,9 @@ class PriceComparisonScreen extends ConsumerWidget {
         .replaceAll(RegExp(r'\s*\(HungerStation\)', caseSensitive: false), '')
         .replaceAll(RegExp(r'\s*\(هنقرستيشن\)', caseSensitive: false), '')
         .replaceAll(RegExp(r'\s*\(Hunger\s+Station\)', caseSensitive: false), '')
-        .replaceAll(RegExp(r'\s*HungerStation\b', caseSensitive: false), '')
-        .replaceAll(RegExp(r'\s*Hunger\s+Station\b', caseSensitive: false), '')
-        .replaceAll(RegExp(r'\s*هنقرستيشن\b', caseSensitive: false), '')
+        .replaceAll(RegExp(r'\s*HungerStation$', caseSensitive: false), '')
+        .replaceAll(RegExp(r'\s*Hunger\s+Station$', caseSensitive: false), '')
+        .replaceAll(RegExp(r'\s*هنقرستيشن$', caseSensitive: false), '')
         .trim();
 
     return cleaned;

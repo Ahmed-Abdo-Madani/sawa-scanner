@@ -18,11 +18,13 @@ export class PricesController {
     const prices = await this.pricesService.findPricesByGtin(gtin);
 
     return prices.map((p) => {
-      const isHungerStation = p.merchant?.name_en?.toLowerCase() === 'hungerstation' || p.store?.platform === 'hungerstation';
+      const merchantNameLower = p.merchant?.name_en?.toLowerCase() || '';
+      const isHungerStation = merchantNameLower === 'hungerstation' || merchantNameLower === 'hunger station' || p.store?.platform === 'hungerstation';
       let displayMerchant = (isHungerStation && p.store?.merchant) ? p.store.merchant : p.merchant;
 
       // Fallback: If it is HungerStation but has no store association, try to infer the merchant from the source_url
-      if (isHungerStation && (!displayMerchant || displayMerchant.name_en?.toLowerCase() === 'hungerstation') && p.source_url) {
+      const displayMerchantName = displayMerchant?.name_en?.toLowerCase() || '';
+      if (isHungerStation && (!displayMerchant || displayMerchantName === 'hungerstation' || displayMerchantName === 'hunger station') && p.source_url) {
         try {
           const urlObj = new URL(p.source_url);
           const pathSegments = urlObj.pathname.split('/');
@@ -104,11 +106,13 @@ export class PricesController {
   async getPriceHistory(@Param('gtin') gtin: string) {
     const history = await this.pricesService.findPriceHistory(gtin);
     return history.map((p) => {
-      const isHungerStation = p.merchant?.name_en?.toLowerCase() === 'hungerstation' || p.store?.platform === 'hungerstation';
+      const merchantNameLower = p.merchant?.name_en?.toLowerCase() || '';
+      const isHungerStation = merchantNameLower === 'hungerstation' || merchantNameLower === 'hunger station' || p.store?.platform === 'hungerstation';
       let displayMerchant = (isHungerStation && p.store?.merchant) ? p.store.merchant : p.merchant;
 
       // Fallback: If it is HungerStation but has no store association, try to infer the merchant from the source_url
-      if (isHungerStation && (!displayMerchant || displayMerchant.name_en?.toLowerCase() === 'hungerstation') && p.source_url) {
+      const displayMerchantName = displayMerchant?.name_en?.toLowerCase() || '';
+      if (isHungerStation && (!displayMerchant || displayMerchantName === 'hungerstation' || displayMerchantName === 'hunger station') && p.source_url) {
         try {
           const urlObj = new URL(p.source_url);
           const pathSegments = urlObj.pathname.split('/');
@@ -169,7 +173,8 @@ export class PricesController {
     });
 
     return prices.map((p) => {
-      const isHungerStation = p.store?.platform === 'hungerstation' || p.merchant?.name_en?.toLowerCase() === 'hungerstation';
+      const merchantNameLower = p.merchant?.name_en?.toLowerCase() || '';
+      const isHungerStation = p.store?.platform === 'hungerstation' || merchantNameLower === 'hungerstation' || merchantNameLower === 'hunger station';
       const displayMerchant = (isHungerStation && p.store?.merchant) ? p.store.merchant : p.merchant;
 
       let merchantName = displayMerchant?.name_en || 'Unknown';
