@@ -20,6 +20,13 @@ import { OffEnrichmentService } from './off-enrichment.service';
 import { OffPriceLinkerService } from './off-price-linker.service';
 import { BarcodeListScraperService } from './barcode-list-scraper.service';
 import { HsCatalogScraperService } from './hs-catalog-scraper.service';
+import { ParkCenterCatalogScraperService } from './parkcenter-catalog-scraper.service';
+import { YasminCatalogScraperService } from './yasmin-catalog-scraper.service';
+import { DukanExpressCatalogScraperService } from './dukanexpress-catalog-scraper.service';
+import { MubarkiyahCatalogScraperService } from './mubarkiyah-catalog-scraper.service';
+import { EtaamExpressCatalogScraperService } from './etaamexpress-catalog-scraper.service';
+import { AliaqtisadiaCatalogScraperService } from './aliaqtisadia-catalog-scraper.service';
+import { ProductsService } from '../products/products.service';
 
 /**
  * Comment 2: Regression test for brand and weight resolution
@@ -94,6 +101,35 @@ describe('IngestionProcessor - resolveCatalogBrandAndWeight', () => {
       run: jest.fn(),
     } as any;
 
+    const mockParkCenterCatalogScraperService = {
+      run: jest.fn(),
+    } as any;
+
+    const mockYasminCatalogScraperService = {
+      run: jest.fn(),
+    } as any;
+
+    const mockDukanExpressCatalogScraperService = {
+      run: jest.fn(),
+    } as any;
+
+    const mockMubarkiyahCatalogScraperService = {
+      run: jest.fn(),
+    } as any;
+
+    const mockEtaamExpressCatalogScraperService = {
+      run: jest.fn(),
+    } as any;
+
+    const mockAliaqtisadiaCatalogScraperService = {
+      run: jest.fn(),
+    } as any;
+
+    const mockProductsService = {
+      findByGtin: jest.fn(),
+      search: jest.fn(),
+    } as any;
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         IngestionProcessor,
@@ -160,6 +196,34 @@ describe('IngestionProcessor - resolveCatalogBrandAndWeight', () => {
         {
           provide: HsCatalogScraperService,
           useValue: mockHsCatalogScraperService,
+        },
+        {
+          provide: ParkCenterCatalogScraperService,
+          useValue: mockParkCenterCatalogScraperService,
+        },
+        {
+          provide: YasminCatalogScraperService,
+          useValue: mockYasminCatalogScraperService,
+        },
+        {
+          provide: DukanExpressCatalogScraperService,
+          useValue: mockDukanExpressCatalogScraperService,
+        },
+        {
+          provide: MubarkiyahCatalogScraperService,
+          useValue: mockMubarkiyahCatalogScraperService,
+        },
+        {
+          provide: EtaamExpressCatalogScraperService,
+          useValue: mockEtaamExpressCatalogScraperService,
+        },
+        {
+          provide: AliaqtisadiaCatalogScraperService,
+          useValue: mockAliaqtisadiaCatalogScraperService,
+        },
+        {
+          provide: ProductsService,
+          useValue: mockProductsService,
         },
       ],
     }).compile();

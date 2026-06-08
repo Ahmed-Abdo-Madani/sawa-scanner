@@ -37,7 +37,7 @@ import { StructuredLabelDto } from '../scan/dto/structured-label.dto';
 import { PricesService } from '../prices/prices.service';
 import { GtinBackfillService } from './gtin-backfill.service';
 import { Semaphore } from './ai-match/ai-match-runtime';
-import { isPlaceholderBrand, inferBrandAndWeightFromName, normalizeBrandStrict } from '../utils/normalization';
+import { isPlaceholderBrand, inferBrandAndWeightFromName, normalizeBrandStrict, isMajorSupermarket } from '../utils/normalization';
 import { GLOBAL_BRANDS_FOR_POOL } from './constants/global-brands';
 
 import { OffImportService } from './off-import.service';
@@ -52,6 +52,16 @@ import { HsCatalogScraperService } from './hs-catalog-scraper.service';
 import { HsCatalogJobDto } from './dto/hs-catalog-job.dto';
 import { ParkCenterCatalogScraperService } from './parkcenter-catalog-scraper.service';
 import { ParkCenterCatalogJobDto } from './dto/parkcenter-catalog-job.dto';
+import { YasminCatalogScraperService } from './yasmin-catalog-scraper.service';
+import { YasminCatalogJobDto } from './dto/yasmin-catalog-job.dto';
+import { DukanExpressCatalogScraperService } from './dukanexpress-catalog-scraper.service';
+import { DukanExpressCatalogJobDto } from './dto/dukanexpress-catalog-job.dto';
+import { MubarkiyahCatalogScraperService } from './mubarkiyah-catalog-scraper.service';
+import { MubarkiyahCatalogJobDto } from './dto/mubarkiyah-catalog-job.dto';
+import { EtaamExpressCatalogScraperService } from './etaamexpress-catalog-scraper.service';
+import { EtaamExpressCatalogJobDto } from './dto/etaamexpress-catalog-job.dto';
+import { AliaqtisadiaCatalogScraperService } from './aliaqtisadia-catalog-scraper.service';
+import { AliaqtisadiaCatalogJobDto } from './dto/aliaqtisadia-catalog-job.dto';
 import { ProductsService } from '../products/products.service';
 
 import { Product } from '../entities/product.entity';
@@ -99,6 +109,11 @@ export class IngestionProcessor extends WorkerHost implements OnModuleInit {
   private barcodeListNamesLock = new Semaphore(1);
   private hsCatalogLock = new Semaphore(1);
   private parkCenterCatalogLock = new Semaphore(1);
+  private yasminCatalogLock = new Semaphore(1);
+  private dukanExpressCatalogLock = new Semaphore(1);
+  private mubarkiyahCatalogLock = new Semaphore(1);
+  private etaamExpressCatalogLock = new Semaphore(1);
+  private aliaqtisadiaCatalogLock = new Semaphore(1);
 
   private todayDateSuffix(): string {
     const now = new Date();
@@ -127,6 +142,11 @@ export class IngestionProcessor extends WorkerHost implements OnModuleInit {
     private readonly barcodeListScraperService: BarcodeListScraperService,
     private readonly hsCatalogScraperService: HsCatalogScraperService,
     private readonly parkCenterCatalogScraperService: ParkCenterCatalogScraperService,
+    private readonly yasminCatalogScraperService: YasminCatalogScraperService,
+    private readonly dukanExpressCatalogScraperService: DukanExpressCatalogScraperService,
+    private readonly mubarkiyahCatalogScraperService: MubarkiyahCatalogScraperService,
+    private readonly etaamExpressCatalogScraperService: EtaamExpressCatalogScraperService,
+    private readonly aliaqtisadiaCatalogScraperService: AliaqtisadiaCatalogScraperService,
     @Inject(forwardRef(() => ProductsService))
     private readonly productsService: ProductsService,
   ) {
@@ -176,6 +196,16 @@ export class IngestionProcessor extends WorkerHost implements OnModuleInit {
         return this.handleHsCatalogScrapeCategory(job);
       case 'parkcenter-catalog-scrape':
         return this.handleParkCenterCatalogScrape(job);
+      case 'yasmin-catalog-scrape':
+        return this.handleYasminCatalogScrape(job);
+      case 'dukanexpress-catalog-scrape':
+        return this.handleDukanExpressCatalogScrape(job);
+      case 'mubarkiyah-catalog-scrape':
+        return this.handleMubarkiyahCatalogScrape(job);
+      case 'etaamexpress-catalog-scrape':
+        return this.handleEtaamExpressCatalogScrape(job);
+      case 'aliaqtisadia-catalog-scrape':
+        return this.handleAliaqtisadiaCatalogScrape(job);
       case 'seed-gtin-prices':
         return this.handleSeedGtinPrices(job);
       default:
@@ -458,6 +488,7 @@ export class IngestionProcessor extends WorkerHost implements OnModuleInit {
             lat: branch.lat ?? null,
             lng: branch.lng ?? null,
             source_url: branch.source_url,
+            logo_url: branch.logo_url,
           });
           branchesUpserted++;
           upsertedUuids.add(branch.platform_branch_uuid);
@@ -720,8 +751,11 @@ export class IngestionProcessor extends WorkerHost implements OnModuleInit {
   }
 
   private async handleDailyRefreshHungerStation(job: Job<IngestionJobDto>) {
-    const stores = await this.storesService.findActiveByPlatform(
+    const allStores = await this.storesService.findActiveByPlatform(
       IngestionPlatform.HUNGERSTATION,
+    );
+    const stores = allStores.filter((s) =>
+      isMajorSupermarket(s.merchant?.name_en, s.merchant?.name_ar),
     );
 
     let enqueued = 0;
@@ -903,6 +937,86 @@ export class IngestionProcessor extends WorkerHost implements OnModuleInit {
         return result;
       } catch (error: any) {
         this.logger.error(`Park Center catalog scrape failed: ${error.message}`, error.stack);
+        throw error;
+      }
+    });
+  }
+
+  private async handleYasminCatalogScrape(job: Job<IngestionJobDto>) {
+    return await this.yasminCatalogLock.run(async () => {
+      this.logger.log(`Starting Yasmin Store catalog scrape job ${job.id}`);
+      try {
+        const result = await this.yasminCatalogScraperService.run(
+          job.data as unknown as YasminCatalogJobDto,
+        );
+        this.logger.log(`Completed Yasmin Store catalog scrape job ${job.id}`);
+        return result;
+      } catch (error: any) {
+        this.logger.error(`Yasmin Store catalog scrape failed: ${error.message}`, error.stack);
+        throw error;
+      }
+    });
+  }
+
+  private async handleDukanExpressCatalogScrape(job: Job<IngestionJobDto>) {
+    return await this.dukanExpressCatalogLock.run(async () => {
+      this.logger.log(`Starting Dukan Express catalog scrape job ${job.id}`);
+      try {
+        const result = await this.dukanExpressCatalogScraperService.run(
+          job.data as unknown as DukanExpressCatalogJobDto,
+        );
+        this.logger.log(`Completed Dukan Express catalog scrape job ${job.id}`);
+        return result;
+      } catch (error: any) {
+        this.logger.error(`Dukan Express catalog scrape failed: ${error.message}`, error.stack);
+        throw error;
+      }
+    });
+  }
+
+  private async handleMubarkiyahCatalogScrape(job: Job<IngestionJobDto>) {
+    return await this.mubarkiyahCatalogLock.run(async () => {
+      this.logger.log(`Starting Mubarkiyah catalog scrape job ${job.id}`);
+      try {
+        const result = await this.mubarkiyahCatalogScraperService.run(
+          job.data as unknown as MubarkiyahCatalogJobDto,
+        );
+        this.logger.log(`Completed Mubarkiyah catalog scrape job ${job.id}`);
+        return result;
+      } catch (error: any) {
+        this.logger.error(`Mubarkiyah catalog scrape failed: ${error.message}`, error.stack);
+        throw error;
+      }
+    });
+  }
+
+  private async handleEtaamExpressCatalogScrape(job: Job<IngestionJobDto>) {
+    return await this.etaamExpressCatalogLock.run(async () => {
+      this.logger.log(`Starting Etaam Express catalog scrape job ${job.id}`);
+      try {
+        const result = await this.etaamExpressCatalogScraperService.run(
+          job.data as unknown as EtaamExpressCatalogJobDto,
+        );
+        this.logger.log(`Completed Etaam Express catalog scrape job ${job.id}`);
+        return result;
+      } catch (error: any) {
+        this.logger.error(`Etaam Express catalog scrape failed: ${error.message}`, error.stack);
+        throw error;
+      }
+    });
+  }
+
+  private async handleAliaqtisadiaCatalogScrape(job: Job<IngestionJobDto>) {
+    return await this.aliaqtisadiaCatalogLock.run(async () => {
+      this.logger.log(`Starting Aliaqtisadia catalog scrape job ${job.id}`);
+      try {
+        const result = await this.aliaqtisadiaCatalogScraperService.run(
+          job.data as unknown as AliaqtisadiaCatalogJobDto,
+        );
+        this.logger.log(`Completed Aliaqtisadia catalog scrape job ${job.id}`);
+        return result;
+      } catch (error: any) {
+        this.logger.error(`Aliaqtisadia catalog scrape failed: ${error.message}`, error.stack);
         throw error;
       }
     });

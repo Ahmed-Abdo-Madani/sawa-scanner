@@ -364,12 +364,13 @@
   "confirmPasswordLabel": "Confirm Password",
   "scanLimitTitle": "Daily Scan Limit Reached",
   "scanLimitMessage": "Free users are limited to 5 scans per day. Upgrade to Sawa Plus for unlimited scans!",
+  "scanLimitMessageFirstDay": "Free users are limited to 15 scans on their first day. Upgrade to Sawa Plus for unlimited scans!",
   "upgradeSawaPlusButton": "Upgrade to Sawa Plus",
   "unlimitedScans": "Unlimited Real-Time Scans",
   "cartOptimizations": "Smart Cart Price Range",
   "historicTrends": "Historic Price Trends & Analytics",
   "subscriptionExplanationTitle": "App Store Billing Integration",
-  "subscriptionExplanationText": "Subscriptions are billed monthly ($0.49/month) securely through your App Store account. The subscription auto-renews monthly unless cancelled in your account settings at least 24 hours before the end of the current period. Verification is handled securely on our servers.",
+  "subscriptionExplanationText": "Subscriptions are billed monthly (4.99 SAR/month) securely through your App Store account. The subscription auto-renews monthly unless cancelled in your account settings at least 24 hours before the end of the current period. Verification is handled securely on our servers.",
   "privacyPolicy": "Privacy Policy",
   "termsOfUse": "Terms of Use (EULA)",
   "monthly": "Monthly",
@@ -428,6 +429,9 @@
   "iapRestoreSuccess": "Subscription successfully restored!",
   "iapRestoreNotFound": "No active subscription found to restore.",
   "iapStoreUnavailable": "In-App Store is currently unavailable.",
-  "restorePurchaseButton": "Restore Purchase"
+  "restorePurchaseButton": "Restore Purchase",
+  "sawaPlusPopupTitle": "Join Sawa Plus",
+  "sawaPlusPopupMessage": "Join Sawa Plus for unlimited scans & features",
+  "continueButton": "Continue"
 }
 

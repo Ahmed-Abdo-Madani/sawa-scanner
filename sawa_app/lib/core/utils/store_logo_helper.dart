@@ -27,7 +27,9 @@ class StoreLogoHelper {
       return 'assets/images/hsd_sh.png';
     }
     if (lower.contains('hunger') || lower.contains('هنقر') || lower.contains('hungerstation')) {
-      return 'assets/images/hungerstation.png';
+      if (lower.startsWith('hunger') || lower.startsWith('هنقر') || lower == 'hungerstation') {
+        return 'assets/images/hungerstation.png';
+      }
     }
     if (lower.contains('nwsha') || lower.contains('نوشا')) {
       return 'assets/images/nwsha.png';

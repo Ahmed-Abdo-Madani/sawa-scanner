@@ -51,6 +51,11 @@ import { OffPriceLinkerService } from './off-price-linker.service';
 import { BarcodeListScraperService } from './barcode-list-scraper.service';
 import { HsCatalogScraperService } from './hs-catalog-scraper.service';
 import { ParkCenterCatalogScraperService } from './parkcenter-catalog-scraper.service';
+import { YasminCatalogScraperService } from './yasmin-catalog-scraper.service';
+import { DukanExpressCatalogScraperService } from './dukanexpress-catalog-scraper.service';
+import { MubarkiyahCatalogScraperService } from './mubarkiyah-catalog-scraper.service';
+import { EtaamExpressCatalogScraperService } from './etaamexpress-catalog-scraper.service';
+import { AliaqtisadiaCatalogScraperService } from './aliaqtisadia-catalog-scraper.service';
 import { EtaamGtinService } from './etaam-gtin.service';
 import { EtaamGtinProcessor } from './etaam-gtin.processor';
 import { EtaamGtinScraper } from './scraper/etaam-gtin-scraper';
@@ -123,6 +128,11 @@ import { MubarkiyahGtinArScraper } from './scraper/mubarkiyah-gtin-ar-scraper';
     BarcodeListScraperService,
     HsCatalogScraperService,
     ParkCenterCatalogScraperService,
+    YasminCatalogScraperService,
+    DukanExpressCatalogScraperService,
+    MubarkiyahCatalogScraperService,
+    EtaamExpressCatalogScraperService,
+    AliaqtisadiaCatalogScraperService,
     EtaamGtinService,
     EtaamGtinProcessor,
     EtaamGtinScraper,
@@ -182,6 +192,11 @@ import { MubarkiyahGtinArScraper } from './scraper/mubarkiyah-gtin-ar-scraper';
     MrLogmanGtinArScraper,
     ParkCenterGtinArScraper,
     ParkCenterCatalogScraperService,
+    YasminCatalogScraperService,
+    DukanExpressCatalogScraperService,
+    MubarkiyahCatalogScraperService,
+    EtaamExpressCatalogScraperService,
+    AliaqtisadiaCatalogScraperService,
     MenhalGtinArScraper,
     HsdShGtinArScraper,
     NwshaGtinArScraper,
@@ -218,28 +233,42 @@ export class IngestionModule implements OnModuleInit {
   ) {}
 
   async onModuleInit() {
-    this.logger.log('Cleaning stale jobs on module init...');
-    
-    const staleJobsToClean = [
-      'barcode-list-names',
-      'gtin-backfill-off',
-      'off-import',
-      'off-enrichment',
-      'off-price-linking',
-      'hs-catalog-scrape',
-      'hs-catalog-scrape-category',
-      'parkcenter-catalog-scrape',
-    ];
+    const shouldClean = this.parseBoolFlag(
+      this.configService.get<string>('CLEAN_STALE_JOBS_ON_STARTUP'),
+    );
 
-    for (const jobName of staleJobsToClean) {
-      try {
-        const res = await this.ingestionService.cleanStaleJobs(jobName);
-        if (res.removed > 0) {
-          this.logger.log(`Cleaned ${res.removed} stale ${jobName} jobs on startup.`);
+    if (shouldClean) {
+      this.logger.log('Cleaning stale jobs on module init...');
+      const staleJobsToClean = [
+        'barcode-list-names',
+        'gtin-backfill-off',
+        'off-import',
+        'off-enrichment',
+        'off-price-linking',
+        'hs-catalog-scrape',
+        'hs-catalog-scrape-category',
+        'parkcenter-catalog-scrape',
+        'yasmin-catalog-scrape',
+        'dukanexpress-catalog-scrape',
+        'mubarkiyah-catalog-scrape',
+        'etaamexpress-catalog-scrape',
+        'aliaqtisadia-catalog-scrape',
+      ];
+
+      for (const jobName of staleJobsToClean) {
+        try {
+          const res = await this.ingestionService.cleanStaleJobs(jobName);
+          if (res.removed > 0) {
+            this.logger.log(`Cleaned ${res.removed} stale ${jobName} jobs on startup.`);
+          }
+        } catch (err: any) {
+          this.logger.warn(`Failed to clean stale ${jobName} jobs: ${err.message}`);
         }
-      } catch (err: any) {
-        this.logger.warn(`Failed to clean stale ${jobName} jobs: ${err.message}`);
       }
+    } else {
+      this.logger.log(
+        'Skipping automatic stale job cleanup on module init (can be enabled via CLEAN_STALE_JOBS_ON_STARTUP=true)',
+      );
     }
     // Schedule Daily Price Scraping Cron Jobs
     // Panda: Daily 2:00 AM KSA (23:00 UTC)

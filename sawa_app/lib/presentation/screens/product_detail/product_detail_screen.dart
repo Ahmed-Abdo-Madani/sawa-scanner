@@ -307,29 +307,6 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
       highest = numericalPrices.reduce((a, b) => a > b ? a : b);
     }
 
-    final selectedPrice = product.prices.cast<PriceInfo>().firstWhere(
-      (p) {
-        if (widget.selectedMerchant == null) return false;
-        final cleanMerchant = widget.selectedMerchant!.toLowerCase().trim();
-        return p.merchant.toLowerCase().trim() == cleanMerchant ||
-            p.merchantAr.toLowerCase().trim() == cleanMerchant;
-      },
-      orElse: () {
-        if (validPrices.isEmpty) return product.prices.first;
-        validPrices.sort((a, b) => a.priceSarInclVat.compareTo(b.priceSarInclVat));
-        return validPrices.first;
-      },
-    );
-
-    final isLow = lowest != null && highest != null && lowest != highest && selectedPrice.priceSarInclVat == lowest;
-    final isHigh = lowest != null && highest != null && lowest != highest && selectedPrice.priceSarInclVat == highest;
-
-    final storeName = locale.languageCode == 'ar'
-        ? (selectedPrice.merchantAr.isNotEmpty
-            ? selectedPrice.merchantAr
-            : selectedPrice.merchant)
-        : selectedPrice.merchant;
-
     final cartItems = ref.watch(cartProvider);
     final productKey = product.gtin.isNotEmpty ? product.gtin : product.id;
     final cartItem = cartItems.where((item) {
@@ -342,31 +319,32 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
+          ...validPrices.map((price) {
+            final isLow = lowest != null && highest != null && lowest != highest && price.priceSarInclVat == lowest;
+            final isHigh = lowest != null && highest != null && lowest != highest && price.priceSarInclVat == highest;
+
+            final storeName = locale.languageCode == 'ar'
+                ? (price.merchantAr.isNotEmpty ? price.merchantAr : price.merchant)
+                : price.merchant;
+
+            return Card(
+              margin: const EdgeInsets.only(bottom: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+                side: BorderSide(color: AppColors.onSurface.withOpacity(0.06)),
+              ),
               color: AppColors.surface,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: AppColors.onSurface.withOpacity(0.06)),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.04),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
+              elevation: 0,
+              child: Padding(
+                padding: const EdgeInsets.all(14.0),
+                child: Row(
                   children: [
                     ClipRRect(
                       borderRadius: BorderRadius.circular(8),
                       child: StoreLogoHelper.buildStoreLogo(
-                        selectedPrice.merchant,
-                        size: 40,
-                        networkFallbackUrl: selectedPrice.logoUrl,
+                        price.merchant,
+                        size: 44,
+                        networkFallbackUrl: price.logoUrl,
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -376,14 +354,13 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                         children: [
                           Text(
                             storeName,
-                            style: AppTypography.headline(locale).copyWith(
-                              fontSize: 18,
+                            style: AppTypography.body(locale).copyWith(
                               fontWeight: FontWeight.bold,
+                              fontSize: 16,
                               color: AppColors.onBackground,
                             ),
                           ),
                           const SizedBox(height: 4),
-                          // Price Tier Badge
                           if (isLow)
                             _buildPriceTierBadge(
                               label: l10n.lowPrice,
@@ -408,85 +385,74 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                         ],
                       ),
                     ),
-                  ],
-                ),
-                const SizedBox(height: 24),
-                // Price information
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  crossAxisAlignment: CrossAxisAlignment.baseline,
-                  textBaseline: TextBaseline.alphabetic,
-                  children: [
-                    Text(
-                      locale.languageCode == 'ar' ? "السعر:" : "Price:",
-                      style: AppTypography.body(locale).copyWith(
-                        color: AppColors.onSurface.withOpacity(0.6),
-                        fontSize: 14,
-                      ),
-                    ),
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.baseline,
-                      textBaseline: TextBaseline.alphabetic,
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
-                        Text(
-                          selectedPrice.priceSarInclVat.toStringAsFixed(2),
-                          style: TextStyle(
-                            color: isLow
-                                ? Colors.green.shade700
-                                : (isHigh ? Colors.red.shade700 : AppColors.onBackground),
-                            fontSize: 32,
-                            fontWeight: FontWeight.bold,
-                          ),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.baseline,
+                          textBaseline: TextBaseline.alphabetic,
+                          children: [
+                            Text(
+                              price.priceSarInclVat.toStringAsFixed(2),
+                              style: TextStyle(
+                                color: isLow
+                                    ? Colors.green.shade700
+                                    : (isHigh ? Colors.red.shade700 : AppColors.onBackground),
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(width: 2),
+                            Text(
+                              l10n.sar,
+                              style: AppTypography.caption(locale).copyWith(
+                                color: AppColors.onSurface.withOpacity(0.8),
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
                         ),
-                        const SizedBox(width: 4),
-                        Text(
-                          l10n.sar,
-                          style: AppTypography.caption(locale).copyWith(
-                            color: AppColors.onSurface.withOpacity(0.8),
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
+                        if (price.sourceUrl != null && price.sourceUrl!.isNotEmpty) ...[
+                          const SizedBox(height: 4),
+                          GestureDetector(
+                            onTap: () async {
+                              final uri = Uri.tryParse(price.sourceUrl!);
+                              if (uri != null) {
+                                try {
+                                  await launchUrl(uri, mode: LaunchMode.externalApplication);
+                                } catch (e) {
+                                  debugPrint("Could not launch store URL: $e");
+                                }
+                              }
+                            },
+                            child: Row(
+                              children: [
+                                Text(
+                                  l10n.visitStore,
+                                  style: const TextStyle(
+                                    color: AppColors.primary,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                const SizedBox(width: 2),
+                                const Icon(
+                                  Icons.open_in_new,
+                                  size: 12,
+                                  color: AppColors.primary,
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
+                        ],
                       ],
                     ),
                   ],
                 ),
-              ],
-            ),
-          ),
-          if (selectedPrice.sourceUrl != null && selectedPrice.sourceUrl!.isNotEmpty) ...[
-            const SizedBox(height: 20),
-            ElevatedButton.icon(
-              onPressed: () async {
-                final uri = Uri.tryParse(selectedPrice.sourceUrl!);
-                if (uri != null) {
-                  try {
-                    await launchUrl(uri, mode: LaunchMode.externalApplication);
-                  } catch (e) {
-                    debugPrint("Could not launch store URL: $e");
-                  }
-                }
-              },
-              icon: const Icon(Icons.open_in_new, color: Colors.white, size: 18),
-              label: Text(
-                l10n.visitStore,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                ),
               ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                elevation: 0,
-              ),
-            ),
-          ],
+            );
+          }),
           const SizedBox(height: 16),
           cartItem != null
               ? Container(

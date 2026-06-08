@@ -66,13 +66,34 @@ async function run() {
 
   // 3. Create .env template
   console.log('Generating auto-configured .env representing production databases...');
+  
+  // Dynamically resolve local network IP to configure shared Redis for workers
+  const os = require('os');
+  const interfaces = os.networkInterfaces();
+  let localIp = '192.168.8.114';
+  for (const devName in interfaces) {
+    const iface = interfaces[devName];
+    for (let i = 0; i < iface.length; i++) {
+      const alias = iface[i];
+      if (alias.family === 'IPv4' && alias.address !== '127.0.0.1' && !alias.internal) {
+        localIp = alias.address;
+        break;
+      }
+    }
+  }
+  console.log(`Resolved local network IP for shared Redis: ${localIp}`);
+
   let envContent = '';
   try {
      const mainEnv = fs.readFileSync(path.join(BASE_DIR, '.env'), 'utf8');
      const lines = mainEnv.split('\n');
       for (const line of lines) {
         if (line.startsWith('DATABASE_') || line.startsWith('REDIS_') || line.startsWith('BARCODE_LIST_') || line.startsWith('HS_CATALOG_')) {
-            envContent += line + '\n';
+            let processedLine = line;
+            if (line.startsWith('REDIS_HOST=')) {
+              processedLine = `REDIS_HOST=${localIp}`;
+            }
+            envContent += processedLine + '\n';
         }
       }
   } catch (e) {
@@ -86,6 +107,7 @@ ENABLE_AI_EXTRACTION=false
 INGESTION_WORKER_CONCURRENCY=5
 BARCODE_LIST_REQUEST_DELAY_MS=2000
 BARCODE_LIST_DAILY_BUDGET=5000
+CLEAN_STALE_JOBS_ON_STARTUP=false
 `;
   fs.writeFileSync(path.join(OUTPUT_DIR, '.env'), envContent);
 

@@ -946,6 +946,10 @@ class AppLocalizationsEn extends AppLocalizations {
       'Free users are limited to 5 scans per day. Upgrade to Sawa Plus for unlimited scans!';
 
   @override
+  String get scanLimitMessageFirstDay =>
+      'Free users are limited to 15 scans on their first day. Upgrade to Sawa Plus for unlimited scans!';
+
+  @override
   String get upgradeSawaPlusButton => 'Upgrade to Sawa Plus';
 
   @override
@@ -962,7 +966,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get subscriptionExplanationText =>
-      'Subscriptions are billed monthly (\$0.49/month) securely through your App Store account. The subscription auto-renews monthly unless cancelled in your account settings at least 24 hours before the end of the current period. Verification is handled securely on our servers.';
+      'Subscriptions are billed monthly (4.99 SAR/month) securely through your App Store account. The subscription auto-renews monthly unless cancelled in your account settings at least 24 hours before the end of the current period. Verification is handled securely on our servers.';
 
   @override
   String get privacyPolicy => 'Privacy Policy';
@@ -1110,4 +1114,14 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get restorePurchaseButton => 'Restore Purchase';
+
+  @override
+  String get sawaPlusPopupTitle => 'Join Sawa Plus';
+
+  @override
+  String get sawaPlusPopupMessage =>
+      'Join Sawa Plus for unlimited scans & features';
+
+  @override
+  String get continueButton => 'Continue';
 }

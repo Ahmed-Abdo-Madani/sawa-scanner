@@ -249,6 +249,10 @@ class EnvironmentVariables {
   @IsNumber()
   @Min(0)
   OLLAMA_MAX_RETRIES?: number;
+
+  @IsOptional()
+  @IsString()
+  CLEAN_STALE_JOBS_ON_STARTUP?: string;
 }
 
 

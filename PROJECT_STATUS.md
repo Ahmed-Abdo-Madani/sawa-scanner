@@ -1,6 +1,7 @@
 # Project Status
 
 ## Milestones
+- [x] Create a premium dark-themed web admin GTIN entry dashboard (`/admin-dashboard`) featuring real-time statistics, multi-store filtering, dynamic category/brand options, image visualization, and inline focus-switching fast keyboard entry.
 - [x] Integrate AI-driven GTIN product matching
 - [x] Configure fallback LLM providers (Vertex, Google AI, Ollama)
 - [x] Implement robust backfill architecture (Pass A-G) with automated reporting
@@ -107,8 +108,22 @@
 - [x] Sawa Plus Layout Restructure & Search Add to Cart Button (Build 18): Restructured `SubscriptionScreen` by moving purchase/restore buttons and EULA links into the Scaffold's `bottomNavigationBar` inside a `SafeArea` to keep checkout buttons locked and visible on small screen devices without scrolling (Guideline 2.1(b)). Moved the interactive "Add to Cart" button (transitioning to a full-width `[ - ] qty [ + ]` selector when in the cart) to the `ProductDetailScreen` layout directly under the "Visit Store" button, and reverted `_ProductResultCard` in `SearchScreen` back to a clean list presentation with a chevron. Incremented build version to `1.0.0+18`.
 - [x] Production Live-Scraping Bypass: Implemented environment variable `DISABLE_LIVE_SCRAPING` (and fallback checking for `DISABLE_QUEUE_PROCESSORS`) in `ProductsService` to allow the production Koyeb server to completely bypass Playwright browser launches and live web scraping, serving existing database records normally.
 - [x] Product Cart State Isolation for GTIN-less Products (Build 19): Resolved a bug where different products without a GTIN (empty string) shared the same quantity and detail state in `ProductDetailScreen` and `ScanHistoryEntry`. By passing the database UUID (`product.id`) as the `gtin` family key to `productByGtinProvider` and using it for `ScanHistoryEntry` barcodes, the client now correctly isolates and tracks different GTIN-less e-commerce products (since the backend's `/products/:gtin` endpoint natively handles and loads UUID parameters). Incremented build version to `1.0.0+19`.
+- [x] Fixed Stale Queue Deletion Bug: Modified `cleanStaleJobs` in `IngestionService` to target only `['active']` state jobs (leaving waiting/delayed queues intact) and added `CLEAN_STALE_JOBS_ON_STARTUP=false` variable to prevent queue wiping in multi-worker environments. Packaged these changes in the compiled project and rebuilt `portable_release.rar`.
+- [x] HungerStation Restaurant & Fallback Layout Support: Enhanced `discoverCategories` inside `HungerStationScraper` to fall back to the `vendorMenu` or `menu` props in Next.js hydration JSON when categories are empty. Returns a fallback "Menu" category pointing directly to the branch URL so that workers scrape the entire menu directly on page load.
+- [x] In-Memory OpenFoodFacts Slice Matching & GTIN backfilling: Calibrated fuzzy matcher script to run on all unmatched HungerStation products (up to 35,000) using a Dice Coefficient threshold of 0.80 and size/weight matching checks, backfilling 1,295+ accurate GTINs to local products in commit mode.
+- [x] Chocolate Flavor Asymmetry Guard: Implemented an asymmetry flavor guard inside `hasMutuallyExclusiveConflict` to prevent generic chocolate products from matching white/dark chocolate variants, preventing false positive GTIN assignments for flavor variations.
+- [x] Riyadh District Catalog Scraping: Scaled catalog ingestion by sequentially enqueuing and crawling catalog data for 99 active HungerStation stores across `sahafah` and `ghadir` Riyadh districts with zero prices.
+- [x] Admin Dashboard Integration & Conflict Resolution: Verified that the dark-themed Single Page Application dashboard (`/admin-dashboard`) correctly loads brands and categories, performs searching/filtering, and handles GTIN assignments. Extended `getJobStatus` in `IngestionService` to return job payloads and resolved queue-blocking 409 Conflicts in the store trigger script (`trigger-remaining-hs-stores.ts`) by allowing the script to adopt and poll existing jobs to completion.
+- [x] Supermarket Ingestion Focus & Flutter Customizations: Restricted HungerStation catalog scraping/refreshes to major supermarkets (Al Othaim, Panda, Carrefour, Danube, Tamimi, Lulu, Spinneys), crawled and persisted branch logos dynamically from district pages, mapped specific sub-merchant names/logos in prices endpoint, implemented client welcome subscription promo popups, updated billing description pricing to 4.99 SAR, adjusted Day 1 scan limit to 15 (5 thereafter), displayed search card price ranges, and created multi-store price lists with cart quantity selectors.
+- [x] HungerStation branch prices deduplication fix, logo override correction, and top-of-list sorting consistency across all endpoints.
+
 
 ## Architecture Decisions
+- **HungerStation Branch Price Deduplication & Store Logo Override**:
+  - *Branch Preservation*: Previously, the backend `prices.service.ts` endpoint collapsed all branch-specific HungerStation records into a single merchant result by indexing only on `merchant_id`. To preserve distinct branches (e.g. separate Al Othaim stores), the unique mapping key was updated to `${merchantId}:${storeId}`. Generic HungerStation records (where `store_id` is null) are dynamically filtered out if specific branch prices exist.
+  - *Logo Overrides Safeguard*: The Flutter client's `StoreLogoHelper` used a broad containment match (e.g. checking if a store name contains "hunger") which incorrectly hijacked sub-merchant names like `Othaim (HungerStation)` and forced the generic HungerStation logo. Restricting the local asset lookup to names starting with `hunger` or matching exactly `hungerstation` allows branch-specific entries to utilize their dynamic `networkFallbackUrl` and correctly display the specific retailer logo (e.g. Al Othaim).
+  - *Sorting Priority*: The backend dynamically floats all HungerStation-derived prices to the top of the price arrays across both the products and prices endpoints, satisfying listing sorting requirements.
+- **HungerStation Restaurant & Fallback Layout Support**: Standard HungerStation Q-Commerce stores utilize standard categorised URLs, but restaurant-style layouts and closed stores present an empty `categories` array while housing the entire product list under `vendorMenu` or `menu` props in their hydration JSON (`__NEXT_DATA__`). To handle these branches, `discoverCategories()` falls back to enqueuing a single fallback category job pointing to the branch URL itself. When the worker scraper processes this main branch URL, it recursively sweeps the hydration data to extract all products directly from the `vendorMenu` props in a single run.
 - **Self-Healing Scraper Browser Contexts**: To prevent browser contexts from getting locked in a permanently broken/closed state after background crashes (e.g. Chromium terminated by OS memory pressure or page closing exceptions), `BaseScraper` now listens to the `'close'` event on `BrowserContext` and `'disconnected'` on `Browser` to immediately nullify active singleton references. Additionally, `isLaunched()` executes a lightweight, synchronous `this.context.pages()` sanity check at the start of every request. If this check throws an exception, the scraper immediately invalidates its context and browser references, guaranteeing that a fresh, healthy browser instance is automatically launched on the next scrape job.
 - **Bypass Robots.txt Control**: Added `BYPASS_ROBOTS_TXT=true` toggle option to `RobotsTxtService` and `BaseScraper` to bypass strict local robots.txt blocks for administrative backfill jobs on domains that block general `/products?q=` routes (like `menhal.sa`), preventing task termination.
 - **Zid Storefront API Fast Path**: Zid storefronts are SPA-based, rendering search products client-side. Rather than incurring browser overhead, the scraper now extracts `apiAuthorization` and `storeId` from `window.__INITIAL_STATE__` on the initial Axios HTML load and queries `{baseUrl}/api/v1/products?q={query}` directly. This reduces search latency from 60s+ to <1s.
@@ -157,7 +172,11 @@
 - **Park Center Catalog Scraping & Asynchronous Price Seeding**:
   - *Zid Platform Fast Path API*: Bypasses heavy HTML page parsing and DOM rendering on Park Center's SPA catalog by extracting authorization headers (`apiAuthorization` token and `storeId`) from the initial load's `window.__INITIAL_STATE__` base64 payload. Direct Axios requests are then made to the paginated Zid catalog API (`/api/v1/products`), bringing page retrieval time down to ~300-400ms.
   - *Strict Numeric Filtering*: Only accepts GTINs/SKUs matching pure numeric pattern `^\d{8,14}$` to prevent alphanumeric SEO slug/SKU contamination.
-  - *Asynchronous Cross-Store Lookups*: Newly scraped GTINs are enqueued via BullMQ as `seed-gtin-prices` tasks to trigger parallel lookup and seeding against other 18 stores. De-duplication and concurrency locks manage active Redis memory footprint efficiently.
+- **In-Memory OpenFoodFacts Matching & Flavor Guards**:
+  - *Fuzzy Match Threshold*: To backfill GTINs for imported HungerStation products, the matching script uses a Dice Coefficient string similarity threshold of 0.80.
+  - *Size & Weight Guard*: Confirms that parsed product size tokens (e.g. g, kg, ml, L) match within ±10% tolerance to filter out mismatched package quantities.
+  - *Flavor Asymmetry Guard*: Implements flavor checks inside `hasMutuallyExclusiveConflict` to prevent generic chocolate or yogurt variants from incorrectly matching white, dark, or fruit flavors, eliminating false positive mappings.
+- **Adopt & Poll Conflict Resolution for Ingestion Jobs**: When enqueuing scraping jobs sequentially, script triggers frequently encounter 409 Conflicts due to previously enqueued parent tasks in a `waiting` or `active` state. By extending `getJobStatus` to return the original job data payload (which contains `storeUrl`), client scripts can check if a conflicting job is for the same store. If so, the client adopts the job and polls it to completion; if not, it waits for the current job to finish before initiating its task. This ensures queue stability and prevents queue-flooding and script hangs.
 
 ## Environment & Configuration
 Ensure you have updated the `.env` settings to match the optimizations:
@@ -175,6 +194,7 @@ Ensure you have updated the `.env` settings to match the optimizations:
 - `HS_CATALOG_REQUEST_DELAY_MS=2000`
 - `ETAAM_SCRAPER_REQUEST_DELAY_MS=3000` (base delay in ms for Salla scraper navigations, subject to ±20% jitter)
 - `DISABLE_LIVE_SCRAPING=false` (disable parallel live web scraping on client requests; set to true in production)
+- `CLEAN_STALE_JOBS_ON_STARTUP=false` (clean stale active jobs on application startup; set to false in multi-worker environments to prevent queue wiping)
 
 ## Key File References
 | File | Role |
@@ -241,4 +261,9 @@ Ensure you have updated the `.env` settings to match the optimizations:
 | `docs/support.html` | Support URL page containing contact forms and account deletion request details. |
 | `docs/privacy.html` | Privacy Policy URL page compliant with Saudi Arabian PDPL and Apple App Store constraints. |
 | `.env.example` | Template for configuring thresholds and batch sizes. |
+| `sawa-api/src/products/admin-dashboard.html` | Frontend SPA for quick manual GTIN entry with filters, images, and enter-key auto-focus. |
+| `sawa-api/src/products/admin-dashboard-template.ts` | Exports the pre-packaged HTML layout template for compilation-safe serving. |
+| `sawa-api/scratch/find-blocking-jobs.js` | Helper script to inspect and debug active/waiting BullMQ queue jobs. |
+| `sawa-api/scratch/list-queue-jobs.js` | Helper script to list and clean up duplicate catalog scrape jobs from BullMQ. |
+| `sawa-api/scratch/test-admin-endpoints.ts` | Backend validation script testing admin filter and needs-gtin pagination endpoints. |
 

@@ -19,6 +19,11 @@ import { OffPriceLinkingJobDto } from './dto/off-price-linking-job.dto';
 import { BarcodeListNamesJobDto } from './dto/barcode-list-names-job.dto';
 import { HsCatalogJobDto } from './dto/hs-catalog-job.dto';
 import { ParkCenterCatalogJobDto } from './dto/parkcenter-catalog-job.dto';
+import { YasminCatalogJobDto } from './dto/yasmin-catalog-job.dto';
+import { DukanExpressCatalogJobDto } from './dto/dukanexpress-catalog-job.dto';
+import { MubarkiyahCatalogJobDto } from './dto/mubarkiyah-catalog-job.dto';
+import { EtaamExpressCatalogJobDto } from './dto/etaamexpress-catalog-job.dto';
+import { AliaqtisadiaCatalogJobDto } from './dto/aliaqtisadia-catalog-job.dto';
 import { OpenFoodFactsDumpService } from './open-food-facts-dump.service';
 import { getOffPoolFilter, getOffPoolHash } from './constants/off-pool';
 import { EtaamGtinService } from './etaam-gtin.service';
@@ -127,6 +132,56 @@ export class IngestionController {
   async startParkCenterCatalogScrape(@Body() dto: ParkCenterCatalogJobDto) {
     return this.ingestionService.addIngestionJob({
       mode: IngestionJobMode.PARKCENTER_CATALOG_SCRAPE,
+      ...dto,
+    } as any);
+  }
+
+  @Post('yasmin-catalog-scrape')
+  @UsePipes(new ValidationPipe({ transform: true, whitelist: true }))
+  @UseGuards(FirebaseAuthGuard, AdminGuard)
+  async startYasminCatalogScrape(@Body() dto: YasminCatalogJobDto) {
+    return this.ingestionService.addIngestionJob({
+      mode: IngestionJobMode.YASMIN_CATALOG_SCRAPE,
+      ...dto,
+    } as any);
+  }
+
+  @Post('dukanexpress-catalog-scrape')
+  @UsePipes(new ValidationPipe({ transform: true, whitelist: true }))
+  @UseGuards(FirebaseAuthGuard, AdminGuard)
+  async startDukanExpressCatalogScrape(@Body() dto: DukanExpressCatalogJobDto) {
+    return this.ingestionService.addIngestionJob({
+      mode: IngestionJobMode.DUKANEXPRESS_CATALOG_SCRAPE,
+      ...dto,
+    } as any);
+  }
+
+  @Post('mubarkiyah-catalog-scrape')
+  @UsePipes(new ValidationPipe({ transform: true, whitelist: true }))
+  @UseGuards(FirebaseAuthGuard, AdminGuard)
+  async startMubarkiyahCatalogScrape(@Body() dto: MubarkiyahCatalogJobDto) {
+    return this.ingestionService.addIngestionJob({
+      mode: IngestionJobMode.MUBARKIYAH_CATALOG_SCRAPE,
+      ...dto,
+    } as any);
+  }
+
+  @Post('etaamexpress-catalog-scrape')
+  @UsePipes(new ValidationPipe({ transform: true, whitelist: true }))
+  @UseGuards(FirebaseAuthGuard, AdminGuard)
+  async startEtaamExpressCatalogScrape(@Body() dto: EtaamExpressCatalogJobDto) {
+    return this.ingestionService.addIngestionJob({
+      mode: IngestionJobMode.ETAAMEXPRESS_CATALOG_SCRAPE,
+      ...dto,
+    } as any);
+  }
+
+  @Post('aliaqtisadia-catalog-scrape')
+  @UsePipes(new ValidationPipe({ transform: true, whitelist: true }))
+  @UseGuards(FirebaseAuthGuard, AdminGuard)
+  async startAliaqtisadiaCatalogScrape(@Body() dto: AliaqtisadiaCatalogJobDto) {
+    return this.ingestionService.addIngestionJob({
+      mode: IngestionJobMode.ALIAQTISADIA_CATALOG_SCRAPE,
       ...dto,
     } as any);
   }

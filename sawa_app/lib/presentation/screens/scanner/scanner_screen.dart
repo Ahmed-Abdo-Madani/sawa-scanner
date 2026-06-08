@@ -161,7 +161,9 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> with WidgetsBindi
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        l10n.scanLimitMessage,
+                        ref.read(userPreferencesProvider.notifier).isFirstDay()
+                            ? l10n.scanLimitMessageFirstDay
+                            : l10n.scanLimitMessage,
                         style: AppTypography.caption(locale).copyWith(
                           color: AppColors.onSurface.withOpacity(0.7),
                           fontSize: 14,

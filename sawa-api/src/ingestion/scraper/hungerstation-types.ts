@@ -68,7 +68,9 @@ export interface HsBranch {
   source_url: string;
   citySlug: string;
   districtSlug: string;
+  logo_url?: string;
 }
+
 
 // ─── URL / path constants ─────────────────────────────────────────────────────
 

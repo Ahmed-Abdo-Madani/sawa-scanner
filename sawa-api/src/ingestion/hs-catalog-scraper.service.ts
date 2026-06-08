@@ -241,17 +241,19 @@ export class HsCatalogScraperService {
             try {
               // Get detail page data
               let detailData: ScrapedProductData = {} as any;
-              try {
-                const scrapeResult = await scraper.scrapeDetailPage(
-                  listingItem.productPageUrl,
-                  branch,
-                );
-                detailPage = scrapeResult.page;
-                detailData = scrapeResult;
-              } catch (err) {
-                this.logger.warn(
-                  `[HS Catalog] Detail page failed for ${listingItem.name}: ${err.message}`,
-                );
+              if (listingItem.hasDetailPage !== false) {
+                try {
+                  const scrapeResult = await scraper.scrapeDetailPage(
+                    listingItem.productPageUrl,
+                    branch,
+                  );
+                  detailPage = scrapeResult.page;
+                  detailData = scrapeResult;
+                } catch (err) {
+                  this.logger.warn(
+                    `[HS Catalog] Detail page failed for ${listingItem.name}: ${err.message}`,
+                  );
+                }
               }
 
               const combined: ScrapedProductData = {
@@ -509,7 +511,7 @@ export class HsCatalogScraperService {
   } {
     // Pattern: /sa-en/qc/{chainId}/{chainName}/branch/{branchUuid}
     const match = url.match(
-      /\/qc\/(\d+)\/([^/]+)\/branch\/([a-f0-9-]+(?:~\d+)?)/,
+      /\/qc\/(\d+)\/([^/]+)\/branch\/([^/?#\s]+)/,
     );
     if (match) {
       return {
@@ -518,7 +520,15 @@ export class HsCatalogScraperService {
         branchUuid: match[3],
       };
     }
-    // Fallback: just extract UUID
+    // Fallback: extract everything after branch/
+    const fallbackMatch = url.match(/\/branch\/([^/?#\s]+)/);
+    if (fallbackMatch) {
+      return {
+        branchUuid: fallbackMatch[1],
+        chainId: '',
+        chainName: '',
+      };
+    }
     const uuidMatch = url.match(/([a-f0-9-]{36}(?:~\d+)?)/);
     return {
       branchUuid: uuidMatch?.[1] ?? '',

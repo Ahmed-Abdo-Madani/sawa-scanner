@@ -9,6 +9,8 @@ import { join } from 'path';
 import { AuthModule } from './auth/auth.module';
 import { FirebaseAuthGuard } from './auth/firebase-auth.guard';
 import { SchemaCompatibilityService } from './startup/schema-compatibility.service';
+import { AppController } from './app.controller';
+import { AppService } from './app.service';
 
 import { ProductsModule } from './products/products.module';
 import { PricesModule } from './prices/prices.module';
@@ -71,7 +73,9 @@ import { validate } from './config/env.validation';
       serveRoot: '/uploads',
     }),
   ],
+  controllers: [AppController],
   providers: [
+    AppService,
     SchemaCompatibilityService,
     {
       provide: APP_GUARD,

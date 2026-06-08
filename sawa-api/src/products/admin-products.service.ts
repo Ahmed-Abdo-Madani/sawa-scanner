@@ -10,6 +10,7 @@ import { NutritionFact } from '../entities/nutrition-fact.entity';
 import { Ingredient } from '../entities/ingredient.entity';
 import { ProductAllergen } from '../entities/product-allergen.entity';
 import { ProductImage } from '../entities/product-image.entity';
+import { ProductPrice } from '../entities/product-price.entity';
 import { normalizeBrandStrict, normalizeProductName, gtinPrefix } from '../utils/normalization';
 
 @Injectable()
@@ -58,6 +59,7 @@ export class AdminProductsService {
     category?: string;
     brand?: string;
     gtinStatus?: string;
+    onlyMultiStore?: string;
   }) {
     const page = query.page ? parseInt(query.page.toString(), 10) : 1;
     const pageSize = query.pageSize ? parseInt(query.pageSize.toString(), 10) : 20;
@@ -98,11 +100,41 @@ export class AdminProductsService {
       });
     }
 
+    if (query.onlyMultiStore === 'true') {
+      qb.andWhere((subQuery) => {
+        const sub = subQuery
+          .subQuery()
+          .select('pp.product_id')
+          .from('product_price', 'pp')
+          .groupBy('pp.product_id')
+          .having('COUNT(pp.id) > 1')
+          .getQuery();
+        return 'product.id IN ' + sub;
+      });
+    }
+
     const [items, total] = await qb
       .orderBy('product.created_at', 'DESC')
       .skip(offset)
       .take(pageSize)
       .getManyAndCount();
+
+    // Map store price count for each product
+    if (items.length > 0) {
+      const itemIds = items.map(item => item.id);
+      const priceCounts = await this.dataSource.getRepository(ProductPrice)
+        .createQueryBuilder('price')
+        .select('price.product_id', 'productId')
+        .addSelect('COUNT(*)', 'count')
+        .where('price.product_id IN (:...itemIds)', { itemIds })
+        .groupBy('price.product_id')
+        .getRawMany();
+
+      const countsMap = new Map(priceCounts.map(c => [c.productId, parseInt(c.count)]));
+      items.forEach((item: any) => {
+        item.priceCount = countsMap.get(item.id) || 0;
+      });
+    }
 
     return { items, total, page, pageSize };
   }

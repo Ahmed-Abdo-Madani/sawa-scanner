@@ -334,3 +334,52 @@ export function inferBrandAndWeightFromName(
 
   return result;
 }
+
+/**
+ * Determines if a merchant name belongs to one of the major supermarkets
+ * (Al Othaim, Panda, Carrefour, Danube, Tamimi, Lulu, Spinneys).
+ */
+export function isMajorSupermarket(nameEn?: string, nameAr?: string): boolean {
+  const majorEnKeywords = [
+    'othaim',
+    'panda',
+    'carrefour',
+    'karfour',
+    'danube',
+    'tamimi',
+    'lulu',
+    'spinneys',
+  ];
+
+  if (nameEn) {
+    const lowerEn = nameEn.toLowerCase();
+    if (majorEnKeywords.some((kw) => lowerEn.includes(kw))) {
+      return true;
+    }
+  }
+
+  if (nameAr) {
+    const lowerAr = nameAr.toLowerCase();
+    const majorArKeywords = [
+      'العثيم',
+      'عثيم',
+      'بنده',
+      'بندة',
+      'كارفور',
+      'الدانوب',
+      'دانوب',
+      'التميمي',
+      'تميمي',
+      'لولو',
+      'سبينس',
+      'سبينيس',
+      'سبينيز',
+    ];
+    if (majorArKeywords.some((kw) => lowerAr.includes(kw))) {
+      return true;
+    }
+  }
+
+  return false;
+}
+

@@ -472,6 +472,7 @@ export class HungerStationScraper extends BaseScraper {
         `[HS] discoverCategories: page loaded and scrolled, sweeping hydration...`,
       );
 
+      let hasHydrationMenu = false;
       const hydrated = await this.sweepHydrationData(page, (json) => {
         const categories: Array<{ id: string; name: string; url: string }> = [];
         const stack: any[] = [json];
@@ -481,6 +482,12 @@ export class HungerStationScraper extends BaseScraper {
           if (Array.isArray(cur)) {
             for (const v of cur) stack.push(v);
             continue;
+          }
+          if (
+            (cur.vendorMenu && Array.isArray(cur.vendorMenu) && cur.vendorMenu.length > 0) ||
+            (cur.menu && Array.isArray(cur.menu) && cur.menu.length > 0)
+          ) {
+            hasHydrationMenu = true;
           }
           for (const [k, v] of Object.entries(cur)) {
             if (/categories|menuCategories/i.test(k) && Array.isArray(v)) {
@@ -542,6 +549,33 @@ export class HungerStationScraper extends BaseScraper {
         const id = item.id || url;
         if (!categoryMap.has(id))
           categoryMap.set(id, { id, name: item.name, url });
+      }
+
+      if (categoryMap.size === 0) {
+        // Fallback for Restaurant Layout / Closed store:
+        // If we found NO categories but the page contains vendorMenu,
+        // we can return a single "fake" category representing the whole menu.
+        const hasVendorMenu = hasHydrationMenu || await page.evaluate(() => {
+          const script = document.getElementById('__NEXT_DATA__');
+          if (!script) return false;
+          try {
+            const data = JSON.parse(script.textContent);
+            const menu = data?.props?.pageProps?.vendorMenu || data?.props?.pageProps?.menu;
+            return !!(menu && Array.isArray(menu) && menu.length > 0);
+          } catch {
+            return false;
+          }
+        });
+        if (hasVendorMenu) {
+          this.logger.log(
+            `[HS] discoverCategories: No categories found, but vendorMenu/menu exists. Returning fallback category.`,
+          );
+          categoryMap.set('vendorMenu', {
+            id: 'vendorMenu',
+            name: 'Menu',
+            url: branch.source_url,
+          });
+        }
       }
 
       teardown();
@@ -912,6 +946,7 @@ export class HungerStationScraper extends BaseScraper {
       allergen_tags: allergen_tags.length > 0 ? allergen_tags : undefined,
       ingredient_tags: ingredient_tags.length > 0 ? ingredient_tags : undefined,
       subcategory,
+      hasDetailPage: !!directUrl,
     };
   }
 
@@ -1374,6 +1409,27 @@ export class HungerStationScraper extends BaseScraper {
       const uuid = this.extractPlatformUuid(rawLink, String(hasId));
       if (!uuid) return;
 
+      let logoUrl = '';
+      if (json.logo) {
+        logoUrl = typeof json.logo === 'string' ? json.logo : (json.logo.url || json.logo.src || '');
+      } else if (json.image) {
+        logoUrl = typeof json.image === 'string' ? json.image : (json.image.url || json.image.src || '');
+      } else if (json.logoUrl) {
+        logoUrl = String(json.logoUrl);
+      } else if (json.logo_url) {
+        logoUrl = String(json.logo_url);
+      } else if (json.avatarUrl) {
+        logoUrl = String(json.avatarUrl);
+      } else if (json.avatar_url) {
+        logoUrl = String(json.avatar_url);
+      }
+
+      if (logoUrl && !logoUrl.startsWith('http')) {
+        try {
+          logoUrl = new URL(logoUrl, HS_BASE_URL).toString();
+        } catch (e) {}
+      }
+
       branchMap.set(uuid, {
         platform_branch_id: String(hasId),
         platform_branch_uuid: uuid,
@@ -1393,10 +1449,12 @@ export class HungerStationScraper extends BaseScraper {
         lat: json.lat ?? json.latitude,
         lng: json.lng ?? json.longitude,
         source_url: rawLink ? new URL(rawLink, HS_BASE_URL).toString() : '',
+        logo_url: logoUrl || undefined,
         citySlug: district.citySlug,
         districtSlug: district.slug,
       });
     }
+
 
     // Recurse into child objects
     for (const val of Object.values(json)) {
@@ -1900,16 +1958,39 @@ export class HungerStationScraper extends BaseScraper {
               const nameAr = arEl?.textContent?.trim() ?? '';
               const rawName =
                 nameEl?.textContent?.trim() ?? a.textContent?.trim() ?? '';
+
+              // Extract logo URL
+              const img = a.querySelector('img');
+              let logoUrl = '';
+              if (img) {
+                const src = img.getAttribute('src') ?? '';
+                const srcset = img.getAttribute('srcset') ?? '';
+                let rawSrc = src;
+                if (!rawSrc && srcset) {
+                  const first = srcset.split(',')[0].trim().split(' ')[0];
+                  rawSrc = first;
+                }
+                if (rawSrc.includes('url=')) {
+                  try {
+                    const u = new URL(rawSrc, window.location.origin);
+                    logoUrl = u.searchParams.get('url') ?? '';
+                  } catch (e) {}
+                } else {
+                  logoUrl = rawSrc;
+                }
+              }
+
               return {
                 href,
                 nameEn: rawName || nameAr,
                 nameAr,
+                logoUrl,
               };
             })
             .filter((b) => b.href && b.nameEn);
         });
 
-        for (const { href, nameEn, nameAr } of domBranches) {
+        for (const { href, nameEn, nameAr, logoUrl } of domBranches) {
           // Branch URLs are /sa-en/qc/{vendorId}/{VendorName}/branch/{citySlug}~{districtSlug}~{uuid}
           // Vertical is NOT in the URL — these are all supermarket/grocery branches since
           // we're navigating a /qc/supermarkets/{city}/{district} page.
@@ -1937,6 +2018,7 @@ export class HungerStationScraper extends BaseScraper {
             merchant_name_ar: nameAr || nameEn,
             vertical,
             source_url: new URL(href, HS_BASE_URL).toString(),
+            logo_url: logoUrl || undefined,
             citySlug: district.citySlug,
             districtSlug: district.slug,
           });

@@ -20,6 +20,7 @@ export interface UpsertStoreDto {
   lat?: number | null;
   lng?: number | null;
   source_url?: string;
+  logo_url?: string;
 }
 
 @Injectable()
@@ -52,6 +53,7 @@ export class StoresService {
       merchant = this.merchantRepo.create({
         name_en: dto.merchant_name_en,
         name_ar: dto.merchant_name_ar,
+        logo_url: dto.logo_url,
         base_url:
           dto.platform === 'hungerstation'
             ? 'https://hungerstation.com'
@@ -61,6 +63,12 @@ export class StoresService {
       merchant = await this.merchantRepo.save(merchant);
       this.logger.log(
         `Created NEW merchant: "${merchant.name_en}" (id=${merchant.id})`,
+      );
+    } else if (dto.logo_url && merchant.logo_url !== dto.logo_url) {
+      merchant.logo_url = dto.logo_url;
+      merchant = await this.merchantRepo.save(merchant);
+      this.logger.log(
+        `Updated logo for merchant "${merchant.name_en}": ${merchant.logo_url}`,
       );
     }
 

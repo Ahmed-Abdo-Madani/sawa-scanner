@@ -917,8 +917,8 @@ export class SallaGtinArScraper extends BaseScraper {
     const html = await this.fetchHtmlWithAxios(productUrl);
     if (html) {
       const details = this.parseProductDetailsFromHtml(html);
-      if (details && details.gtin && details.price !== null && details.name) {
-        this.logger.log(`[Fast Path Axios] Successfully resolved product details for ${productUrl}!`);
+      if (details && details.price !== null && details.name) {
+        this.logger.log(`[Fast Path Axios] Successfully resolved product details for ${productUrl} (gtin: ${details.gtin})`);
         return details;
       }
     }

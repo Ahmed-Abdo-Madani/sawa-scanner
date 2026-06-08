@@ -56,19 +56,47 @@ export class PricesService {
 
     const prices = await this.priceRepository.find({
       where: { product_id: product.id },
-      relations: ['merchant'],
+      relations: ['merchant', 'store', 'store.merchant'],
+    });
+
+    const hasSpecificHsPrices = prices.some(
+      (p) =>
+        (p.store?.platform === 'hungerstation' || p.merchant?.name_en?.toLowerCase() === 'hungerstation') &&
+        p.store_id !== null && p.store_id !== undefined
+    );
+
+    // Filter out HungerStation prices with null store_id if specific ones exist
+    const filteredPrices = prices.filter((p) => {
+      const isHs = p.store?.platform === 'hungerstation' || p.merchant?.name_en?.toLowerCase() === 'hungerstation';
+      if (isHs && p.store_id === null && hasSpecificHsPrices) {
+        return false;
+      }
+      return true;
     });
 
     const latestPricesMap = new Map<string, ProductPrice>();
-    for (const p of prices) {
-      const existing = latestPricesMap.get(p.merchant_id);
-      if (!existing || p.scraped_at > existing.scraped_at) {
-        latestPricesMap.set(p.merchant_id, p);
+    const sortedPrices = [...filteredPrices].sort(
+      (a, b) => new Date(b.scraped_at).getTime() - new Date(a.scraped_at).getTime()
+    );
+    for (const p of sortedPrices) {
+      const merchantId = p.merchant_id || p.merchant?.id || '';
+      const storeId = p.store_id || p.store?.id || '';
+      const key = `${merchantId}:${storeId}`;
+      if (!latestPricesMap.has(key)) {
+        latestPricesMap.set(key, p);
       }
     }
 
     const latestPrices = Array.from(latestPricesMap.values());
-    latestPrices.sort((a, b) => a.price_sar_incl_vat - b.price_sar_incl_vat);
+
+    // Sort HungerStation results first, then by price
+    latestPrices.sort((a, b) => {
+      const aIsHs = a.store?.platform === 'hungerstation' || a.merchant?.name_en?.toLowerCase() === 'hungerstation';
+      const bIsHs = b.store?.platform === 'hungerstation' || b.merchant?.name_en?.toLowerCase() === 'hungerstation';
+      if (aIsHs && !bIsHs) return -1;
+      if (!aIsHs && bIsHs) return 1;
+      return a.price_sar_incl_vat - b.price_sar_incl_vat;
+    });
 
     // Cache with 5 minute TTL
     await this.redis.set(
@@ -153,7 +181,7 @@ export class PricesService {
         product_id: product.id,
         scraped_at: Between(startDate, new Date()),
       },
-      relations: ['merchant'],
+      relations: ['merchant', 'store', 'store.merchant'],
       order: { scraped_at: 'ASC' },
     });
 

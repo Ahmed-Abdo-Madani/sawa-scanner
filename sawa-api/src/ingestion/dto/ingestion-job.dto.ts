@@ -38,6 +38,11 @@ export enum IngestionJobMode {
   HS_CATALOG_SCRAPE = 'hs-catalog-scrape',
   HS_CATALOG_SCRAPE_CATEGORY = 'hs-catalog-scrape-category',
   PARKCENTER_CATALOG_SCRAPE = 'parkcenter-catalog-scrape',
+  YASMIN_CATALOG_SCRAPE = 'yasmin-catalog-scrape',
+  DUKANEXPRESS_CATALOG_SCRAPE = 'dukanexpress-catalog-scrape',
+  MUBARKIYAH_CATALOG_SCRAPE = 'mubarkiyah-catalog-scrape',
+  ETAAMEXPRESS_CATALOG_SCRAPE = 'etaamexpress-catalog-scrape',
+  ALIAQTISADIA_CATALOG_SCRAPE = 'aliaqtisadia-catalog-scrape',
 }
 
 export class PageRangeDto {
@@ -138,7 +143,7 @@ export class IngestionJobDto {
    * Platform is required for scrape, discovery, and other jobs that actually need it.
    * For GTIN_BACKFILL_OFF mode, platform is not used and can be omitted.
    */
-  @ValidateIf((o) => o.mode !== IngestionJobMode.GTIN_BACKFILL_OFF && o.mode !== IngestionJobMode.OFF_IMPORT && o.mode !== IngestionJobMode.OFF_ENRICHMENT && o.mode !== IngestionJobMode.OFF_PRICE_LINKING && o.mode !== IngestionJobMode.BARCODE_LIST_NAMES && o.mode !== IngestionJobMode.HS_CATALOG_SCRAPE && o.mode !== IngestionJobMode.HS_CATALOG_SCRAPE_CATEGORY && o.mode !== IngestionJobMode.PARKCENTER_CATALOG_SCRAPE && (!o.mode || o.mode === IngestionJobMode.SCRAPE))
+  @ValidateIf((o) => o.mode !== IngestionJobMode.GTIN_BACKFILL_OFF && o.mode !== IngestionJobMode.OFF_IMPORT && o.mode !== IngestionJobMode.OFF_ENRICHMENT && o.mode !== IngestionJobMode.OFF_PRICE_LINKING && o.mode !== IngestionJobMode.BARCODE_LIST_NAMES && o.mode !== IngestionJobMode.HS_CATALOG_SCRAPE && o.mode !== IngestionJobMode.HS_CATALOG_SCRAPE_CATEGORY && o.mode !== IngestionJobMode.PARKCENTER_CATALOG_SCRAPE && o.mode !== IngestionJobMode.YASMIN_CATALOG_SCRAPE && o.mode !== IngestionJobMode.DUKANEXPRESS_CATALOG_SCRAPE && o.mode !== IngestionJobMode.MUBARKIYAH_CATALOG_SCRAPE && o.mode !== IngestionJobMode.ETAAMEXPRESS_CATALOG_SCRAPE && o.mode !== IngestionJobMode.ALIAQTISADIA_CATALOG_SCRAPE && (!o.mode || o.mode === IngestionJobMode.SCRAPE))
   @IsEnum(IngestionPlatform)
   platform?: IngestionPlatform;
 
@@ -292,4 +297,5 @@ export interface ScrapedProductData {
   allergen_tags?: string[];
   ingredient_tags?: string[];
   subcategory?: string;
+  hasDetailPage?: boolean;
 }

@@ -117,9 +117,12 @@ export class ProductsService {
       const existingPrices = await this.productPriceRepository
         .createQueryBuilder('pp')
         .leftJoinAndSelect('pp.merchant', 'merchant')
+        .leftJoinAndSelect('pp.store', 'store')
+        .leftJoinAndSelect('store.merchant', 'storeMerchant')
         .where('pp.product_id = :productId', { productId: product.id })
-        .distinctOn(['pp.merchant_id'])
+        .distinctOn(['pp.merchant_id', 'pp.store_id'])
         .orderBy('pp.merchant_id')
+        .addOrderBy('pp.store_id')
         .addOrderBy('pp.scraped_at', 'DESC')
         .getMany();
       product.prices = existingPrices;
@@ -301,9 +304,12 @@ export class ProductsService {
     const existingPrices = await this.productPriceRepository
       .createQueryBuilder('pp')
       .leftJoinAndSelect('pp.merchant', 'merchant')
+      .leftJoinAndSelect('pp.store', 'store')
+      .leftJoinAndSelect('store.merchant', 'storeMerchant')
       .where('pp.product_id = :productId', { productId: product.id })
-      .distinctOn(['pp.merchant_id'])
+      .distinctOn(['pp.merchant_id', 'pp.store_id'])
       .orderBy('pp.merchant_id')
+      .addOrderBy('pp.store_id')
       .addOrderBy('pp.scraped_at', 'DESC')
       .getMany();
 
@@ -446,9 +452,12 @@ export class ProductsService {
             product.prices = await this.productPriceRepository
               .createQueryBuilder('pp')
               .leftJoinAndSelect('pp.merchant', 'merchant')
+              .leftJoinAndSelect('pp.store', 'store')
+              .leftJoinAndSelect('store.merchant', 'storeMerchant')
               .where('pp.product_id = :productId', { productId: product.id })
-              .distinctOn(['pp.merchant_id'])
+              .distinctOn(['pp.merchant_id', 'pp.store_id'])
               .orderBy('pp.merchant_id')
+              .addOrderBy('pp.store_id')
               .addOrderBy('pp.scraped_at', 'DESC')
               .getMany();
 
@@ -830,6 +839,8 @@ export class ProductsService {
       .leftJoinAndSelect('product.images', 'images')
       .leftJoinAndSelect('product.prices', 'prices')
       .leftJoinAndSelect('prices.merchant', 'merchant')
+      .leftJoinAndSelect('prices.store', 'store')
+      .leftJoinAndSelect('store.merchant', 'storeMerchant')
       .where(
         '(product.name_en ILIKE :q OR product.name_ar ILIKE :q OR product.brand ILIKE :q OR product.gtin = :gtin)',
         { q: `%${query}%`, gtin: query },

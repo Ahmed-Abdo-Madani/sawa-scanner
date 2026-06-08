@@ -946,6 +946,10 @@ class AppLocalizationsAr extends AppLocalizations {
       'يقتصر المستخدمون المجانيون على 5 عمليات مسح في اليوم. قم بالترقية إلى سوا بلس للحصول على عمليات مسح غير محدودة!';
 
   @override
+  String get scanLimitMessageFirstDay =>
+      'يقتصر المستخدمون المجانيون على 15 عملية مسح في يومهم الأول. اشترك في سوا بلس للحصول على عمليات مسح غير محدودة!';
+
+  @override
   String get upgradeSawaPlusButton => 'الترقية إلى سوا بلس';
 
   @override
@@ -962,7 +966,7 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get subscriptionExplanationText =>
-      'يتم فوترة الاشتراكات شهرياً (\$0.49/شهرياً) بشكل آمن من خلال حساب متجر التطبيقات الخاص بك. يتجدد الاشتراك تلقائياً كل شهر ما لم يتم إلغاؤه في إعدادات حسابك قبل 24 ساعة على الأقل من نهاية الفترة الحالية. يتم التحقق من صحة رموز الشراء بأمان على خوادمنا.';
+      'يتم فوترة الاشتراكات شهرياً (٤.٩٩ ريال/شهرياً) بشكل آمن من خلال حساب متجر التطبيقات الخاص بك. يتجدد الاشتراك تلقائياً كل شهر ما لم يتم إلغاؤه في إعدادات حسابك قبل 24 ساعة على الأقل من نهاية الفترة الحالية. يتم التحقق من صحة رموز الشراء بأمان على خوادمنا.';
 
   @override
   String get privacyPolicy => 'سياسة الخصوصية';
@@ -1109,4 +1113,14 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get restorePurchaseButton => 'استعادة المشتريات';
+
+  @override
+  String get sawaPlusPopupTitle => 'اشترك في سوا بلس';
+
+  @override
+  String get sawaPlusPopupMessage =>
+      'اشترك في سوا بلس للحصول على عمليات مسح وميزات غير محدودة';
+
+  @override
+  String get continueButton => 'متابعة';
 }

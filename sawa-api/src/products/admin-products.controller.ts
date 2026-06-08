@@ -50,6 +50,7 @@ export class AdminProductsController {
     @Query('category') category: string,
     @Query('brand') brand?: string,
     @Query('gtinStatus') gtinStatus?: string,
+    @Query('onlyMultiStore') onlyMultiStore?: string,
   ) {
     return await this.adminService.listProductsNeedingGtin({
       page,
@@ -58,6 +59,7 @@ export class AdminProductsController {
       category,
       brand,
       gtinStatus,
+      onlyMultiStore,
     });
   }
 

@@ -25,6 +25,7 @@ class UserPreferencesKeys {
   static const String fieldIsFirstLaunch = 'isFirstLaunch';
   static const String fieldRecentScanTimestamps = 'recentScanTimestamps';
   static const String fieldIsSubscribed = 'isSubscribed';
+  static const String fieldFirstLaunchDate = 'firstLaunchDate';
 
   /// Default locale used when no preference has been stored yet.
   static const String defaultLocale = 'ar';
@@ -87,6 +88,7 @@ class UserPreferences {
   final bool isFirstLaunch;
   final List<String> recentScanTimestamps;
   final bool isSubscribed;
+  final DateTime? firstLaunchDate;
 
   UserPreferences({
     required this.dietaryPreferences,
@@ -95,6 +97,7 @@ class UserPreferences {
     required this.isFirstLaunch,
     required this.recentScanTimestamps,
     required this.isSubscribed,
+    this.firstLaunchDate,
   });
 
   UserPreferences copyWith({
@@ -104,6 +107,7 @@ class UserPreferences {
     bool? isFirstLaunch,
     List<String>? recentScanTimestamps,
     bool? isSubscribed,
+    DateTime? firstLaunchDate,
   }) {
     return UserPreferences(
       dietaryPreferences: dietaryPreferences ?? this.dietaryPreferences,
@@ -112,6 +116,7 @@ class UserPreferences {
       isFirstLaunch: isFirstLaunch ?? this.isFirstLaunch,
       recentScanTimestamps: recentScanTimestamps ?? this.recentScanTimestamps,
       isSubscribed: isSubscribed ?? this.isSubscribed,
+      firstLaunchDate: firstLaunchDate ?? this.firstLaunchDate,
     );
   }
 
@@ -123,6 +128,7 @@ class UserPreferences {
       UserPreferencesKeys.fieldIsFirstLaunch: isFirstLaunch,
       UserPreferencesKeys.fieldRecentScanTimestamps: recentScanTimestamps,
       UserPreferencesKeys.fieldIsSubscribed: isSubscribed,
+      UserPreferencesKeys.fieldFirstLaunchDate: firstLaunchDate?.toIso8601String(),
     };
   }
 
@@ -141,6 +147,9 @@ class UserPreferences {
           map[UserPreferencesKeys.fieldRecentScanTimestamps] ?? []),
       isSubscribed:
           map[UserPreferencesKeys.fieldIsSubscribed] as bool? ?? false,
+      firstLaunchDate: map[UserPreferencesKeys.fieldFirstLaunchDate] != null
+          ? DateTime.tryParse(map[UserPreferencesKeys.fieldFirstLaunchDate] as String)
+          : null,
     );
   }
 }
@@ -160,9 +169,11 @@ class UserPreferencesNotifier extends StateNotifier<UserPreferences> {
       isFirstLaunch: true,
       recentScanTimestamps: [],
       isSubscribed: false,
+      firstLaunchDate: null,
     )
   ) {
     _loadFromHive();
+    _initializeFirstLaunchDate();
   }
 
   void _loadFromHive() {
@@ -170,6 +181,20 @@ class UserPreferencesNotifier extends StateNotifier<UserPreferences> {
     if (data != null) {
       state = UserPreferences.fromMap(Map<dynamic, dynamic>.from(data as Map));
     }
+  }
+
+  Future<void> _initializeFirstLaunchDate() async {
+    if (state.firstLaunchDate == null) {
+      state = state.copyWith(firstLaunchDate: DateTime.now());
+      await _persist();
+    }
+  }
+
+  bool isFirstDay() {
+    final firstLaunch = state.firstLaunchDate;
+    if (firstLaunch == null) return true;
+    final diff = DateTime.now().difference(firstLaunch);
+    return diff.inHours < 24;
   }
 
   bool canScan() {
@@ -185,7 +210,8 @@ class UserPreferencesNotifier extends StateNotifier<UserPreferences> {
           }
         })
         .toList();
-    return activeScans.length < 5;
+    final limit = isFirstDay() ? 15 : 5;
+    return activeScans.length < limit;
   }
 
   Future<void> incrementScanCount() async {

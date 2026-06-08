@@ -167,6 +167,7 @@ class _ProductResultCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final locale = Localizations.localeOf(context);
     final theme = Theme.of(context);
+    final priceList = product.prices;
 
     return InkWell(
       onTap: () {
@@ -230,8 +231,25 @@ class _ProductResultCard extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 8),
-                  if (product.nutriScoreGrade != null)
-                    NutriScoreBadge(grade: product.nutriScoreGrade!, isMini: true),
+                  Row(
+                    children: [
+                      if (product.nutriScoreGrade != null) ...[
+                        NutriScoreBadge(grade: product.nutriScoreGrade!, isMini: true),
+                        const SizedBox(width: 12),
+                      ],
+                      if (priceList.isNotEmpty) ...[
+                        Text(
+                          priceList.length == 1
+                              ? '${priceList.first.priceSarInclVat.toStringAsFixed(2)} ${AppLocalizations.of(context)!.sar}'
+                              : '${priceList.map((p) => p.priceSarInclVat).reduce((a, b) => a < b ? a : b).toStringAsFixed(2)} - ${priceList.map((p) => p.priceSarInclVat).reduce((a, b) => a > b ? a : b).toStringAsFixed(2)} ${AppLocalizations.of(context)!.sar}',
+                          style: AppTypography.caption(locale).copyWith(
+                            color: AppColors.primary,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
                 ],
               ),
             ),

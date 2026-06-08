@@ -109,31 +109,128 @@ export class ProductsController {
         name_en: a.name_en,
         source: a.source,
       })),
-      prices: (product.prices || []).map((p) => {
-        let logoUrl = p.merchant?.logo_url || null;
-        if (!logoUrl && p.merchant?.base_url) {
-          try {
-            const hostname = new URL(p.merchant.base_url).hostname;
-            logoUrl = `https://www.google.com/s2/favicons?sz=128&domain=${hostname}`;
-          } catch (e) {
-            // ignore
+      prices: (() => {
+        const rawPrices = product.prices || [];
+        const hasSpecificHsPrices = rawPrices.some(
+          (p) =>
+            (p.store?.platform === 'hungerstation' || p.merchant?.name_en?.toLowerCase() === 'hungerstation') &&
+            p.store_id !== null && p.store_id !== undefined
+        );
+
+        // Filter out HungerStation prices with null store_id if specific ones exist
+        const filteredPrices = rawPrices.filter((p) => {
+          const isHs = p.store?.platform === 'hungerstation' || p.merchant?.name_en?.toLowerCase() === 'hungerstation';
+          if (isHs && p.store_id === null && hasSpecificHsPrices) {
+            return false;
+          }
+          return true;
+        });
+
+        const latestPricesMap = new Map<string, any>();
+        const sortedPrices = [...filteredPrices].sort(
+          (a, b) => new Date(b.scraped_at).getTime() - new Date(a.scraped_at).getTime()
+        );
+        for (const p of sortedPrices) {
+          const merchantId = p.merchant_id || p.merchant?.id || '';
+          const storeId = p.store_id || p.store?.id || '';
+          const key = `${merchantId}:${storeId}`;
+          if (!latestPricesMap.has(key)) {
+            latestPricesMap.set(key, p);
           }
         }
-        return {
-          merchant: {
-            name_en: p.merchant?.name_en || 'Unknown',
-            name_ar: p.merchant?.name_ar || '',
-            logo_url: logoUrl,
-          },
-          price_sar_incl_vat: p.price_sar_incl_vat,
-          promo_price_sar: p.promo_price_sar || null,
-          unit_price_sar: p.unit_price_sar || null,
-          unit_price_unit: p.unit_price_unit || null,
-          in_stock: p.in_stock,
-          scraped_at: p.scraped_at,
-          source_url: p.source_url || null,
-        };
-      }),
+        const uniquePrices = Array.from(latestPricesMap.values());
+
+        // Sort HungerStation results first, then by price
+        uniquePrices.sort((a, b) => {
+          const aIsHs = a.store?.platform === 'hungerstation' || a.merchant?.name_en?.toLowerCase() === 'hungerstation';
+          const bIsHs = b.store?.platform === 'hungerstation' || b.merchant?.name_en?.toLowerCase() === 'hungerstation';
+          if (aIsHs && !bIsHs) return -1;
+          if (!aIsHs && bIsHs) return 1;
+          return a.price_sar_incl_vat - b.price_sar_incl_vat;
+        });
+
+        return uniquePrices.map((p) => {
+          const isHungerStation = p.merchant?.name_en?.toLowerCase() === 'hungerstation' || p.store?.platform === 'hungerstation';
+          let displayMerchant = (isHungerStation && p.store?.merchant) ? p.store.merchant : p.merchant;
+
+          // Fallback: If it is HungerStation but has no store association, try to infer the merchant from the source_url
+          if (isHungerStation && (!displayMerchant || displayMerchant.name_en?.toLowerCase() === 'hungerstation') && p.source_url) {
+            try {
+              const urlObj = new URL(p.source_url);
+              const pathSegments = urlObj.pathname.split('/');
+              const qcIndex = pathSegments.indexOf('qc');
+              if (qcIndex !== -1 && pathSegments.length > qcIndex + 2) {
+                const slug = pathSegments[qcIndex + 2];
+                const normalizedSlug = slug.toLowerCase().replace(/[^a-z0-9]/g, '');
+                if (normalizedSlug.includes('othaim')) {
+                  displayMerchant = { name_en: 'Othaim', name_ar: 'العثيم', logo_url: 'https://images.deliveryhero.io/image/hungerstation/restaurant/logo/564da9a81d46c97f906e970a5a2dfbb9.jpg' } as any;
+                } else if (normalizedSlug.includes('panda')) {
+                  displayMerchant = { name_en: 'Panda', name_ar: 'بندا', logo_url: 'https://images.deliveryhero.io/image/hungerstation/restaurant/logo/c69e2c6082218055ee8ff69e8011be1b.jpg' } as any;
+                } else if (normalizedSlug.includes('carrefour') || normalizedSlug.includes('karfour')) {
+                  displayMerchant = { name_en: 'Carrefour', name_ar: 'كارفور', logo_url: 'https://images.deliveryhero.io/image/hungerstation/restaurant/logo/4df0c068ce4914c6e91bf97d39a2cf1b.jpg' } as any;
+                } else if (normalizedSlug.includes('danube')) {
+                  displayMerchant = { name_en: 'Danube', name_ar: 'الدانوب', logo_url: 'https://images.deliveryhero.io/image/hungerstation/restaurant/logo/ea1b0df3c156479f806e970a5a2dfbb9.jpg' } as any;
+                } else if (normalizedSlug.includes('tamimi')) {
+                  displayMerchant = { name_en: 'Tamimi Markets', name_ar: 'أسواق التميمي', logo_url: 'https://images.deliveryhero.io/image/hungerstation/restaurant/logo/ea5e2e8f1d46c97f906e970a5a2dfbb9.jpg' } as any;
+                } else if (normalizedSlug.includes('lulu')) {
+                  displayMerchant = { name_en: 'Lulu', name_ar: 'لولو', logo_url: 'https://images.deliveryhero.io/image/hungerstation/restaurant/logo/ea6e2e8f1d46c97f906e970a5a2dfbb9.jpg' } as any;
+                } else if (normalizedSlug.includes('spinneys')) {
+                  displayMerchant = { name_en: 'Spinneys', name_ar: 'سبينس', logo_url: '' } as any;
+                }
+              }
+            } catch (e) {
+              // ignore
+            }
+          }
+          
+          let logoUrl = displayMerchant?.logo_url || null;
+          let baseUrl = displayMerchant?.base_url;
+          if (!logoUrl && displayMerchant?.name_en) {
+            const lowerName = displayMerchant.name_en.toLowerCase();
+            if (lowerName.includes('lulu')) {
+              baseUrl = 'https://www.luluhypermarket.com';
+            } else if (lowerName.includes('othaim')) {
+              baseUrl = 'https://www.othaimmarkets.com';
+            } else if (lowerName.includes('panda')) {
+              baseUrl = 'https://www.pfrh.com';
+            } else if (lowerName.includes('tamimi')) {
+              baseUrl = 'https://www.tamimimarkets.com';
+            } else if (lowerName.includes('carrefour')) {
+              baseUrl = 'https://www.carrefourksa.com';
+            }
+          }
+          if (!logoUrl && baseUrl) {
+            try {
+              const hostname = new URL(baseUrl).hostname;
+              logoUrl = `https://www.google.com/s2/favicons?sz=128&domain=${hostname}`;
+            } catch (e) {
+              // ignore
+            }
+          }
+
+          let merchantName = displayMerchant?.name_en || 'Unknown';
+          let merchantNameAr = displayMerchant?.name_ar || '';
+          if (isHungerStation) {
+            merchantName = `${merchantName} (HungerStation)`;
+            merchantNameAr = `${merchantNameAr || merchantName} (هنقرستيشن)`;
+          }
+
+          return {
+            merchant: {
+              name_en: merchantName,
+              name_ar: merchantNameAr,
+              logo_url: logoUrl,
+            },
+            price_sar_incl_vat: p.price_sar_incl_vat,
+            promo_price_sar: p.promo_price_sar || null,
+            unit_price_sar: p.unit_price_sar || null,
+            unit_price_unit: p.unit_price_unit || null,
+            in_stock: p.in_stock,
+            scraped_at: p.scraped_at,
+            source_url: p.source_url || null,
+          };
+        });
+      })(),
       images: (product.images || []).map((i) => ({
         url: i.url,
         image_type: i.image_type,

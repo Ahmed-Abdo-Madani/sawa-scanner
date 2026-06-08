@@ -52,6 +52,16 @@ export class IngestionService {
       jobName = 'hs-catalog-scrape';
     else if (dto.mode === IngestionJobMode.PARKCENTER_CATALOG_SCRAPE)
       jobName = 'parkcenter-catalog-scrape';
+    else if (dto.mode === IngestionJobMode.YASMIN_CATALOG_SCRAPE)
+      jobName = 'yasmin-catalog-scrape';
+    else if (dto.mode === IngestionJobMode.DUKANEXPRESS_CATALOG_SCRAPE)
+      jobName = 'dukanexpress-catalog-scrape';
+    else if (dto.mode === IngestionJobMode.MUBARKIYAH_CATALOG_SCRAPE)
+      jobName = 'mubarkiyah-catalog-scrape';
+    else if (dto.mode === IngestionJobMode.ETAAMEXPRESS_CATALOG_SCRAPE)
+      jobName = 'etaamexpress-catalog-scrape';
+    else if (dto.mode === IngestionJobMode.ALIAQTISADIA_CATALOG_SCRAPE)
+      jobName = 'aliaqtisadia-catalog-scrape';
 
     const options: JobsOptions & { timeout?: number; jobId?: string } = { ...INGESTION_JOB_OPTIONS };
     if (jobName === 'gtin-backfill-off') {
@@ -205,6 +215,96 @@ export class IngestionService {
         this.logger.warn(`Conflict: Park Center catalog scrape already in-flight as ${activeJobState}`);
         throw err;
       }
+    } else if (jobName === 'yasmin-catalog-scrape') {
+      options.attempts = 1;
+      options.timeout = 8 * 60 * 60 * 1000; // 8 hours
+
+      const activeJobs = await this.ingestionQueue.getJobs(['active', 'waiting', 'delayed', 'prioritized']);
+      const activeYasmin = activeJobs.filter((job) => job.name === 'yasmin-catalog-scrape');
+      
+      if (activeYasmin.length > 0) {
+        const activeJobId = activeYasmin[0].id;
+        const activeJobState = await activeYasmin[0].getState();
+        const err = new ConflictException({
+          jobId: activeJobId,
+          created: false,
+          message: `A Yasmin Store catalog scrape is already ${activeJobState} (job ID: ${activeJobId}). Wait for it to complete.`,
+        });
+        this.logger.warn(`Conflict: Yasmin Store catalog scrape already in-flight as ${activeJobState}`);
+        throw err;
+      }
+    } else if (jobName === 'dukanexpress-catalog-scrape') {
+      options.attempts = 1;
+      options.timeout = 8 * 60 * 60 * 1000; // 8 hours
+
+      const activeJobs = await this.ingestionQueue.getJobs(['active', 'waiting', 'delayed', 'prioritized']);
+      const activeDukan = activeJobs.filter((job) => job.name === 'dukanexpress-catalog-scrape');
+      
+      if (activeDukan.length > 0) {
+        const activeJobId = activeDukan[0].id;
+        const activeJobState = await activeDukan[0].getState();
+        const err = new ConflictException({
+          jobId: activeJobId,
+          created: false,
+          message: `A Dukan Express catalog scrape is already ${activeJobState} (job ID: ${activeJobId}). Wait for it to complete.`,
+        });
+        this.logger.warn(`Conflict: Dukan Express catalog scrape already in-flight as ${activeJobState}`);
+        throw err;
+      }
+    } else if (jobName === 'mubarkiyah-catalog-scrape') {
+      options.attempts = 1;
+      options.timeout = 8 * 60 * 60 * 1000; // 8 hours
+
+      const activeJobs = await this.ingestionQueue.getJobs(['active', 'waiting', 'delayed', 'prioritized']);
+      const activeMubarkiyah = activeJobs.filter((job) => job.name === 'mubarkiyah-catalog-scrape');
+      
+      if (activeMubarkiyah.length > 0) {
+        const activeJobId = activeMubarkiyah[0].id;
+        const activeJobState = await activeMubarkiyah[0].getState();
+        const err = new ConflictException({
+          jobId: activeJobId,
+          created: false,
+          message: `A Mubarkiyah catalog scrape is already ${activeJobState} (job ID: ${activeJobId}). Wait for it to complete.`,
+        });
+        this.logger.warn(`Conflict: Mubarkiyah catalog scrape already in-flight as ${activeJobState}`);
+        throw err;
+      }
+    } else if (jobName === 'etaamexpress-catalog-scrape') {
+      options.attempts = 1;
+      options.timeout = 8 * 60 * 60 * 1000; // 8 hours
+
+      const activeJobs = await this.ingestionQueue.getJobs(['active', 'waiting', 'delayed', 'prioritized']);
+      const activeEtaamExpress = activeJobs.filter((job) => job.name === 'etaamexpress-catalog-scrape');
+
+      if (activeEtaamExpress.length > 0) {
+        const activeJobId = activeEtaamExpress[0].id;
+        const activeJobState = await activeEtaamExpress[0].getState();
+        const err = new ConflictException({
+          jobId: activeJobId,
+          created: false,
+          message: `An Etaam Express catalog scrape is already ${activeJobState} (job ID: ${activeJobId}). Wait for it to complete.`,
+        });
+        this.logger.warn(`Conflict: Etaam Express catalog scrape already in-flight as ${activeJobState}`);
+        throw err;
+      }
+    } else if (jobName === 'aliaqtisadia-catalog-scrape') {
+      options.attempts = 1;
+      options.timeout = 8 * 60 * 60 * 1000; // 8 hours
+
+      const activeJobs = await this.ingestionQueue.getJobs(['active', 'waiting', 'delayed', 'prioritized']);
+      const activeAliaqtisadia = activeJobs.filter((job) => job.name === 'aliaqtisadia-catalog-scrape');
+
+      if (activeAliaqtisadia.length > 0) {
+        const activeJobId = activeAliaqtisadia[0].id;
+        const activeJobState = await activeAliaqtisadia[0].getState();
+        const err = new ConflictException({
+          jobId: activeJobId,
+          created: false,
+          message: `An Aliaqtisadia catalog scrape is already ${activeJobState} (job ID: ${activeJobId}). Wait for it to complete.`,
+        });
+        this.logger.warn(`Conflict: Aliaqtisadia catalog scrape already in-flight as ${activeJobState}`);
+        throw err;
+      }
     } else if (jobName === 'hs-catalog-scrape-category') {
       options.attempts = 3;
       options.timeout = 2 * 60 * 60 * 1000; // 2 hours
@@ -237,6 +337,21 @@ export class IngestionService {
     } else if (jobName === 'parkcenter-catalog-scrape') {
       response.created = true;
       response.message = 'Park Center catalog scrape job queued successfully.';
+    } else if (jobName === 'yasmin-catalog-scrape') {
+      response.created = true;
+      response.message = 'Yasmin Store catalog scrape job queued successfully.';
+    } else if (jobName === 'dukanexpress-catalog-scrape') {
+      response.created = true;
+      response.message = 'Dukan Express catalog scrape job queued successfully.';
+    } else if (jobName === 'mubarkiyah-catalog-scrape') {
+      response.created = true;
+      response.message = 'Mubarkiyah catalog scrape job queued successfully.';
+    } else if (jobName === 'etaamexpress-catalog-scrape') {
+      response.created = true;
+      response.message = 'Etaam Express catalog scrape job queued successfully.';
+    } else if (jobName === 'aliaqtisadia-catalog-scrape') {
+      response.created = true;
+      response.message = 'Aliaqtisadia catalog scrape job queued successfully.';
     }
     return response;
   }
@@ -251,6 +366,7 @@ export class IngestionService {
       progress: job.progress,
       result: job.returnvalue,
       failedReason: job.failedReason,
+      data: job.data,
     };
   }
 
@@ -260,7 +376,8 @@ export class IngestionService {
    * zombie jobs in 'active' state that block new runs.
    */
   async cleanStaleJobs(jobName: string): Promise<{ removed: number; ids: string[] }> {
-    const activeJobs = await this.ingestionQueue.getJobs(['active', 'waiting', 'delayed']);
+    // Only target 'active' jobs. 'waiting', 'delayed', or 'prioritized' jobs are not stuck/zombie and should not be removed.
+    const activeJobs = await this.ingestionQueue.getJobs(['active']);
     const staleJobs = activeJobs.filter((job) => job.name === jobName);
 
     const removedIds: string[] = [];

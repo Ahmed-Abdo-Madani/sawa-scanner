@@ -1,0 +1,532 @@
+{
+  "_nextI18Next": {
+    "initialI18nStore": {
+      "en": {
+        "common": {
+          "locale": "عربي",
+          "copyright": "© {{year}} HungerStation LTD.",
+          "english": "English",
+          "arabic": "عربي",
+          "appDownloadLinkLabel": "Download Now",
+          "footer": {
+            "hungerstation": "HungerStation",
+            "about": "About us",
+            "careers": "Careers",
+            "rider": "Register as a rider",
+            "business": "Register as a vendor",
+            "market": "Quick Market",
+            "fazaa": "Fazaa",
+            "help": "Help",
+            "faqs": "FAQs",
+            "terms": "Terms of use",
+            "rewards_terms": "Rewards terms of use",
+            "usage": "Usage and Privacy",
+            "policy": "Privacy policy",
+            "contact": "Contact us",
+            "countries": "Countries",
+            "region": "Our regions",
+            "bh": "Bahrain",
+            "sa": "Saudi",
+            "download": {
+              "label": "Download the App",
+              "content": "Get all your needs with fast delivery from food, groceries, pharmacy items, flowers, and more."
+            },
+            "banner": {
+              "title": "Enjoy app-exclusive features, deals & discounts.\nPlus new users get 1 year free delivery!"
+            }
+          },
+          "unit": {
+            "distance": "Distance",
+            "delivery-time": "Delivery Time",
+            "delivery": "Delivery"
+          },
+          "actions": {
+            "close": "Close",
+            "expand": "View All...",
+            "download": "Download Now",
+            "viewAll": "View All"
+          },
+          "completeOrder": {
+            "label": "Complete Your Order",
+            "content": "Continue your order experience through our mobile app"
+          },
+          "location-picker": {
+            "title": "Delivery Address",
+            "deliver-to": "Deliver to:",
+            "submit": "Deliver here",
+            "placeholder": "Search for an area, street name, or landmark",
+            "not-available": "Sorry, the address is not eligible for delivery",
+            "widget": {
+              "title": "Choose your delivery location",
+              "subtitle": "Set your address to view available offers and stores",
+              "button": "Set Location"
+            },
+            "errors": {
+              "permission": "Please allow HungerStation to access your location so we can automatically detect your position."
+            },
+            "searchAction": "Search",
+            "locateMe": "Locate Me",
+            "validationFailed": "Validation failed"
+          },
+          "search-bar": {
+            "searchAction": "Search"
+          },
+          "currency": "{{value}} {{currency}}",
+          "cookies": {
+            "content": "Hi! We use cookies to make this site better for you, and to understand our audience. To learn more please read our <link-privacy-policy>Privacy Policy</link-privacy-policy>"
+          },
+          "smartBanner": {
+            "title": "Enjoy exclusive in-app features, special deals, and discounts. New users also get free delivery for an entire year!"
+          },
+          "verticals": {
+            "hmarket": "HungerStation Market",
+            "restaurants": "Restaurants",
+            "supermarkets": "Groceries",
+            "pickup": "Pick-up",
+            "flowers": "Flowers & More",
+            "pharmacies": "Pharmacy"
+          },
+          "carousel": {
+            "next": "Next",
+            "previous": "Previous"
+          },
+          "breadcrumbs": {
+            "home": "Home",
+            "hmarket": "HungerStation Market"
+          },
+          "categoryCarousel": {
+            "title": "Shop by Category",
+            "noItems": "No categories found",
+            "imageAlt": "{{category}} category"
+          },
+          "pagination": {
+            "previous": "Previous Page",
+            "next": "Next Page"
+          },
+          "error": {
+            "generalError": "Something went wrong. Please try again later."
+          },
+          "productSearch": {
+            "no-results": {
+              "title": "No products found",
+              "description": "Try adjusting your search criteria or browse other products."
+            },
+            "error": {
+              "title": "Unable to load products"
+            }
+          }
+        },
+        "error": {
+          "404": {
+            "title": "Looks like you're lost",
+            "description": "The page you are looking for is not available",
+            "meta": {
+              "title": "404 | HungerStation",
+              "description": "404 | HungerStation"
+            }
+          },
+          "500": {
+            "title": "Something went wrong on our side. Sorry about that!",
+            "description": "We are working on fixing it right now",
+            "meta": {
+              "title": "500 | HungerStation",
+              "description": "500 | HungerStation"
+            }
+          },
+          "offline": {
+            "title": "You are currently offline",
+            "description": "Something went wrong. Please check your internet connection and try again!",
+            "meta": {
+              "title": "Offline",
+              "description": "Check your internet connection."
+            }
+          },
+          "go-to-home": "Go to homepage"
+        },
+        "vendor": {
+          "meta": {
+            "title": "Order from {{chainName}} in {{district}} | HungerStation",
+            "description": "Order from {{chainName}} in {{district}} with fast delivery from HungerStation. Enjoy exclusive offers and discounts on your favorite products."
+          },
+          "search": {
+            "placeholder": "Search for a product in {{chainName}}"
+          }
+        },
+        "restaurant": {
+          "meta": {
+            "description": {
+              "no-place": "Looking for {{restaurant}} delivery? Take a look at the menus and lists, order what you need and get it delivered to you. Ready, steady, HungerStation!",
+              "place": "Looking for {{restaurant}} delivery in {{place}}? Take a look at their menu & order everything you need online, and we will get it delivered to you. Ready, steady, HungerStation!"
+            },
+            "title": {
+              "no-place": "Order online from {{restaurant}} restaurants | HungerStation",
+              "place": "{{restaurant}} Delivery Menu in {{place}} | HungerStation {{country}}"
+            }
+          },
+          "serp": {
+            "meta": {
+              "title": "Restaurants & Grocery Stores Near You in {{area}} | HungerStation {{country}}",
+              "description": "Order food & groceries online from shops near to you in {{area}}, {{city}}. get your order delivered to your doorsteps with HungerStation {{country}}."
+            }
+          },
+          "error": {
+            "not-found": {
+              "title": "Sorry! No store found in your city.",
+              "description": "Sorry, we couldn't find any stores nearby as we don't deliver to this area yet"
+            }
+          },
+          "x-store": "<bold>{{storeCount}}</bold> Stores",
+          "all-cuisines": "All Cuisines",
+          "filters": {
+            "title": "Filters",
+            "cuisines": "Cuisines"
+          },
+          "x-calories": "{{value}} Calories"
+        }
+      },
+      "ar": {
+        "common": {
+          "locale": "eng",
+          "copyright": "© {{year}} HungerStation LTD.",
+          "english": "English",
+          "arabic": "عربي",
+          "appDownloadLinkLabel": "حمل التطبيق الآن",
+          "footer": {
+            "hungerstation": "هنقرستيشن",
+            "about": "عن هنقرستيشن",
+            "careers": "وظائف",
+            "rider": "سجّل كمندوب توصيل",
+            "business": "انضم الآن كشريك",
+            "market": "كويك ماركت",
+            "fazaa": "فزعة",
+            "help": "مساعدة",
+            "faqs": "أسئلة وأجوبة",
+            "terms": "شروط الإستخدام",
+            "rewards_terms": "شروط إستخدام المكافآت",
+            "usage": "سياسة الاستخدام والحماية",
+            "policy": "سياسة الخصوصية",
+            "contact": "تواصل معنا",
+            "countries": "البلاد",
+            "region": "متواجدين في",
+            "bh": "البحرين",
+            "sa": "السعودية",
+            "download": {
+              "label": "حمّل التطبيق",
+              "content": "احصل على كل ما تحتاجه بتوصيل سريع من الأكل والمقاضي إلى الصيدلية والورود وأكثر"
+            },
+            "banner": {
+              "title": "استمتع بالميزات الحصرية والعروض والخصومات المتوفرة في التطبيق.\nبالإضافة إلى ذلك، يحصل المستخدمون الجدد على توصيل مجاني لمدة عام واحد!"
+            }
+          },
+          "unit": {
+            "distance": "المسافة",
+            "delivery-time": "مدة التوصيل",
+            "delivery": "التوصيل"
+          },
+          "actions": {
+            "close": "تم",
+            "expand": "عرض الكل...",
+            "download": "حمِّل الآن",
+            "viewAll": "عرض الكل"
+          },
+          "completeOrder": {
+            "label": "كمل طلبك عن طريق التطبيق",
+            "content": "كمل طلبك عن طريق التطبيق واستمتع بتجربة أفضل"
+          },
+          "location-picker": {
+            "title": "عنوان التوصيل",
+            "deliver-to": "التوصيل إلى",
+            "submit": "التوصيل لهذا العنوان",
+            "placeholder": "ابحث عن منطقة، اسم شارع، أو معلم معروف",
+            "not-available": "للأسف، ،لا يوجد توصيل لهذا الموقع",
+            "widget": {
+              "title": "اختر موقع التوصيل",
+              "subtitle": "حدد موقعك لعرض المتاجر والعروض الخاصة بمنطقتك",
+              "button": "حدد موقعك"
+            },
+            "errors": {
+              "permission": "اسمح لهنقرستيشن بتحديد موقعك بشكل أوتوماتيكي"
+            },
+            "searchAction": "ابحث",
+            "locateMe": "حدد موقعي",
+            "validationFailed": "فشل التحقق من الصحة"
+          },
+          "search-bar": {
+            "searchAction": "ابحث"
+          },
+          "currency": "{{value}} {{currency}}",
+          "cookies": {
+            "content": "مرحبا! نحن نستخدم ملفات تعريف الارتباط لتحسين تجربة مستخدمي الموقع. لمعرفة المزيد الرجاء قراءة <link-privacy-policy>سياسة الخصوصية</link-privacy-policy>"
+          },
+          "smartBanner": {
+            "title": "استمتع بميزات حصرية داخل التطبيق وعروض وخصومات مميزة. وتوصيل مجاني لمدة سنة كاملة للمستخدمين الجدد!"
+          },
+          "verticals": {
+            "restaurants": "المطاعم",
+            "hmarket": "هنقرستيشن ماركت",
+            "supermarkets": "المقاضي",
+            "pickup": "استلم بنفسك",
+            "flowers": "ورود وأكثر",
+            "pharmacies": "الصيدلية"
+          },
+          "carousel": {
+            "next": "التالي",
+            "previous": "سابق"
+          },
+          "breadcrumbs": {
+            "home": "الرئيسية",
+            "hmarket": "هنقرستيشن ماركت"
+          },
+          "categoryCarousel": {
+            "title": "تسوّق حسب الفئة",
+            "noItems": "لم يتم العثور على فئات",
+            "imageAlt": "{{category}} الفئة"
+          },
+          "pagination": {
+            "previous": "الصفحة السابقة",
+            "next": "الصفحة التالية"
+          },
+          "error": {
+            "generalError": "حدث خطأ ما. يرجى المحاوله لاحقا"
+          },
+          "productSearch": {
+            "no-results": {
+              "title": "لم نجد أي نتائج",
+              "description": "حاول تعديل معايير البحث أو تصفح المنتجات الأخرى."
+            },
+            "error": {
+              "title": "حدث خطأ ما اثناء البحث عن المنتجات"
+            }
+          }
+        },
+        "error": {
+          "404": {
+            "title": "Looks like you're lost",
+            "description": "The page you are looking for is not available",
+            "meta": {
+              "title": "404 | هنقرستيشن",
+              "description": "404 | هنقرستيشن"
+            }
+          },
+          "500": {
+            "title": "Something went wrong on our side. Sorry about that!",
+            "description": "We are working on fixing it right now",
+            "meta": {
+              "title": "500 | هنقرستيشن",
+              "description": "500 | هنقرستيشن"
+            }
+          },
+          "offline": {
+            "title": "أنت غير متصل حاليًا",
+            "description": "هناك خطأ ما. الرجاء التحقق من الاتصال بالانترنت والمحاولة مرة اخرى !",
+            "meta": {
+              "title": "غير متصل بالانترنت",
+              "description": "تحقق من اتصالك بالإنترنت."
+            }
+          },
+          "go-to-home": "Go to homepage"
+        },
+        "vendor": {
+          "meta": {
+            "title": "اطلب من {{chainName}} في {{district}} | هنقرستيشن",
+            "description": "اطلب من {{chainName}} في {{district}} مع توصيل سريع من هنقرستيشن. استمتع بعروض حصرية وخصومات على منتجاتك المفضلة."
+          },
+          "search": {
+            "placeholder": "البحث عن منتج في {{chainName}}"
+          }
+        },
+        "restaurant": {
+          "meta": {
+            "description": {
+              "no-place": "هل تبحث عن توصيل {{restaurant}} في ؟ ألق نظرة على القوائم و هنقرستيشن يوصلك اللي تحتاجه !",
+              "place": "هل تبحث عن خدمة توصيل {{restaurant}} في {{place}}؟ ألق نظرة على المنيو واطلب كل ما تحتاجه عبر الإنترنت، وسنقوم بتوصيله إليك. استعد، تجهز، هنقرستيشن!"
+            },
+            "title": {
+              "no-place": "إطلب اونلاين من مطاعم {{restaurant}} | هنقرستيشن",
+              "place": "منيو التوصيل من {{restaurant}} في {{place}} | هنقرستيشن {{country}}"
+            }
+          },
+          "serp": {
+            "meta": {
+              "title": "المطاعم بالقرب منك في {{area}} | هنقرستيشن {{country}}",
+              "description": "اطلب الطعام والبقالة عبر الإنترنت من المتاجر والمطاعم القريبة منك في {{area}}، {{city}}. سنقوم بتوصيل طلبك حتى باب المنزل مع هنقرستيشن {{country}}."
+            }
+          },
+          "error": {
+            "not-found": {
+              "title": "نأسف! لا يوجد متجر في مدينتك",
+              "description": "معذرة, لم نتمكن من العثور على أي من المتاجر القريبة كما أننا لا نقدم في هذا المجال حتى الآن"
+            }
+          },
+          "x-store": "<bold>{{storeCount}}</bold> المتاجر",
+          "all-cuisines": "جميع المطابخ",
+          "filters": {
+            "title": "تصفية",
+            "cuisines": "أنواع المأكولات"
+          },
+          "x-calories": "{{value}} سعرة حرارية"
+        }
+      }
+    },
+    "initialLocale": "en",
+    "ns": [
+      "common",
+      "error",
+      "vendor",
+      "restaurant"
+    ],
+    "userConfig": {
+      "i18n": {
+        "defaultLocale": "redirect",
+        "locales": [
+          "redirect",
+          "en-SA",
+          "ar-SA"
+        ],
+        "localeDetection": false
+      },
+      "lng": "ar",
+      "fallbackLng": [
+        "en",
+        "ar"
+      ],
+      "reloadOnPrerender": false,
+      "default": {
+        "i18n": {
+          "defaultLocale": "redirect",
+          "locales": [
+            "redirect",
+            "en-SA",
+            "ar-SA"
+          ],
+          "localeDetection": false
+        },
+        "lng": "ar",
+        "fallbackLng": [
+          "en",
+          "ar"
+        ],
+        "reloadOnPrerender": false
+      }
+    }
+  },
+  "vendor": {
+    "id": 106503,
+    "external_id": null,
+    "chain_id": 61039,
+    "chain_name": "Meat & More",
+    "chain_type": "RESTAURANT",
+    "logo": "https://images.deliveryhero.io/image/hungerstation/restaurant/logo/4b14abde929dd221e15abf5dbf751d62.jpg",
+    "cover_photo": "https://images.deliveryhero.io/image/hungerstation/restaurant/android_cover_photo/8d4d5849772c97e49a383dfd85258ea2.jpg",
+    "kitchens": [
+      "Butchery & Fishery"
+    ],
+    "average_rating": "4.5",
+    "rate_count": 106,
+    "vertical": "Butchery",
+    "status": "CLOSE",
+    "label": {
+      "type": "NO_DELIVERY",
+      "value": "no delivery"
+    },
+    "subscription": null,
+    "promotion": null,
+    "delivery": {
+      "type": "OWN_DELIVERY",
+      "name": "Fast Delivery"
+    },
+    "location": {
+      "latitude": 24.8116724,
+      "longitude": 46.646007
+    },
+    "supports_scheduled_order": true
+  },
+  "vendorModel": {
+    "id": 106503,
+    "externalId": null,
+    "chainId": 61039,
+    "chainName": "Meat & More",
+    "chainType": "RESTAURANT",
+    "logo": "https://images.deliveryhero.io/image/hungerstation/restaurant/logo/4b14abde929dd221e15abf5dbf751d62.jpg",
+    "coverPhoto": "https://images.deliveryhero.io/image/hungerstation/restaurant/android_cover_photo/8d4d5849772c97e49a383dfd85258ea2.jpg",
+    "kitchens": [
+      "Butchery & Fishery"
+    ],
+    "averageRating": "4.5",
+    "rateCount": 106,
+    "vertical": "Butchery",
+    "homeModule": "supermarkets",
+    "location": {
+      "latitude": 24.8116724,
+      "longitude": 46.646007
+    },
+    "status": "CLOSE",
+    "delivery": {
+      "type": "OWN_DELIVERY",
+      "name": "Fast Delivery",
+      "fee": "",
+      "originalFee": "",
+      "feeIndicator": ""
+    },
+    "minimumOrder": "",
+    "distance": null,
+    "timeEstimation": null,
+    "isDarkstore": false
+  },
+  "city": {
+    "id": "3",
+    "name": {
+      "ar": "الرياض",
+      "en": "Riyadh"
+    },
+    "slug": {
+      "ar": "الرياض",
+      "en": "riyadh"
+    }
+  },
+  "district": {
+    "id": "145",
+    "name": {
+      "ar": "الصحافه",
+      "en": "Sahafah"
+    },
+    "slug": {
+      "ar": "الصحافه",
+      "en": "sahafah"
+    },
+    "coordinates": {
+      "latitude": 24.7964286320811,
+      "longitude": 46.63766862870285
+    }
+  },
+  "chainId": "61039",
+  "chainName": "Meat-More",
+  "branchUUID": "sahafah",
+  "branchHsId": "106503",
+  "locale": "en-SA",
+  "categories": [],
+  "featuredCategories": [],
+  "homeSwimlanes": [],
+  "vendorMenu": [
+    {
+      "id": 3773705,
+      "name": "Barbecue",
+      "branch_id": 106503,
+      "items": [
+        {
+          "id": 92126158,
+          "name": "Iraqi Lamb Kabab",
+          "calories": null,
+          "price": "114.95",
+          "group_id": 3773705,
+          "description": "1 kilo - iraqi lamb kabab ready to grill",
+          "image": "https://images.deliveryhero.io/image/hungerstation/menuitem/image/8fa8f68bc1f66c6ca958332b67c58805?width=222"
+        },
+        "... (13 more items)"
+      ]
+    },
+    "... (7 more items)"
+  ],
+  "productSearchResult": null,
+  "hasAnalytics": true
+}

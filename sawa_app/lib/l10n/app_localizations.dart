@@ -1850,6 +1850,12 @@ abstract class AppLocalizations {
   /// **'Free users are limited to 5 scans per day. Upgrade to Sawa Plus for unlimited scans!'**
   String get scanLimitMessage;
 
+  /// No description provided for @scanLimitMessageFirstDay.
+  ///
+  /// In en, this message translates to:
+  /// **'Free users are limited to 15 scans on their first day. Upgrade to Sawa Plus for unlimited scans!'**
+  String get scanLimitMessageFirstDay;
+
   /// No description provided for @upgradeSawaPlusButton.
   ///
   /// In en, this message translates to:
@@ -1883,7 +1889,7 @@ abstract class AppLocalizations {
   /// No description provided for @subscriptionExplanationText.
   ///
   /// In en, this message translates to:
-  /// **'Subscriptions are billed monthly (\$0.49/month) securely through your App Store account. The subscription auto-renews monthly unless cancelled in your account settings at least 24 hours before the end of the current period. Verification is handled securely on our servers.'**
+  /// **'Subscriptions are billed monthly (4.99 SAR/month) securely through your App Store account. The subscription auto-renews monthly unless cancelled in your account settings at least 24 hours before the end of the current period. Verification is handled securely on our servers.'**
   String get subscriptionExplanationText;
 
   /// No description provided for @privacyPolicy.
@@ -2149,6 +2155,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Restore Purchase'**
   String get restorePurchaseButton;
+
+  /// No description provided for @sawaPlusPopupTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Join Sawa Plus'**
+  String get sawaPlusPopupTitle;
+
+  /// No description provided for @sawaPlusPopupMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Join Sawa Plus for unlimited scans & features'**
+  String get sawaPlusPopupMessage;
+
+  /// No description provided for @continueButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue'**
+  String get continueButton;
 }
 
 class _AppLocalizationsDelegate
