@@ -125,7 +125,7 @@
   - Fixed search results and comparison lists showing Othaim Yasmin HungerStation stores as generic "HungerStation" merchant by introducing space-insensitive checks (`hungerstation` and `hunger station`) on backend prices controllers and services.
   - Streamlined the "Join Sawa Plus" welcome popup dialog displayed on app start by removing the "Skip for now" button and expanding the "Continue" ElevatedButton to fill the width.
 - [x] HungerStation Catalog Consolidation: Fixed duplicate product recreation loops during scraping by implementing a 3-step resolution fallback (Direct -> Merged Price URL -> GTIN-bearing Exact Match) in `findExistingProduct` in `HsCatalogScraperService`. Resolved CLI matcher script `match-hs-gtins.ts` crashes by batch-loading image relations in chunk sizes of 1,000.
-- [x] Firebase Analytics Integration: Integrated `firebase_analytics` dependency into the Flutter project and configured it to log the native `logAppOpen` event on application startup, enabling automated Google Ads conversion tracking.
+- [x] Firebase Analytics Integration: Integrated `firebase_analytics` dependency into the Flutter project and configured it to log the native `logAppOpen` event on application startup, enabling automated Google Ads conversion tracking. Incremented build version to `1.1.1+21` to bypass Apple's closed release train restriction.
 
 
 ## Architecture Decisions
