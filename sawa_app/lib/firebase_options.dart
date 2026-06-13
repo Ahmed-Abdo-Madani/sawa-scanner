@@ -63,11 +63,11 @@ class DefaultFirebaseOptions {
 
   static const FirebaseOptions ios = FirebaseOptions(
     apiKey: 'AIzaSyBXgBBRfuvHZTTzsxL7FgnoxCR6OB3wwtk',
-    appId: '1:970325205793:ios:3acd5b0722a0813e6c1460',
+    appId: '1:970325205793:ios:82f4a11460bed7c86c1460',
     messagingSenderId: '970325205793',
     projectId: 'sawa-scanner',
     storageBucket: 'sawa-scanner.firebasestorage.app',
-    iosBundleId: 'dev.flutter.animations',
+    iosBundleId: 'com.ahmedmadani.sawascanner',
   );
 
   static const FirebaseOptions windows = FirebaseOptions(

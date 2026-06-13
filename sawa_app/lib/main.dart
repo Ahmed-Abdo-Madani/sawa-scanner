@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_analytics/firebase_analytics.dart';
 import 'app.dart';
 import 'package:openfoodfacts/openfoodfacts.dart' show OpenFoodAPIConfiguration, UserAgent;
 import 'firebase_options.dart';
@@ -19,6 +20,14 @@ void main() async {
   
   // Initialize Firebase
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  
+  // Log app open event for Google Analytics / Google Ads conversion tracking
+  try {
+    await FirebaseAnalytics.instance.logAppOpen();
+    debugPrint('Firebase Analytics: App Open event logged.');
+  } catch (e) {
+    debugPrint('Firebase Analytics initialization failed: $e');
+  }
   
   // Authenticate anonymously on startup if not already logged in
   try {

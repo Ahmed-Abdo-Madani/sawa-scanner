@@ -2,6 +2,7 @@
 
 ## Milestones
 - [x] Create a premium dark-themed web admin GTIN entry dashboard (`/admin-dashboard`) featuring real-time statistics, multi-store filtering, dynamic category/brand options, image visualization, and inline focus-switching fast keyboard entry.
+- [x] Web Admin Dashboard Ingestion Control & Automation: Integrated automated schedules, BullMQ queue state controls, district/store scraping dispatcher, database-level GTIN matching process with a live progress bar, and visual stats dashboards.
 - [x] Integrate AI-driven GTIN product matching
 - [x] Configure fallback LLM providers (Vertex, Google AI, Ollama)
 - [x] Implement robust backfill architecture (Pass A-G) with automated reporting
@@ -123,6 +124,9 @@
   - Anchored HungerStation suffixes using end-of-string `$` regex anchors on details, comparison, and scanner screens to avoid stripping "HungerStation" from middle-string store names (e.g., "HungerStation Market").
   - Fixed search results and comparison lists showing Othaim Yasmin HungerStation stores as generic "HungerStation" merchant by introducing space-insensitive checks (`hungerstation` and `hunger station`) on backend prices controllers and services.
   - Streamlined the "Join Sawa Plus" welcome popup dialog displayed on app start by removing the "Skip for now" button and expanding the "Continue" ElevatedButton to fill the width.
+- [x] HungerStation Catalog Consolidation: Fixed duplicate product recreation loops during scraping by implementing a 3-step resolution fallback (Direct -> Merged Price URL -> GTIN-bearing Exact Match) in `findExistingProduct` in `HsCatalogScraperService`. Resolved CLI matcher script `match-hs-gtins.ts` crashes by batch-loading image relations in chunk sizes of 1,000.
+- [x] Firebase Analytics Integration: Integrated `firebase_analytics` dependency into the Flutter project and configured it to log the native `logAppOpen` event on application startup, enabling automated Google Ads conversion tracking.
+
 
 ## Architecture Decisions
 - **Geolocated Branch Deduplication and Name Cleanup**:
@@ -133,6 +137,10 @@
   - *Database Renormalization*: Executed a database migration (`1780824526175-FixArabicMerchantNamesAndDeduplicate`) to clean all existing dirty merchant records in PostgreSQL and merge colliding merchant duplicates.
   - *Client-side Resiliency*: Synchronized client-side `_cleanMerchantName` regexes to fully strip all HungerStation delivery estimations, time suffixes, and branding variants across details, comparison, and scanner screens.
   - *Market-Based Classification*: Fixed price level classifications (Low/Common/High badges) to calculate statistical modes and price boundaries against the complete raw pricing dataset in the market rather than the post-deduplicated branch list.
+- **HungerStation Product Deduplication & Ingestion Resolution**:
+  - *Scrape Deletion Loop*: Resolved the issue where scraper runs re-created products that had been merged and deleted. The scraper now maps URLs and branch-specific IDs to the merged winner product in the database by searching matching `ProductPrice` source URLs containing the HungerStation product ID.
+  - *GTIN-bearing Candidate Seeding*: If a product is newly scraped and lacks a direct ID/URL match, it resolves to an existing product sharing the same brand, name, and weight/size normalized profile that has an assigned GTIN, preventing duplicate records.
+  - *TypeORM Batching Guard*: Fixed the `driverError` bind parameter limit in `match-hs-gtins.ts` by splitting image queries into chunks of 1,000, allowing safe processing of 40,000+ catalog rows.
 - **HungerStation Branch Price Deduplication & Store Logo Override**:
   - *Branch Preservation*: Previously, the backend `prices.service.ts` endpoint collapsed all branch-specific HungerStation records into a single merchant result by indexing only on `merchant_id`. To preserve distinct branches (e.g. separate Al Othaim stores), the unique mapping key was updated to `${merchantId}:${storeId}`. Generic HungerStation records (where `store_id` is null) are dynamically filtered out if specific branch prices exist.
   - *Logo Overrides Safeguard*: The Flutter client's `StoreLogoHelper` used a broad containment match (e.g. checking if a store name contains "hunger") which incorrectly hijacked sub-merchant names like `Othaim (HungerStation)` and forced the generic HungerStation logo. Restricting the local asset lookup to names starting with `hunger` or matching exactly `hungerstation` allows branch-specific entries to utilize their dynamic `networkFallbackUrl` and correctly display the specific retailer logo (e.g. Al Othaim).
@@ -151,6 +159,7 @@
 - **Barcode-List Name Enrichment**: `BarcodeListScraperService` scrapes barcode-list.com for alternative commercial product names (POS/retail-style) per GTIN. These names are stored in a dedicated `product_alternative_name` table with popularity rankings, enabling better HungerStation search match rates.
 - **HungerStation Catalog Pivot**: Products are now primary-indexed by `hs_product_id` (the numeric ID from HungerStation URLs), not by GTIN. The `gtin` column is nullable with a partial unique index (`WHERE gtin IS NOT NULL`) to maintain integrity for scanned products while allowing HS catalog imports without GTINs. The `HsCatalogScraperService` navigates the HungerStation web platform using Playwright-stealth. It robustly deduplicates listing products by resolving URL slugs, preventing 404s on detail pages. Manual GTIN assignment is handled via a dedicated Flutter admin screen (`NeedsGtinBrowseScreen`) with inline camera barcode scanning.
 - **Distributed Scraping Orchestration**: `HsCatalogScraperService` utilizes an Orchestrator-Worker pattern to bypass the singleton lock limitation for `hs-catalog-scrape`. An initial orchestrator job discovers categories and enqueues individual `hs-catalog-scrape-category` sub-tasks into BullMQ, allowing multiple local and remote PCs to process categories completely independently and in parallel. This also inherently resolves failover and resumability (since failed chunks return to the queue independently).
+- **Store-Level Ingestion Concurrency**: Refined the BullMQ queue conflict detection checks in `IngestionService.addIngestionJob` for `hs-catalog-scrape`. Instead of blocking enqueues using a global name match, the queue now detects conflicts at the *specific store URL* level (`job.data?.storeUrl === dto.storeUrl`). This allows the operator to select and enqueue multiple distinct HungerStation stores from a district for scraping concurrently or sequentially without triggering conflict exceptions.
 - **HS Subcategory Discovery**: HungerStation embeds the full category tree in `__NEXT_DATA__` hydration data with `{id, name, children[]}` nodes. The `discoverSubcategories()` method extracts child categories by matching the current category UUID in the tree and builds subcategory URLs as `{storeUrl}/category/{name-slug}/{uuid}`. Worker jobs check for subcategories before paginating products; if found, they enqueue child jobs (max depth 3) instead of scraping products directly. A DOM fallback is used when hydration data is unavailable.
 - **Skip-Existing Price Update**: When re-scraping a store, products already in the DB (`hs_product_id` lookup) skip the expensive detail page navigation (~3-5s per product) and only update the price from listing data via `quickUpdatePrice()`. This reduces re-scrape time by ~70% for stores with existing product coverage.
 - **Etaam Express GTIN Enrichment**: `EtaamGtinScraper` leverages the Salla-based store (Etaam Express) to search and backfill missing product GTINs. Since Salla storefronts render product cards using Web Components with shadow DOMs, the scraper bypasses the DOM entirely by parsing the search page's embedded `application/ld+json` (JSON-LD) structured data block to find name-url mappings. Once matched, it loads the detail page and extracts the SKU/GTIN using a regex match on Salla configuration/analytics scripts.
@@ -275,9 +284,17 @@ Ensure you have updated the `.env` settings to match the optimizations:
 | `docs/support.html` | Support URL page containing contact forms and account deletion request details. |
 | `docs/privacy.html` | Privacy Policy URL page compliant with Saudi Arabian PDPL and Apple App Store constraints. |
 | `.env.example` | Template for configuring thresholds and batch sizes. |
-| `sawa-api/src/products/admin-dashboard.html` | Frontend SPA for quick manual GTIN entry with filters, images, and enter-key auto-focus. |
-| `sawa-api/src/products/admin-dashboard-template.ts` | Exports the pre-packaged HTML layout template for compilation-safe serving. |
+| `sawa-api/public/admin-dashboard.html` | Frontend SPA admin dashboard to start and manage ingestion/scraping jobs, monitor BullMQ queue states, and manage the automated GTIN matching process. |
+| `sawa-api/src/products/admin-dashboard-template.ts` | Loads and exports the pre-packaged HTML dashboard layout at runtime to ensure compilation-safe serving. |
+| `sawa-api/src/products/local-matcher.service.ts` | Background service implementing database-level visual dHash and fuzzy matching algorithms for GTIN backfilling. |
+| `sawa-api/src/products/scheduler.service.ts` | Automated scheduling engine executing timed scraper/matcher jobs with persistent JSON configs. |
+| `sawa-api/src/products/admin-products.service.ts` | Service calculating database-wide product coverage statistics and store statuses per district. |
 | `sawa-api/scratch/find-blocking-jobs.js` | Helper script to inspect and debug active/waiting BullMQ queue jobs. |
 | `sawa-api/scratch/list-queue-jobs.js` | Helper script to list and clean up duplicate catalog scrape jobs from BullMQ. |
 | `sawa-api/scratch/test-admin-endpoints.ts` | Backend validation script testing admin filter and needs-gtin pagination endpoints. |
+| `src/scripts/count-dupes.ts` | Diagnostic script to monitor total product database counts, GTIN presence, and merge log entries. |
+| `src/scripts/match-hs-gtins.ts` | CLI matcher script designed to identify HungerStation products lacking GTINs and merge them into canonical GTIN-bearing products. |
+| `src/scripts/check-riyadh-scrape-stats.ts` | Diagnostic script to check scraped HungerStation stores and districts in Riyadh. |
+| `src/scripts/check-riyadh-merchants.ts` | Diagnostic script to check Riyadh HungerStation stores grouped by merchant chains. |
+| `src/scripts/trigger-major-supermarkets.ts` | CLI script to trigger sequential catalog scraping for major supermarkets in Riyadh. |
 
