@@ -1,0 +1,19 @@
+{
+  "watch": ["src"],
+  "ext": "ts",
+  "ignore": [
+    "node_modules/",
+    "dist/",
+    "off-cache/**",
+    "*.csv",
+    "*.json.gz",
+    ".env*",
+    "uploads/**"
+  ],
+  "exec": "nest start --watch",
+  "env": {
+    "NODE_ENV": "development"
+  },
+  "delay": 500,
+  "legacyWatch": false
+}

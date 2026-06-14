@@ -15,6 +15,8 @@ import { ProductMergeLog } from '../entities/product-merge-log.entity';
 import { AdminProductsController } from './admin-products.controller';
 import { AdminProductsService } from './admin-products.service';
 import { ProductMergeService } from './product-merge.service';
+import { LocalMatcherService } from './local-matcher.service';
+import { SchedulerService } from './scheduler.service';
 import { IngestionModule } from '../ingestion/ingestion.module';
 
 import { PricesModule } from '../prices/prices.module';
@@ -36,8 +38,20 @@ import { PricesModule } from '../prices/prices.module';
     PricesModule,
   ],
   controllers: [ProductsController, AdminProductsController],
-  providers: [ProductsService, AdminProductsService, ProductMergeService],
-  exports: [ProductsService, AdminProductsService, ProductMergeService],
+  providers: [
+    ProductsService, 
+    AdminProductsService, 
+    ProductMergeService,
+    LocalMatcherService,
+    SchedulerService
+  ],
+  exports: [
+    ProductsService, 
+    AdminProductsService, 
+    ProductMergeService,
+    LocalMatcherService,
+    SchedulerService
+  ],
 })
 export class ProductsModule {}
 

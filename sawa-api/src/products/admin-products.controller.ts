@@ -13,6 +13,7 @@ import {
   BadRequestException,
   UsePipes,
   ValidationPipe,
+  Delete,
 } from '@nestjs/common';
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
@@ -22,12 +23,21 @@ import { AdminProductsService } from './admin-products.service';
 import { AdminUpsertProductDto } from './dto/admin-upsert-product.dto';
 import { AdminAssignGtinDto } from './dto/admin-assign-gtin.dto';
 import { AdminMergeDto } from './dto/admin-merge.dto';
+import { LocalMatcherService } from './local-matcher.service';
+import { SchedulerService } from './scheduler.service';
+import { IngestionService } from '../ingestion/ingestion.service';
+import { IngestionJobMode } from '../ingestion/dto/ingestion-job.dto';
 
 @Controller('admin')
 @UseGuards(AdminGuard)
 @UsePipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }))
 export class AdminProductsController {
-  constructor(private readonly adminService: AdminProductsService) {}
+  constructor(
+    private readonly adminService: AdminProductsService,
+    private readonly schedulerService: SchedulerService,
+    private readonly localMatcherService: LocalMatcherService,
+    private readonly ingestionService: IngestionService,
+  ) {}
 
   @Get('products')
   async listMissingGtin(
@@ -142,5 +152,95 @@ export class AdminProductsController {
     @Query('limit') limit: number,
   ) {
     return await this.adminService.listMergeLogs({ productId, limit });
+  }
+
+  @Get('dashboard/stats')
+  async getDashboardStats() {
+    return await this.adminService.getDashboardStats();
+  }
+
+  @Get('dashboard/districts/:district/stores')
+  async getStoresByDistrict(@Param('district') district: string) {
+    return await this.adminService.getStoresByDistrict(district);
+  }
+
+  @Post('dashboard/scrape-stores')
+  async scrapeStores(@Body() body: { storeIds: string[] }) {
+    if (!body.storeIds || !Array.isArray(body.storeIds)) {
+      throw new BadRequestException('storeIds array is required');
+    }
+    const manager = (this.adminService as any).dataSource.manager;
+    const stores = await manager.query(
+      `SELECT id, source_url, platform FROM store WHERE id = ANY($1) AND is_active = true`,
+      [body.storeIds]
+    );
+
+    const enqueued: string[] = [];
+    for (const store of stores) {
+      try {
+        await this.ingestionService.addIngestionJob({
+          platform: store.platform,
+          mode: IngestionJobMode.HS_CATALOG_SCRAPE,
+          storeUrl: store.source_url,
+          dryRun: false,
+        } as any);
+        enqueued.push(store.id);
+      } catch (err: any) {
+        // Continue
+      }
+    }
+    return { enqueuedCount: enqueued.length, enqueuedStoreIds: enqueued };
+  }
+
+  @Post('dashboard/scrape-zero-districts')
+  async scrapeZeroDistricts(@Body() body: { limit?: number }) {
+    await this.schedulerService.triggerScheduleManually('default-scrape-zero-districts');
+    return { success: true, message: 'Zero-districts scraping batch triggered successfully.' };
+  }
+
+  @Post('dashboard/match/trigger')
+  async triggerMatcher(@Body() body: { limit?: number; threshold?: number; dryRun?: boolean }) {
+    return await this.localMatcherService.triggerMatching(body);
+  }
+
+  @Get('dashboard/match/status')
+  async getMatcherStatus() {
+    return this.localMatcherService.getStatus();
+  }
+
+  @Get('dashboard/schedules')
+  async getSchedules() {
+    return this.schedulerService.getSchedules();
+  }
+
+  @Post('dashboard/schedules')
+  async upsertSchedule(@Body() body: any) {
+    return this.schedulerService.upsertSchedule(body);
+  }
+
+  @Delete('dashboard/schedules/:id')
+  async deleteSchedule(@Param('id') id: string) {
+    return { success: this.schedulerService.deleteSchedule(id) };
+  }
+
+  @Post('dashboard/schedules/:id/trigger')
+  async triggerSchedule(@Param('id') id: string) {
+    return { success: await this.schedulerService.triggerScheduleManually(id) };
+  }
+
+  @Get('dashboard/schedules/logs')
+  async getScheduleLogs() {
+    return this.schedulerService.getLogs();
+  }
+
+  @Get('dashboard/queues/status')
+  async getQueueStatus() {
+    return await this.ingestionService.getQueueCounts();
+  }
+
+  @Post('dashboard/queues/clean')
+  async cleanQueue(@Body() body: { types: any[] }) {
+    const types = body.types || ['completed', 'failed'];
+    return await this.ingestionService.cleanQueue(types);
   }
 }

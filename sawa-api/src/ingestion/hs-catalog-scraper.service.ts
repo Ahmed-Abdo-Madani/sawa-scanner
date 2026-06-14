@@ -15,7 +15,13 @@ import { StoresService } from '../stores/stores.service';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { ScrapedProductData } from './dto/ingestion-job.dto';
-import { normalizeBrandStrict, normalizeProductName, gtinPrefix } from '../utils/normalization';
+import {
+  normalizeBrandStrict,
+  normalizeProductName,
+  gtinPrefix,
+  normalizeWeightToGrams,
+  normalizeBrandUsable,
+} from '../utils/normalization';
 
 /** Extract the HS numeric or UUID product ID from a product URL */
 function extractHsProductId(url: string): string | null {
@@ -216,9 +222,12 @@ export class HsCatalogScraperService {
               listingItem.productPageUrl,
             );
             if (hsProductIdFromListing && !dryRun) {
-              const existing = await this.productRepo.findOne({
-                where: { hs_product_id: hsProductIdFromListing },
-              });
+              const existing = await this.findExistingProduct(
+                this.productRepo,
+                hsProductIdFromListing,
+                listingItem,
+                store ?? null,
+              );
               if (existing) {
                 // Product exists — update price from listing data only (no detail page needed)
                 await this.quickUpdatePrice(
@@ -349,10 +358,13 @@ export class HsCatalogScraperService {
     let imagesUpserted = 0;
 
     await this.dataSource.transaction(async (manager) => {
-      // ── Find or create product by hs_product_id ─────────────────────
-      let product = await manager.findOne(Product, {
-        where: { hs_product_id: hsProductId },
-      });
+      // ── Find or resolve existing product ───────────────────────────
+      let product = await this.findExistingProduct(
+        manager,
+        hsProductId,
+        data,
+        store,
+      );
 
       if (!product) {
         product = manager.create(Product, {
@@ -558,5 +570,94 @@ export class HsCatalogScraperService {
 
   private delay(ms: number): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
+  private extractSizeFromName(name: string): string | undefined {
+    const match = name.match(/(\d+(?:\.\d+)?)\s*(g|kg|ml|l|cl|oz)/i);
+    return match ? match[0] : undefined;
+  }
+
+  private doSizesMatch(
+    sizeA: string | undefined,
+    sizeB: string | undefined,
+    weightValA?: number | null,
+    weightValB?: number | null,
+  ): boolean {
+    const gramsA = normalizeWeightToGrams(sizeA) || (weightValA ? weightValA : null);
+    const gramsB = normalizeWeightToGrams(sizeB) || (weightValB ? weightValB : null);
+    
+    if (gramsA === null || gramsB === null) return true; // If one is unknown, we don't reject
+    
+    const max = Math.max(gramsA, gramsB);
+    return Math.abs(gramsA - gramsB) <= max * 0.1; // Accept within 10% tolerance
+  }
+
+  private async findExistingProduct(
+    manager: any,
+    hsProductId: string,
+    data: ScrapedProductData,
+    store: Store | null,
+  ): Promise<Product | null> {
+    const productRepo = manager.getRepository ? manager.getRepository(Product) : manager;
+
+    // 1. Try finding by hs_product_id directly
+    let product = await productRepo.findOne({
+      where: { hs_product_id: hsProductId },
+    });
+    if (product) return product;
+
+    // 2. Try finding via product_price source_url (if previously merged)
+    if (store) {
+      const priceRepo = manager.getRepository ? manager.getRepository(ProductPrice) : this.dataSource.getRepository(ProductPrice);
+      const price = await priceRepo
+        .createQueryBuilder('price')
+        .where('price.store_id = :storeId', { storeId: store.id })
+        .andWhere('price.source_url LIKE :pattern', { pattern: `%/${hsProductId}%` })
+        .getOne();
+
+      if (price) {
+        const mergedProduct = await productRepo.findOne({
+          where: { id: price.product_id },
+        });
+        if (mergedProduct) {
+          this.logger.log(
+            `[HS Catalog] Resolved merged product ${mergedProduct.id} for hsProductId ${hsProductId} via price source_url`,
+          );
+          return mergedProduct;
+        }
+      }
+    }
+
+    // 3. Try exact name + brand + size match with a product that has a GTIN
+    const nameEn = data.name;
+    const nameAr = data.name_ar;
+    const brand = data.brand;
+
+    if ((nameEn || nameAr) && brand) {
+      const brandNormalized = normalizeBrandUsable(brand);
+      const nameNormalized = normalizeProductName(nameEn || nameAr || '');
+      const hsSize = this.extractSizeFromName(nameEn || nameAr || '');
+
+      // Query products with the same brand and name that HAVE a GTIN
+      const query = productRepo
+        .createQueryBuilder('product')
+        .where('product.gtin IS NOT NULL')
+        .andWhere('product.brand_normalized = :brandNormalized', { brandNormalized })
+        .andWhere('product.name_normalized = :nameNormalized', { nameNormalized });
+
+      const candidates = await query.getMany();
+
+      for (const cand of candidates) {
+        const candSize = this.extractSizeFromName(cand.name_en || cand.name_ar || '');
+        if (this.doSizesMatch(hsSize, candSize, null, cand.net_weight_value)) {
+          this.logger.log(
+            `[HS Catalog] Resolved GTIN-bearing product ${cand.id} (${cand.gtin}) for brand new product "${nameEn || nameAr}" via exact name/brand/size match`,
+          );
+          return cand;
+        }
+      }
+    }
+
+    return null;
   }
 }

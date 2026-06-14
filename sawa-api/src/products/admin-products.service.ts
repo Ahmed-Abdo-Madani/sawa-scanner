@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository, InjectDataSource } from '@nestjs/typeorm';
-import { Repository, DataSource, Like } from 'typeorm';
+import { Repository, DataSource, Like, Not, IsNull } from 'typeorm';
 import { Product } from '../entities/product.entity';
 import { ProductReport } from '../entities/product-report.entity';
 import { ProductMergeLog } from '../entities/product-merge-log.entity';
@@ -317,5 +317,122 @@ export class AdminProductsService {
       .orderBy('log.created_at', 'DESC')
       .limit(query.limit || 50)
       .getMany();
+  }
+
+  async getDashboardStats() {
+    const manager = this.dataSource.manager;
+
+    // 1. Basic counts
+    const totalProducts = await this.productRepo.count();
+    const productsWithGtin = await this.productRepo.count({ where: { gtin: Not(IsNull()) } });
+    const productsNoGtin = await this.productRepo.count({ where: { gtin: IsNull() } });
+    
+    const hsProducts = await this.productRepo.count({ where: { hs_product_id: Not(IsNull()) } });
+    const hsProductsWithGtin = await this.productRepo.count({
+      where: { hs_product_id: Not(IsNull()), gtin: Not(IsNull()) }
+    });
+    const hsProductsNoGtin = hsProducts - hsProductsWithGtin;
+
+    // 2. Duplicate products count
+    // A duplicate group has the same name_en, brand, and net_weight_value.
+    const dupesQuery = await manager.query(`
+      SELECT COALESCE(SUM(group_count - 1), 0) as dupes_count
+      FROM (
+        SELECT COUNT(*) as group_count
+        FROM product
+        WHERE name_en IS NOT NULL AND name_en != ''
+        GROUP BY name_normalized, brand_normalized, net_weight_value
+        HAVING COUNT(*) > 1
+      ) as dupes_groups
+    `);
+    const duplicateProductsCount = parseInt(dupesQuery[0]?.dupes_count || '0', 10);
+
+    // 3. Stores counts
+    const storesCountQuery = await manager.query(`
+      SELECT 
+        COUNT(*) as total_stores,
+        COUNT(DISTINCT district_name_en) as total_districts,
+        COUNT(CASE WHEN platform = 'hungerstation' THEN 1 END) as hs_stores
+      FROM store
+      WHERE is_active = true
+    `);
+    
+    const totalStores = parseInt(storesCountQuery[0]?.total_stores || '0', 10);
+    const totalDistricts = parseInt(storesCountQuery[0]?.total_districts || '0', 10);
+    const hsStoresCount = parseInt(storesCountQuery[0]?.hs_stores || '0', 10);
+
+    // 4. Scraped vs Unscraped stores
+    const scrapedStoresQuery = await manager.query(`
+      SELECT COUNT(DISTINCT store_id) as count
+      FROM product_price
+    `);
+    const scrapedStores = parseInt(scrapedStoresQuery[0]?.count || '0', 10);
+    const unscrapedStores = Math.max(0, totalStores - scrapedStores);
+
+    // 5. Districts breakdown
+    const districtsData = await manager.query(`
+      SELECT 
+        s.district_name_en as name,
+        COUNT(s.id) as total_stores,
+        COUNT(DISTINCT pp.store_id) as scraped_stores,
+        COUNT(pp.id) as price_count
+      FROM store s
+      LEFT JOIN product_price pp ON pp.store_id = s.id
+      WHERE s.is_active = true AND s.district_name_en IS NOT NULL
+      GROUP BY s.district_name_en
+      ORDER BY total_stores DESC
+    `);
+
+    const districts = districtsData.map((d: any) => {
+      const tot = parseInt(d.total_stores, 10);
+      const scr = parseInt(d.scraped_stores, 10);
+      const prc = parseInt(d.price_count, 10);
+      return {
+        name: d.name,
+        totalStores: tot,
+        scrapedStores: scr,
+        priceCount: prc,
+        coverage: tot > 0 ? parseFloat(((scr / tot) * 100).toFixed(1)) : 0,
+      };
+    });
+
+    return {
+      totalProducts,
+      productsWithGtin,
+      productsNoGtin,
+      hsProducts,
+      hsProductsWithGtin,
+      hsProductsNoGtin,
+      duplicateProductsCount,
+      totalStores,
+      totalDistricts,
+      hsStoresCount,
+      scrapedStores,
+      unscrapedStores,
+      districts,
+    };
+  }
+
+  async getStoresByDistrict(districtName: string) {
+    const manager = this.dataSource.manager;
+    return await manager.query(`
+      SELECT 
+        s.id,
+        s.platform_branch_uuid,
+        s.vertical,
+        s.district_name_en as district,
+        s.source_url,
+        m.name_en as merchant_name,
+        m.name_ar as merchant_name_ar,
+        m.logo_url as merchant_logo,
+        COUNT(pp.id) as price_count,
+        MAX(pp.scraped_at) as last_scraped_at
+      FROM store s
+      INNER JOIN merchant m ON s.merchant_id = m.id
+      LEFT JOIN product_price pp ON pp.store_id = s.id
+      WHERE s.is_active = true AND s.district_name_en = $1
+      GROUP BY s.id, s.platform_branch_uuid, s.vertical, s.district_name_en, s.source_url, m.name_en, m.name_ar, m.logo_url
+      ORDER BY merchant_name ASC
+    `, [districtName]);
   }
 }

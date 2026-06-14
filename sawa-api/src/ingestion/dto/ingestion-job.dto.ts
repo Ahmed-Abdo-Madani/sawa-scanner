@@ -168,6 +168,11 @@ export class IngestionJobDto {
   @IsOptional()
   depth?: number;
 
+  @IsString()
+  @IsUrl()
+  @IsOptional()
+  storeUrl?: string;
+
   // ── Discovery mode ─────────────────────────────────────────────────────────
 
   @IsOptional()

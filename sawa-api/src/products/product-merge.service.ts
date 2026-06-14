@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
-import { DataSource, In } from 'typeorm';
+import { DataSource, In, EntityManager } from 'typeorm';
 import { Product } from '../entities/product.entity';
 import { ProductMergeLog } from '../entities/product-merge-log.entity';
 import { ProductPrice } from '../entities/product-price.entity';
@@ -29,6 +29,7 @@ export class ProductMergeService {
     adminId: string,
     reason: string,
     metadata?: Record<string, any>,
+    existingManager?: EntityManager,
   ): Promise<void> {
     // Defensive same-ID guard: prevent self-merge
     if (winnerId === loserId) {
@@ -38,7 +39,7 @@ export class ProductMergeService {
       return; // Idempotent no-op
     }
 
-    await this.dataSource.transaction(async (manager) => {
+    const runInTransaction = async (manager: EntityManager) => {
       const winner = await manager.findOneBy(Product, { id: winnerId });
       const loser = await manager.findOneBy(Product, { id: loserId });
 
@@ -104,7 +105,13 @@ export class ProductMergeService {
 
       // 7. Delete Loser
       await manager.remove(loser);
-    });
+    };
+
+    if (existingManager) {
+      await runInTransaction(existingManager);
+    } else {
+      await this.dataSource.transaction(runInTransaction);
+    }
   }
 
   /**
@@ -117,8 +124,9 @@ export class ProductMergeService {
     adminId: string,
     reason: string,
     metadata?: Record<string, any>,
+    existingManager?: EntityManager,
   ): Promise<void> {
-    await this.dataSource.transaction(async (manager) => {
+    const runInTransaction = async (manager: EntityManager) => {
       const product = await manager.findOneBy(Product, { id: productId });
       if (!product) throw new Error('Product not found');
 
@@ -137,7 +145,7 @@ export class ProductMergeService {
         }
 
         // Real collision with different product: merge loser into winner
-        return this.mergeProducts(existing.id, productId, adminId, `GTIN Collision Merge: ${reason}`, metadata);
+        return this.mergeProducts(existing.id, productId, adminId, `GTIN Collision Merge: ${reason}`, metadata, manager);
       }
 
       // Update GTIN
@@ -161,8 +169,15 @@ export class ProductMergeService {
         payload: { action: 'ASSIGN_GTIN', ...(metadata ?? {}) },
       });
       await manager.save(log);
-    });
+    };
+
+    if (existingManager) {
+      await runInTransaction(existingManager);
+    } else {
+      await this.dataSource.transaction(runInTransaction);
+    }
   }
+
 
   /**
    * Attempts to find a synthetic-GTIN twin for a given official product.

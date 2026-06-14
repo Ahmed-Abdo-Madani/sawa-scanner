@@ -1,0 +1,2117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sawa Admin - Control Center</title>
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  
+  <style>
+    :root {
+      --bg-primary: #090d16;
+      --bg-secondary: #111827;
+      --bg-tertiary: #1f2937;
+      --accent-color: #6366f1;
+      --accent-hover: #4f46e5;
+      --accent-gradient: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --success-color: #10b981;
+      --warning-color: #f59e0b;
+      --error-color: #ef4444;
+      --border-color: rgba(255, 255, 255, 0.08);
+      --glass-bg: rgba(17, 25, 40, 0.75);
+      --glass-border: rgba(255, 255, 255, 0.08);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Outfit', sans-serif;
+      background-color: var(--bg-primary);
+      color: var(--text-main);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow-x: hidden;
+    }
+
+    /* Scrollbars */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: var(--bg-primary);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: var(--bg-tertiary);
+      border-radius: 3px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: var(--accent-color);
+    }
+
+    header {
+      background: var(--glass-bg);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--glass-border);
+      padding: 0.85rem 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .logo-container {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .logo-badge {
+      background: var(--accent-gradient);
+      width: 38px;
+      height: 38px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-weight: 700;
+      font-size: 1.2rem;
+      box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+    }
+
+    header h1 {
+      font-size: 1.2rem;
+      font-weight: 600;
+      letter-spacing: -0.025em;
+    }
+
+    header span {
+      background: var(--accent-gradient);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    /* Tabs Styling */
+    .tabs-nav {
+      display: flex;
+      gap: 0.5rem;
+      margin-left: 2rem;
+    }
+
+    .tab-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      padding: 0.5rem 1rem;
+      border-radius: 8px;
+      cursor: pointer;
+      font-family: inherit;
+      font-weight: 500;
+      font-size: 0.9rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      transition: all 0.2s ease;
+    }
+
+    .tab-btn:hover {
+      color: var(--text-main);
+      background-color: rgba(255, 255, 255, 0.04);
+    }
+
+    .tab-btn.active {
+      color: white;
+      background-color: var(--accent-color);
+      box-shadow: 0 2px 8px rgba(99, 102, 241, 0.2);
+    }
+
+    .auth-controls {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .input-field {
+      background-color: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      color: var(--text-main);
+      padding: 0.5rem 0.75rem;
+      border-radius: 8px;
+      font-family: inherit;
+      font-size: 0.875rem;
+      outline: none;
+      transition: all 0.2s ease;
+    }
+
+    .input-field:focus {
+      border-color: var(--accent-color);
+      box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
+    }
+
+    /* Main Dashboard Layout */
+    .dashboard-container {
+      display: flex;
+      flex: 1;
+      padding: 1.5rem 2rem;
+      gap: 1.5rem;
+    }
+
+    .tab-content {
+      display: none;
+      width: 100%;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    .tab-content.active {
+      display: flex;
+    }
+
+    /* Grid Layouts */
+    .grid-2 {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
+      gap: 1.5rem;
+    }
+
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 1.5rem;
+    }
+
+    /* Cards */
+    .card {
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-border);
+      border-radius: 16px;
+      padding: 1.5rem;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+      backdrop-filter: blur(12px);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .card-title {
+      font-size: 1.1rem;
+      font-weight: 600;
+      margin-bottom: 1.25rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.5rem;
+      color: var(--text-main);
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+      padding-bottom: 0.75rem;
+    }
+
+    .card-title span {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    /* Quick stats dashboard-wide */
+    .stats-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 1.25rem;
+      width: 100%;
+    }
+
+    .stat-card {
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-border);
+      border-radius: 16px;
+      padding: 1.25rem;
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+      transition: transform 0.2s ease;
+    }
+
+    .stat-card:hover {
+      transform: translateY(-2px);
+    }
+
+    .stat-icon {
+      width: 48px;
+      height: 48px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.25rem;
+    }
+
+    .stat-icon-indigo { background: rgba(99, 102, 241, 0.15); color: #818cf8; }
+    .stat-icon-emerald { background: rgba(16, 185, 129, 0.15); color: #34d399; }
+    .stat-icon-amber { background: rgba(245, 158, 11, 0.15); color: #fbbf24; }
+    .stat-icon-rose { background: rgba(239, 68, 68, 0.15); color: #f87171; }
+    .stat-icon-purple { background: rgba(168, 85, 247, 0.15); color: #c084fc; }
+
+    .stat-details {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .stat-val {
+      font-size: 1.6rem;
+      font-weight: 700;
+      color: var(--text-main);
+      line-height: 1.1;
+    }
+
+    .stat-lbl {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-top: 0.25rem;
+    }
+
+    /* Buttons */
+    .btn {
+      background-color: var(--accent-color);
+      color: white;
+      border: none;
+      padding: 0.625rem 1.25rem;
+      border-radius: 8px;
+      font-family: inherit;
+      font-weight: 600;
+      font-size: 0.875rem;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      transition: all 0.2s ease;
+    }
+
+    .btn:hover {
+      background-color: var(--accent-hover);
+    }
+
+    .btn-secondary {
+      background-color: var(--bg-tertiary);
+    }
+    .btn-secondary:hover {
+      background-color: var(--border-color);
+    }
+
+    .btn-danger {
+      background-color: rgba(239, 68, 68, 0.2);
+      color: #f87171;
+      border: 1px solid rgba(239, 68, 68, 0.3);
+    }
+    .btn-danger:hover {
+      background-color: rgba(239, 68, 68, 0.3);
+    }
+
+    .btn-success {
+      background-color: rgba(16, 185, 129, 0.2);
+      color: #34d399;
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+    .btn-success:hover {
+      background-color: rgba(16, 185, 129, 0.3);
+    }
+
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    /* Tables */
+    .table-container {
+      width: 100%;
+      overflow-x: auto;
+      margin-top: 0.5rem;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      font-size: 0.9rem;
+    }
+
+    th {
+      padding: 0.75rem 1rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      border-bottom: 1px solid var(--border-color);
+      text-transform: uppercase;
+      font-size: 0.75rem;
+      letter-spacing: 0.05em;
+    }
+
+    td {
+      padding: 0.85rem 1rem;
+      border-bottom: 1px solid rgba(255,255,255,0.03);
+      color: var(--text-main);
+    }
+
+    tr:hover td {
+      background-color: rgba(255,255,255,0.01);
+    }
+
+    /* Badges */
+    .badge-status {
+      display: inline-block;
+      padding: 0.2rem 0.5rem;
+      border-radius: 20px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-align: center;
+    }
+
+    .badge-completed { background: rgba(16, 185, 129, 0.15); color: #34d399; }
+    .badge-running { background: rgba(59, 130, 246, 0.15); color: #60a5fa; }
+    .badge-failed { background: rgba(239, 68, 68, 0.15); color: #f87171; }
+    .badge-pending { background: rgba(245, 158, 11, 0.15); color: #fbbf24; }
+
+    /* Switch styling for scheduler toggle */
+    .switch {
+      position: relative;
+      display: inline-block;
+      width: 44px;
+      height: 24px;
+    }
+
+    .switch input { 
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: var(--bg-tertiary);
+      transition: .3s;
+      border-radius: 24px;
+    }
+
+    .slider:before {
+      position: absolute;
+      content: "";
+      height: 16px;
+      width: 16px;
+      left: 4px;
+      bottom: 4px;
+      background-color: white;
+      transition: .3s;
+      border-radius: 50%;
+    }
+
+    input:checked + .slider {
+      background-color: var(--success-color);
+    }
+
+    input:checked + .slider:before {
+      transform: translateX(20px);
+    }
+
+    /* Split layout */
+    .split-layout {
+      display: flex;
+      gap: 1.5rem;
+    }
+
+    .split-left {
+      flex: 1.4;
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    .split-right {
+      flex: 0.8;
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    /* List group for stores selector */
+    .list-group {
+      max-height: 480px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      padding-right: 0.25rem;
+    }
+
+    .list-item {
+      background: rgba(255,255,255,0.02);
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      padding: 0.75rem 1rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      transition: all 0.2s ease;
+    }
+
+    .list-item:hover {
+      background: rgba(255,255,255,0.04);
+      border-color: rgba(99, 102, 241, 0.3);
+    }
+
+    .list-item-info {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .list-item-logo {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      object-fit: cover;
+      background: #fff;
+    }
+
+    .list-item-details {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .list-item-name {
+      font-size: 0.9rem;
+      font-weight: 600;
+    }
+
+    .list-item-meta {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+
+    /* Progress bar */
+    .progress-bar-wrapper {
+      width: 100%;
+      background-color: var(--bg-tertiary);
+      border-radius: 10px;
+      height: 12px;
+      overflow: hidden;
+      margin-top: 1rem;
+    }
+
+    .progress-bar-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #6366f1, #a855f7);
+      width: 0%;
+      transition: width 0.3s ease;
+    }
+
+    /* Forms */
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+    }
+
+    .form-label {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    /* Original GTIN UI styling */
+    .product-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 1rem;
+      align-content: start;
+    }
+
+    .product-card {
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-border);
+      border-radius: 16px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      position: relative;
+    }
+
+    .product-card:hover {
+      transform: translateY(-4px);
+      border-color: rgba(99, 102, 241, 0.4);
+      box-shadow: 0 10px 20px rgba(0,0,0,0.3);
+    }
+
+    .product-image-container {
+      height: 160px;
+      background-color: rgba(0,0,0,0.2);
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      border-bottom: 1px solid var(--glass-border);
+    }
+
+    .product-image {
+      max-width: 90%;
+      max-height: 90%;
+      object-fit: contain;
+      transition: transform 0.3s ease;
+    }
+
+    .product-multi-badge {
+      position: absolute;
+      top: 0.75rem;
+      right: 0.75rem;
+      background: rgba(16, 185, 129, 0.9);
+      color: white;
+      padding: 0.25rem 0.5rem;
+      border-radius: 20px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      backdrop-filter: blur(4px);
+    }
+
+    .product-info-panel {
+      padding: 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      flex: 1;
+    }
+
+    .product-names {
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+      min-height: 4.5rem;
+    }
+
+    .name-ar {
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: var(--text-main);
+      text-align: right;
+      direction: rtl;
+    }
+
+    .name-en {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+
+    .product-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.35rem;
+      margin-top: auto;
+    }
+
+    .badge {
+      font-size: 0.7rem;
+      padding: 0.2rem 0.4rem;
+      border-radius: 4px;
+      background-color: var(--bg-tertiary);
+      color: var(--text-main);
+      max-width: 130px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .badge-brand {
+      background-color: rgba(99, 102, 241, 0.15);
+      color: var(--accent-color);
+      border: 1px solid rgba(99, 102, 241, 0.25);
+    }
+
+    .gtin-entry-box {
+      border-top: 1px solid var(--glass-border);
+      padding: 1rem;
+      background: rgba(0,0,0,0.15);
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .gtin-input-wrapper {
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    .gtin-input-wrapper input {
+      flex: 1;
+      font-family: monospace;
+      font-size: 0.95rem;
+      letter-spacing: 0.05em;
+      text-align: center;
+    }
+
+    .gtin-save-btn {
+      width: 42px;
+      height: 34px;
+      border-radius: 8px;
+      background-color: var(--accent-color);
+      color: white;
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s ease;
+    }
+
+    .gtin-save-btn:hover {
+      background-color: var(--accent-hover);
+    }
+
+    .card-status-overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.85);
+      backdrop-filter: blur(4px);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 0.75rem;
+      z-index: 10;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease;
+    }
+
+    .card-status-overlay.active {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .spinner {
+      width: 30px;
+      height: 30px;
+      border: 3px solid rgba(255,255,255,0.1);
+      border-top: 3px solid var(--accent-color);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    .success-icon-container {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      background: rgba(16, 185, 129, 0.2);
+      border: 2px solid var(--success-color);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--success-color);
+    }
+
+    .pagination-bar {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 1.5rem;
+      padding: 1.5rem 0;
+      margin-top: auto;
+    }
+
+    .pagination-info {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+    }
+
+    .empty-state {
+      padding: 4rem 2rem;
+      text-align: center;
+      color: var(--text-muted);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .empty-state i {
+      color: var(--accent-color);
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="logo-container">
+      <div class="logo-badge">S</div>
+      <h1>Sawa Scanner <span>Control Center</span></h1>
+      
+      <nav class="tabs-nav">
+        <button class="tab-btn active" onclick="switchTab('gtin-tab')"><i data-lucide="hash" style="width:16px;height:16px;"></i> GTIN Assignment</button>
+        <button class="tab-btn" onclick="switchTab('stats-tab')"><i data-lucide="bar-chart-2" style="width:16px;height:16px;"></i> Statistics & Districts</button>
+        <button class="tab-btn" onclick="switchTab('scrape-tab')"><i data-lucide="refresh-cw" style="width:16px;height:16px;"></i> Scraping & Queues</button>
+        <button class="tab-btn" onclick="switchTab('scheduler-tab')"><i data-lucide="calendar" style="width:16px;height:16px;"></i> Automated Schedules</button>
+      </nav>
+    </div>
+    
+    <div class="auth-controls">
+      <label class="form-label" style="margin-right: 0.5rem; margin-bottom:0;">API Secret:</label>
+      <input type="password" id="api-secret" class="input-field" placeholder="Admin Secret" value="sawa-scanner-dev-2026">
+      <button class="btn btn-secondary" onclick="reloadActiveTab()"><i data-lucide="rotate-cw" style="width:16px;height:16px;"></i></button>
+    </div>
+  </header>
+
+  <div class="dashboard-container">
+    
+    <!-- TAB 1: GTIN ASSIGNMENT -->
+    <div id="gtin-tab" class="tab-content active">
+      <div style="display:flex; gap:1.5rem; width:100%;">
+        
+        <!-- Sidebar Filters -->
+        <aside style="width:320px; flex-shrink:0; display:flex; flex-direction:column; gap:1.5rem;">
+          <div class="card">
+            <h2 class="card-title"><span><i data-lucide="filter" style="width:18px;height:18px;"></i> Filters</span></h2>
+            
+            <div class="filter-group form-group">
+              <label class="form-label" for="filter-brand">Brand</label>
+              <select id="filter-brand" class="input-field" style="width:100%; cursor:pointer;" onchange="applyFilters()">
+                <option value="">All Brands</option>
+              </select>
+            </div>
+
+            <div class="filter-group form-group">
+              <label class="form-label" for="filter-category">Category</label>
+              <select id="filter-category" class="input-field" style="width:100%; cursor:pointer;" onchange="applyFilters()">
+                <option value="">All Categories</option>
+              </select>
+            </div>
+
+            <div class="filter-group form-group">
+              <label class="form-label" for="filter-status">GTIN Status</label>
+              <select id="filter-status" class="input-field" style="width:100%; cursor:pointer;" onchange="applyFilters()">
+                <option value="unassigned" selected>Needs GTIN (Unassigned)</option>
+                <option value="assigned">With GTIN (Assigned)</option>
+                <option value="all">All Products</option>
+              </select>
+            </div>
+
+            <div class="filter-group form-group" style="margin-top: 1rem;">
+              <label style="display:flex; align-items:center; gap:0.5rem; cursor:pointer;" for="filter-multistore">
+                <input type="checkbox" id="filter-multistore" style="width:16px; height:16px; accent-color:var(--accent-color);" onchange="applyFilters()">
+                <span style="font-size:0.875rem;">Only In Multiple Stores</span>
+              </label>
+            </div>
+
+            <button class="btn btn-secondary" style="width: 100%; margin-top: 1rem;" onclick="resetFilters()">
+              <i data-lucide="rotate-ccw" style="width:16px;height:16px;"></i> Reset Filters
+            </button>
+          </div>
+        </aside>
+
+        <!-- Catalog Area -->
+        <main style="flex:1; display:flex; flex-direction:column; gap:1.5rem;">
+          <div class="card" style="padding:1rem 1.5rem;">
+            <div style="display:flex; justify-content:space-between; align-items:center; gap:1rem;">
+              <div style="position:relative; flex:1; max-width:400px;">
+                <i data-lucide="search" style="position:absolute; left:0.75rem; top:50%; transform:translateY(-50%); color:var(--text-muted); pointer-events:none; width:16px; height:16px;"></i>
+                <input type="text" id="search-input" class="input-field" style="width:100%; padding-left:2.5rem;" placeholder="Search by name, ID or GTIN..." oninput="debounceSearch()">
+              </div>
+              <div class="results-meta" style="font-size:0.9rem; color:var(--text-muted);">
+                Showing <span id="results-count" style="font-weight:600; color:var(--text-main);">0</span> items
+              </div>
+            </div>
+          </div>
+
+          <div id="product-list" class="product-grid">
+            <!-- Loaded dynamically -->
+          </div>
+
+          <div class="pagination-bar">
+            <button class="btn btn-secondary" id="prev-btn" onclick="prevPage()"><i data-lucide="chevron-left" style="width:16px;height:16px;"></i> Previous</button>
+            <span class="pagination-info">Page <span id="page-num">1</span> of <span id="total-pages">1</span></span>
+            <button class="btn btn-secondary" id="next-btn" onclick="nextPage()">Next <i data-lucide="chevron-right" style="width:16px;height:16px;"></i></button>
+          </div>
+        </main>
+      </div>
+    </div>
+
+    <!-- TAB 2: DATABASE STATISTICS & DISTRICTS -->
+    <div id="stats-tab" class="tab-content">
+      <!-- Top Overview Stats -->
+      <div class="stats-row">
+        <div class="stat-card">
+          <div class="stat-icon stat-icon-indigo"><i data-lucide="package"></i></div>
+          <div class="stat-details">
+            <span class="stat-val" id="stat-total-products">-</span>
+            <span class="stat-lbl">Total Products</span>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon stat-icon-emerald"><i data-lucide="check-circle"></i></div>
+          <div class="stat-details">
+            <span class="stat-val" id="stat-with-gtin">-</span>
+            <span class="stat-lbl">Matched (With GTIN)</span>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon stat-icon-amber"><i data-lucide="help-circle"></i></div>
+          <div class="stat-details">
+            <span class="stat-val" id="stat-needs-gtin">-</span>
+            <span class="stat-lbl">Needs GTIN</span>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon stat-icon-rose"><i data-lucide="copy"></i></div>
+          <div class="stat-details">
+            <span class="stat-val" id="stat-dupes">-</span>
+            <span class="stat-lbl">Duplicate Products</span>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon stat-icon-purple"><i data-lucide="map-pin"></i></div>
+          <div class="stat-details">
+            <span class="stat-val" id="stat-scraped-coverage">-</span>
+            <span class="stat-lbl">Store Coverage</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Charts Section -->
+      <div class="grid-2">
+        <div class="card" style="height:320px; display:flex; flex-direction:column;">
+          <h2 class="card-title"><span><i data-lucide="pie-chart" style="width:18px;height:18px;"></i> Product GTIN Coverage</span></h2>
+          <div style="flex:1; display:flex; justify-content:center; align-items:center; position:relative; height:220px;">
+            <canvas id="gtinChart"></canvas>
+          </div>
+        </div>
+        <div class="card" style="height:320px; display:flex; flex-direction:column;">
+          <h2 class="card-title"><span><i data-lucide="store" style="width:18px;height:18px;"></i> Store Ingestion Status</span></h2>
+          <div style="flex:1; display:flex; justify-content:center; align-items:center; position:relative; height:220px;">
+            <canvas id="storesChart"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- Districts and Stores Selector -->
+      <div class="split-layout">
+        
+        <!-- Left: Riyadh Districts Coverage Table -->
+        <div class="card split-left">
+          <h2 class="card-title"><span><i data-lucide="map"></i> Riyadh Districts Coverage Status</span></h2>
+          <div class="table-container" style="max-height: 480px; overflow-y: auto;">
+            <table>
+              <thead>
+                <tr>
+                  <th>District Name</th>
+                  <th>Total Stores</th>
+                  <th>Scraped Stores</th>
+                  <th>Price Points</th>
+                  <th>Coverage</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="districts-table-body">
+                <!-- Loaded dynamically -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Right: Stores in Selected District -->
+        <div class="card split-right" id="district-stores-panel">
+          <h2 class="card-title" id="district-stores-title"><span><i data-lucide="store"></i> Stores (Select a District)</span></h2>
+          <div id="district-stores-placeholder" class="empty-state" style="padding: 6rem 1rem;">
+            <i data-lucide="info" style="width: 32px; height: 32px; margin-bottom:0.5rem;"></i>
+            <p>Click "View Stores" next to any district on the left to see stores, verify price counts, and trigger manual scraping batches.</p>
+          </div>
+          
+          <div id="district-stores-content" style="display:none; flex-direction:column; gap:1rem; height:100%;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <span id="stores-selected-count" style="font-size:0.85rem; color:var(--text-muted);">0 stores selected</span>
+              <div style="display:flex; gap:0.5rem;">
+                <button class="btn btn-secondary" style="padding:0.4rem 0.75rem; font-size:0.75rem;" onclick="selectAllDistrictStores(true)">Select All</button>
+                <button class="btn btn-secondary" style="padding:0.4rem 0.75rem; font-size:0.75rem;" onclick="selectAllDistrictStores(false)">Deselect All</button>
+              </div>
+            </div>
+            
+            <div class="list-group" id="district-stores-list">
+              <!-- Dynamic list -->
+            </div>
+            
+            <div style="margin-top:auto; padding-top:1rem; border-top:1px solid var(--border-color); display:flex; gap:0.5rem;">
+              <button class="btn" style="flex:1;" id="btn-scrape-selected" onclick="scrapeSelectedStores()" disabled>
+                <i data-lucide="play" style="width:16px;height:16px;"></i> Scrape Selected
+              </button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- TAB 3: SCRAPING & QUEUES CONTROL -->
+    <div id="scrape-tab" class="tab-content">
+      <div class="grid-2">
+        
+        <!-- Queue Monitoring Card -->
+        <div class="card" style="display:flex; flex-direction:column; justify-content:space-between;">
+          <div>
+            <h2 class="card-title">
+              <span><i data-lucide="server" style="width:18px;height:18px;"></i> BullMQ Ingestion Queue Status</span>
+              <button class="btn btn-secondary" style="padding:0.35rem 0.6rem;" onclick="loadQueueStatus()" title="Refresh Queue Status">
+                <i data-lucide="refresh-cw" style="width:12px;height:12px;"></i>
+              </button>
+            </h2>
+            
+            <div class="grid-3" style="margin-top:1rem; gap:1rem;" id="queue-stats-grid">
+              <!-- Populated dynamically -->
+              <div class="stat-card" style="padding:1rem; background:rgba(255,255,255,0.01);">
+                <div class="stat-details"><span class="stat-val" id="q-active">-</span><span class="stat-lbl">Active</span></div>
+              </div>
+              <div class="stat-card" style="padding:1rem; background:rgba(255,255,255,0.01);">
+                <div class="stat-details"><span class="stat-val" id="q-waiting">-</span><span class="stat-lbl">Waiting</span></div>
+              </div>
+              <div class="stat-card" style="padding:1rem; background:rgba(255,255,255,0.01);">
+                <div class="stat-details"><span class="stat-val" id="q-completed">-</span><span class="stat-lbl">Completed</span></div>
+              </div>
+              <div class="stat-card" style="padding:1rem; background:rgba(255,255,255,0.01);">
+                <div class="stat-details"><span class="stat-val" id="q-failed" style="color:var(--error-color);">-</span><span class="stat-lbl">Failed</span></div>
+              </div>
+              <div class="stat-card" style="padding:1rem; background:rgba(255,255,255,0.01);">
+                <div class="stat-details"><span class="stat-val" id="q-delayed">-</span><span class="stat-lbl">Delayed</span></div>
+              </div>
+            </div>
+          </div>
+          
+          <div style="margin-top:2rem; padding-top:1.25rem; border-top:1px solid var(--border-color); display:flex; justify-content:space-between; align-items:center;">
+            <span style="font-size:0.8rem; color:var(--text-muted);">Warning: Clearing active/waiting jobs can disrupt running scrapes.</span>
+            <div style="display:flex; gap:0.75rem;">
+              <button class="btn btn-danger" onclick="cleanQueue(['failed'])">Clear Failed</button>
+              <button class="btn btn-danger" onclick="cleanQueue(['completed', 'failed', 'waiting', 'delayed'])">Wipe All Inactive</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Scrape Zero-Districts Batch Controller -->
+        <div class="card">
+          <h2 class="card-title"><span><i data-lucide="play-circle"></i> Bulk Scrape: Zero-Scraped Districts</span></h2>
+          <p style="font-size:0.875rem; color:var(--text-muted); margin-bottom:1.5rem;">
+            This triggers a bulk ingestion job that queries Riyadh districts currently having 0 scraped products, finds major supermarket stores in them, and enqueues them for scraping with staggered intervals.
+          </p>
+          
+          <div class="form-group" style="max-width:240px;">
+            <label class="form-label" for="bulk-scrape-limit">Store Limit</label>
+            <input type="number" id="bulk-scrape-limit" class="input-field" value="20" min="1" max="100">
+            <span style="font-size:0.75rem; color:var(--text-muted); margin-top:0.25rem;">Max stores to trigger in this batch.</span>
+          </div>
+          
+          <button class="btn" style="margin-top:1rem; width:100%;" id="btn-trigger-bulk" onclick="triggerBulkScrape()">
+            <i data-lucide="play" style="width:16px;height:16px;"></i> Trigger Bulk Scrape Batch
+          </button>
+        </div>
+
+      </div>
+
+      <!-- Local GTIN Matcher Control Center -->
+      <div class="card" style="margin-top:1.5rem;">
+        <h2 class="card-title"><span><i data-lucide="cpu"></i> Local Database GTIN Matcher</span></h2>
+        
+        <div class="grid-2">
+          <div>
+            <p style="font-size:0.875rem; color:var(--text-muted); margin-bottom:1.5rem; line-height:1.5;">
+              Scan unmatched HungerStation products and map them to existing donor products with verified GTINs in the local database. This matching runs <strong>locally</strong> in the background using name similarity, brand checks, unit validation, and visual hash matching (dHash distance).
+            </p>
+            <div style="background:rgba(99, 102, 241, 0.08); border-left:4px solid var(--accent-color); padding:0.75rem 1rem; border-radius:4px; font-size:0.85rem; margin-bottom:1.5rem;">
+              💡 <strong>Recommendation:</strong> Running this process is <strong>100% free</strong> and consumes <strong>0 LLM/AI tokens</strong> because it operates strictly on our local database. Run it after every major scrape batch finishes!
+            </div>
+            
+            <div style="display:flex; gap:1.25rem; flex-wrap:wrap;">
+              <div class="form-group" style="width:120px;">
+                <label class="form-label" for="match-limit">Product Limit</label>
+                <input type="number" id="match-limit" class="input-field" value="5000" min="1">
+              </div>
+              <div class="form-group" style="width:120px;">
+                <label class="form-label" for="match-threshold">Similarity Thresh</label>
+                <input type="number" id="match-threshold" class="input-field" value="0.85" min="0.5" max="1" step="0.01">
+              </div>
+              <div class="form-group" style="display:flex; align-items:center; margin-top:1.5rem; height:34px;">
+                <label style="display:flex; align-items:center; gap:0.5rem; cursor:pointer;" for="match-dryrun">
+                  <input type="checkbox" id="match-dryrun" style="width:16px; height:16px; accent-color:var(--accent-color);">
+                  <span style="font-size:0.875rem;">Dry Run (No Merges)</span>
+                </label>
+              </div>
+            </div>
+            
+            <button class="btn" style="margin-top:1rem; min-width:200px;" id="btn-run-matcher" onclick="triggerLocalMatcher()">
+              <i data-lucide="play" style="width:16px;height:16px;"></i> Run Local Matcher
+            </button>
+          </div>
+
+          <!-- Matcher Run Progress Area -->
+          <div style="background: rgba(0,0,0,0.15); border:1px dashed var(--border-color); border-radius:12px; padding:1.25rem; display:flex; flex-direction:column; justify-content:center;" id="matcher-progress-card">
+            <h3 style="font-size:0.95rem; font-weight:600; margin-bottom:0.75rem; display:flex; align-items:center; gap:0.5rem;">
+              <span id="matcher-indicator" style="width:10px;height:10px;border-radius:50%;background:#94a3b8;display:inline-block;"></span>
+              Matcher Status: <span id="matcher-status-text">Idle</span>
+            </h3>
+            
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.75rem; font-size:0.85rem; margin-top:0.5rem;">
+              <div>Scanned: <span id="progress-scanned" style="font-weight:600;">0</span> / <span id="progress-total">0</span></div>
+              <div>Matched: <span id="progress-matched" style="font-weight:600; color:var(--success-color);">0</span></div>
+              <div>Exact Matches: <span id="progress-exact" style="font-weight:500;">0</span></div>
+              <div>Visual Matches: <span id="progress-visual" style="font-weight:500;">0</span></div>
+              <div>Fuzzy Matches: <span id="progress-fuzzy" style="font-weight:500;">0</span></div>
+              <div>Time Elapsed: <span id="progress-time" style="font-weight:500;">-</span></div>
+            </div>
+
+            <div class="progress-bar-wrapper">
+              <div class="progress-bar-fill" id="matcher-progress-bar"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 4: AUTOMATED SCHEDULES -->
+    <div id="scheduler-tab" class="tab-content">
+      <div class="split-layout">
+        
+        <!-- Left: Schedules Configuration -->
+        <div class="card split-left">
+          <h2 class="card-title"><span><i data-lucide="clock"></i> Active Automation Timers</span></h2>
+          <p style="font-size:0.875rem; color:var(--text-muted); margin-bottom:1.5rem;">
+            Timers run automatically in the background. Enabling these schedules allows the system to scrape fresh data and resolve GTIN matching autonomously without manual agent instruction.
+          </p>
+          
+          <div style="display:flex; flex-direction:column; gap:1rem;" id="schedules-list">
+            <!-- Dynamic List of Schedules -->
+          </div>
+        </div>
+
+        <!-- Right: Execution Logs / History -->
+        <div class="card split-right">
+          <h2 class="card-title"><span><i data-lucide="history"></i> Execution Logs & History</span></h2>
+          <div class="table-container" style="max-height: 480px; overflow-y: auto;">
+            <table>
+              <thead>
+                <tr>
+                  <th>Job Type</th>
+                  <th>Status</th>
+                  <th>Time & Results</th>
+                </tr>
+              </thead>
+              <tbody id="logs-table-body">
+                <!-- Dynamic Logs -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Keyboard Shortcuts Hint -->
+  <div class="keyboard-shortcut-hint" id="shortcut-hint">
+    <i data-lucide="keyboard" style="width: 14px; height: 14px;"></i>
+    <span>Press <kbd class="kbd-btn">Enter</kbd> to Save & jump to next input</span>
+  </div>
+
+  <script>
+    let products = [];
+    let categories = [];
+    let brands = [];
+    let currentPage = 1;
+    let totalPages = 1;
+    const pageSize = 12;
+    let searchDebounceTimeout;
+    let currentTab = 'gtin-tab';
+    let matcherPollingInterval = null;
+    let selectedDistrictStores = [];
+    
+    // Charts instances
+    let gtinChartInstance = null;
+    let storesChartInstance = null;
+
+    // Initialize Page
+    window.addEventListener('DOMContentLoaded', () => {
+      lucide.createIcons();
+      loadFiltersMeta();
+      loadProducts();
+    });
+
+    function getHeaders() {
+      const secret = document.getElementById('api-secret').value;
+      return {
+        'Content-Type': 'application/json',
+        'x-dev-admin-secret': secret
+      };
+    }
+
+    // Tab switcher
+    function switchTab(tabId) {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+      
+      const activeBtn = Array.from(document.querySelectorAll('.tab-btn')).find(b => b.getAttribute('onclick').includes(tabId));
+      if (activeBtn) activeBtn.classList.add('active');
+      
+      const content = document.getElementById(tabId);
+      content.classList.add('active');
+      currentTab = tabId;
+
+      const shortcutHint = document.getElementById('shortcut-hint');
+      if (tabId === 'gtin-tab') {
+        shortcutHint.style.display = 'flex';
+      } else {
+        shortcutHint.style.display = 'none';
+      }
+
+      // Load specific tab data
+      if (tabId === 'stats-tab') {
+        loadDashboardStats();
+      } else if (tabId === 'scrape-tab') {
+        loadQueueStatus();
+        checkMatcherStatus();
+      } else if (tabId === 'scheduler-tab') {
+        loadSchedules();
+        loadScheduleLogs();
+      }
+    }
+
+    function reloadActiveTab() {
+      switchTab(currentTab);
+    }
+
+    // ==========================================
+    // TAB 1: GTIN HANDLERS
+    // ==========================================
+    async function loadFiltersMeta() {
+      try {
+        const response = await fetch('/admin/products/filters-meta', {
+          headers: getHeaders()
+        });
+        if (response.ok) {
+          const data = await response.json();
+          categories = data.categories || [];
+          brands = data.brands || [];
+          populateDropdowns();
+        }
+      } catch (err) {
+        console.error('Failed to load filter metadata:', err);
+      }
+    }
+
+    function populateDropdowns() {
+      const categorySelect = document.getElementById('filter-category');
+      const brandSelect = document.getElementById('filter-brand');
+
+      categorySelect.innerHTML = '<option value="">All Categories</option>';
+      brandSelect.innerHTML = '<option value="">All Brands</option>';
+
+      categories.forEach(cat => {
+        const opt = document.createElement('option');
+        opt.value = cat;
+        opt.textContent = cat;
+        categorySelect.appendChild(opt);
+      });
+
+      brands.forEach(br => {
+        const opt = document.createElement('option');
+        opt.value = br;
+        opt.textContent = br;
+        brandSelect.appendChild(opt);
+      });
+    }
+
+    async function loadProducts() {
+      const search = document.getElementById('search-input').value;
+      const category = document.getElementById('filter-category').value;
+      const brand = document.getElementById('filter-brand').value;
+      const status = document.getElementById('filter-status').value;
+      const onlyMultiStore = document.getElementById('filter-multistore').checked;
+
+      const url = new URL('/admin/products/needs-gtin', window.location.origin);
+      url.searchParams.set('page', currentPage);
+      url.searchParams.set('pageSize', pageSize);
+      url.searchParams.set('gtinStatus', status);
+      if (search) url.searchParams.set('search', search);
+      if (category) url.searchParams.set('category', category);
+      if (brand) url.searchParams.set('brand', brand);
+      if (onlyMultiStore) url.searchParams.set('onlyMultiStore', 'true');
+
+      const container = document.getElementById('product-list');
+      container.innerHTML = `
+        <div class="empty-state" style="grid-column: 1 / -1;">
+          <div class="spinner"></div>
+          <p>Loading catalog products...</p>
+        </div>
+      `;
+
+      try {
+        const response = await fetch(url.toString(), {
+          headers: getHeaders()
+        });
+
+        if (!response.ok) {
+          throw new Error('Please verify your admin API secret.');
+        }
+
+        const data = await response.json();
+        products = data.items || [];
+        const total = data.total || 0;
+        
+        document.getElementById('results-count').textContent = total;
+        
+        totalPages = Math.ceil(total / pageSize) || 1;
+        document.getElementById('page-num').textContent = currentPage;
+        document.getElementById('total-pages').textContent = totalPages;
+
+        renderProducts();
+      } catch (err) {
+        container.innerHTML = `
+          <div class="empty-state" style="grid-column: 1 / -1; color: var(--error-color);">
+            <i data-lucide="alert-circle" style="width: 48px; height: 48px;"></i>
+            <h3>Failed to load products</h3>
+            <p>` + err.message + `</p>
+          </div>
+        `;
+        lucide.createIcons();
+      }
+    }
+
+    function renderProducts() {
+      const container = document.getElementById('product-list');
+      container.innerHTML = '';
+
+      if (products.length === 0) {
+        container.innerHTML = `
+          <div class="empty-state" style="grid-column: 1 / -1;">
+            <i data-lucide="package-open" style="width: 48px; height: 48px; margin-bottom: 0.5rem;"></i>
+            <h3>No products found</h3>
+            <p>Try refining your filters or search term.</p>
+          </div>
+        `;
+        lucide.createIcons();
+        return;
+      }
+
+      products.forEach((product, index) => {
+        const hasImage = product.images && product.images.length > 0;
+        const imageUrl = hasImage ? product.images[0].url : '';
+        const nameAr = product.name_ar || 'اسم غير متوفر';
+        const nameEn = product.name_en || 'English Name Not Available';
+        const gtinValue = product.gtin || '';
+        const storesBadge = product.priceCount && product.priceCount > 1 
+          ? '<div class="product-multi-badge">' + product.priceCount + ' Stores</div>' 
+          : '';
+
+        const card = document.createElement('div');
+        card.className = 'product-card';
+        card.id = 'product-card-' + product.id;
+        card.dataset.index = index;
+
+        card.innerHTML = `
+          <!-- Image Section -->
+          <div class="product-image-container">
+            ` + storesBadge + `
+            ` + (hasImage 
+              ? '<img class="product-image" src="' + imageUrl + '" alt="' + nameEn + '" onerror="this.style.display=\'none\'; this.nextElementSibling.style.display=\'flex\';">' 
+              : '') + `
+            <div class="no-image-placeholder" style="` + (hasImage ? 'display:none;' : 'display:flex;') + `">
+              <i data-lucide="image-off" style="width: 32px; height: 32px;"></i>
+              <span style="font-size: 0.75rem;">No Image</span>
+            </div>
+          </div>
+
+          <!-- Info Section -->
+          <div class="product-info-panel">
+            <div class="product-names">
+              <div class="name-ar">` + nameAr + `</div>
+              <div class="name-en">` + nameEn + `</div>
+            </div>
+
+            <div class="product-tags">
+              ` + (product.brand ? '<span class="badge badge-brand" title="Brand: ' + product.brand + '">' + product.brand + '</span>' : '') + `
+              ` + (product.category ? '<span class="badge" title="Category: ' + product.category + '">' + product.category + '</span>' : '') + `
+              ` + (product.priceCount ? '<span class="badge" style="background-color:rgba(16, 185, 129, 0.1); color:var(--success-color);">Prices: ' + product.priceCount + '</span>' : '') + `
+            </div>
+          </div>
+
+          <!-- GTIN Entry Section -->
+          <div class="gtin-entry-box">
+            <label class="form-label" style="font-size:0.7rem;">Assign GTIN</label>
+            <div class="gtin-input-wrapper">
+              <input type="text" 
+                     id="gtin-input-` + product.id + `" 
+                     class="input-field gtin-input-box" 
+                     placeholder="E.g. 6281007..." 
+                     value="` + gtinValue + `" 
+                     maxlength="14"
+                     style="height:34px;"
+                     onkeydown="handleGtinKeydown(event, '` + product.id + `', ` + index + `)">
+              <button class="gtin-save-btn" onclick="saveGtin('` + product.id + `', ` + index + `)" title="Save GTIN">
+                <i data-lucide="check" style="width: 16px; height: 16px;"></i>
+              </button>
+            </div>
+          </div>
+
+          <!-- Overlay Status -->
+          <div class="card-status-overlay" id="status-overlay-` + product.id + `">
+            <div class="spinner" id="status-spinner-` + product.id + `"></div>
+            <div class="success-icon-container" id="status-success-` + product.id + `" style="display:none;">
+              <i data-lucide="check" style="width: 20px; height: 20px; color:#10b981;"></i>
+            </div>
+            <p id="status-text-` + product.id + `" style="font-size: 0.85rem; font-weight:500; margin-top:0.25rem;">Saving GTIN...</p>
+          </div>
+        `;
+
+        container.appendChild(card);
+      });
+
+      lucide.createIcons();
+    }
+
+    async function saveGtin(productId, index) {
+      const input = document.getElementById('gtin-input-' + productId);
+      const gtin = input.value.trim();
+
+      if (!gtin) {
+        alert('Please enter a valid GTIN code');
+        return;
+      }
+
+      const overlay = document.getElementById('status-overlay-' + productId);
+      const spinner = document.getElementById('status-spinner-' + productId);
+      const successIcon = document.getElementById('status-success-' + productId);
+      const text = document.getElementById('status-text-' + productId);
+
+      text.textContent = 'Saving GTIN...';
+      spinner.style.display = 'block';
+      successIcon.style.display = 'none';
+      overlay.classList.add('active');
+
+      try {
+        const response = await fetch('/admin/products/' + productId + '/assign-gtin', {
+          method: 'PATCH',
+          headers: getHeaders(),
+          body: JSON.stringify({ gtin })
+        });
+
+        if (!response.ok) {
+          const errData = await response.json();
+          throw new Error(errData.message || 'Failed to assign GTIN');
+        }
+
+        spinner.style.display = 'none';
+        successIcon.style.display = 'flex';
+        text.textContent = 'GTIN Assigned!';
+        
+        lucide.createIcons();
+
+        setTimeout(() => {
+          overlay.classList.remove('active');
+          const statusFilter = document.getElementById('filter-status').value;
+          if (statusFilter === 'unassigned') {
+            const cardElement = document.getElementById('product-card-' + productId);
+            cardElement.style.transform = 'scale(0.8)';
+            cardElement.style.opacity = '0';
+            setTimeout(() => {
+              cardElement.remove();
+              const countBadge = document.getElementById('results-count');
+              const currentCount = parseInt(countBadge.textContent);
+              if (currentCount > 0) {
+                countBadge.textContent = currentCount - 1;
+              }
+            }, 250);
+          }
+        }, 800);
+
+      } catch (err) {
+        overlay.classList.remove('active');
+        alert('Error: ' + err.message);
+      }
+    }
+
+    function handleGtinKeydown(event, productId, index) {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        saveGtin(productId, index);
+
+        // Autofocus next product input
+        const nextCard = document.querySelector('.product-card[data-index="' + (index + 1) + '"]');
+        if (nextCard) {
+          const nextInput = nextCard.querySelector('.gtin-input-box');
+          if (nextInput) {
+            setTimeout(() => {
+              nextInput.focus();
+              nextInput.select();
+            }, 900);
+          }
+        }
+      }
+    }
+
+    function applyFilters() {
+      currentPage = 1;
+      loadProducts();
+    }
+
+    function resetFilters() {
+      document.getElementById('filter-brand').value = '';
+      document.getElementById('filter-category').value = '';
+      document.getElementById('filter-status').value = 'unassigned';
+      document.getElementById('filter-multistore').checked = false;
+      document.getElementById('search-input').value = '';
+      currentPage = 1;
+      loadProducts();
+    }
+
+    function debounceSearch() {
+      clearTimeout(searchDebounceTimeout);
+      searchDebounceTimeout = setTimeout(() => {
+        currentPage = 1;
+        loadProducts();
+      }, 400);
+    }
+
+    function prevPage() {
+      if (currentPage > 1) {
+        currentPage--;
+        loadProducts();
+      }
+    }
+
+    function nextPage() {
+      if (currentPage < totalPages) {
+        currentPage++;
+        loadProducts();
+      }
+    }
+
+
+    // ==========================================
+    // TAB 2: STATS & DISTRICTS HANDLERS
+    // ==========================================
+    async function loadDashboardStats() {
+      const elIds = {
+        totalProducts: 'stat-total-products',
+        withGtin: 'stat-with-gtin',
+        needsGtin: 'stat-needs-gtin',
+        dupes: 'stat-dupes',
+        scrapedCoverage: 'stat-scraped-coverage',
+      };
+      
+      // Set loaders
+      Object.values(elIds).forEach(id => {
+        document.getElementById(id).textContent = '...';
+      });
+
+      try {
+        const res = await fetch('/admin/dashboard/stats', { headers: getHeaders() });
+        if (!res.ok) throw new Error('Auth failure');
+        
+        const stats = await res.json();
+        
+        document.getElementById(elIds.totalProducts).textContent = stats.totalProducts.toLocaleString();
+        document.getElementById(elIds.withGtin).textContent = stats.productsWithGtin.toLocaleString();
+        document.getElementById(elIds.needsGtin).textContent = stats.productsNoGtin.toLocaleString();
+        document.getElementById(elIds.dupes).textContent = stats.duplicateProductsCount.toLocaleString();
+        
+        const coveragePct = stats.totalStores > 0 
+          ? ((stats.scrapedStores / stats.totalStores) * 100).toFixed(1)
+          : '0';
+        document.getElementById(elIds.scrapedCoverage).textContent = coveragePct + '%';
+
+        // Render Charts
+        renderStatsCharts(stats);
+
+        // Render Districts Table
+        renderDistrictsTable(stats.districts);
+
+      } catch (err) {
+        console.error('Failed to load stats:', err);
+      }
+    }
+
+    function renderStatsCharts(stats) {
+      // 1. GTIN Chart
+      const gtinCtx = document.getElementById('gtinChart').getContext('2d');
+      if (gtinChartInstance) gtinChartInstance.destroy();
+      
+      gtinChartInstance = new Chart(gtinCtx, {
+        type: 'pie',
+        data: {
+          labels: ['Matched Products', 'Products Needing GTIN'],
+          datasets: [{
+            data: [stats.productsWithGtin, stats.productsNoGtin],
+            backgroundColor: ['#10b981', '#f59e0b'],
+            borderColor: '#111827',
+            borderWidth: 2,
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              position: 'bottom',
+              labels: { color: '#f8fafc', font: { family: 'Outfit' } }
+            }
+          }
+        }
+      });
+
+      // 2. Stores Coverage Chart
+      const storesCtx = document.getElementById('storesChart').getContext('2d');
+      if (storesChartInstance) storesChartInstance.destroy();
+
+      storesChartInstance = new Chart(storesCtx, {
+        type: 'doughnut',
+        data: {
+          labels: ['Scraped Stores', 'Unscraped Stores'],
+          datasets: [{
+            data: [stats.scrapedStores, stats.unscrapedStores],
+            backgroundColor: ['#6366f1', '#1f2937'],
+            borderColor: '#111827',
+            borderWidth: 2,
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              position: 'bottom',
+              labels: { color: '#f8fafc', font: { family: 'Outfit' } }
+            }
+          }
+        }
+      });
+    }
+
+    function renderDistrictsTable(districts) {
+      const tbody = document.getElementById('districts-table-body');
+      tbody.innerHTML = '';
+
+      if (!districts || districts.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">No districts found</td></tr>';
+        return;
+      }
+
+      districts.forEach(d => {
+        const tr = document.createElement('tr');
+        const badgeClass = d.coverage === 100 
+          ? 'badge-completed' 
+          : d.coverage > 0 ? 'badge-running' : 'badge-pending';
+        
+        tr.innerHTML = `
+          <td style="font-weight:600;">` + d.name + `</td>
+          <td>` + d.totalStores + `</td>
+          <td>` + d.scrapedStores + `</td>
+          <td>` + d.priceCount.toLocaleString() + `</td>
+          <td>
+            <span class="badge-status ` + badgeClass + `">` + d.coverage + `%</span>
+          </td>
+          <td>
+            <button class="btn btn-secondary" style="padding:0.35rem 0.75rem; font-size:0.8rem; display:inline-flex; align-items:center; gap:0.25rem;" onclick="viewDistrictStores('` + d.name + `')">
+              <i data-lucide="eye" style="width:12px;height:12px;"></i> View Stores
+            </button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      lucide.createIcons();
+    }
+
+    async function viewDistrictStores(districtName) {
+      const titleEl = document.getElementById('district-stores-title');
+      const placeholder = document.getElementById('district-stores-placeholder');
+      const content = document.getElementById('district-stores-content');
+      const listContainer = document.getElementById('district-stores-list');
+
+      titleEl.innerHTML = '<span><i data-lucide="store"></i> Stores in ' + districtName + '</span>';
+      placeholder.style.display = 'none';
+      content.style.display = 'flex';
+      listContainer.innerHTML = '<div class="empty-state"><div class="spinner"></div><p>Fetching stores...</p></div>';
+      
+      lucide.createIcons();
+
+      try {
+        const res = await fetch('/admin/dashboard/districts/' + encodeURIComponent(districtName) + '/stores', {
+          headers: getHeaders()
+        });
+        if (!res.ok) throw new Error('Failed to fetch stores');
+        
+        const stores = await res.json();
+        selectedDistrictStores = stores;
+        
+        listContainer.innerHTML = '';
+        if (stores.length === 0) {
+          listContainer.innerHTML = '<div class="empty-state"><p>No stores found in this district</p></div>';
+          return;
+        }
+
+        stores.forEach(s => {
+          const div = document.createElement('div');
+          div.className = 'list-item';
+          
+          const isScraped = s.price_count > 0;
+          const statusText = isScraped 
+            ? s.price_count.toLocaleString() + ' prices | Scraped ' + new Date(s.last_scraped_at).toLocaleDateString()
+            : 'Unscraped (0 prices)';
+            
+          const logoUrl = s.merchant_logo || 'https://images.deliveryhero.io/image/hungerstation/default.png';
+
+          div.innerHTML = `
+            <div class="list-item-info">
+              <input type="checkbox" class="store-select-chk" value="` + s.id + `" onchange="updateSelectedStoresCount()" style="width:16px; height:16px; accent-color:var(--accent-color);">
+              <img class="list-item-logo" src="` + logoUrl + `" onerror="this.src='https://images.deliveryhero.io/image/hungerstation/default.png';">
+              <div class="list-item-details">
+                <span class="list-item-name">` + s.merchant_name + `</span>
+                <span class="list-item-meta">` + statusText + `</span>
+              </div>
+            </div>
+            <div>
+              <span class="badge-status ` + (isScraped ? 'badge-completed' : 'badge-pending') + `" style="font-size:0.7rem;">
+                ` + (isScraped ? 'Scraped' : 'Pending') + `
+              </span>
+            </div>
+          `;
+          listContainer.appendChild(div);
+        });
+
+        updateSelectedStoresCount();
+
+      } catch (err) {
+        listContainer.innerHTML = '<div class="empty-state" style="color:var(--error-color);"><p>' + err.message + '</p></div>';
+      }
+    }
+
+    function selectAllDistrictStores(select) {
+      document.querySelectorAll('.store-select-chk').forEach(chk => {
+        chk.checked = select;
+      });
+      updateSelectedStoresCount();
+    }
+
+    function updateSelectedStoresCount() {
+      const chks = document.querySelectorAll('.store-select-chk:checked');
+      const count = chks.length;
+      document.getElementById('stores-selected-count').textContent = count + ' store(s) selected';
+      document.getElementById('btn-scrape-selected').disabled = count === 0;
+    }
+
+    async function scrapeSelectedStores() {
+      const chks = document.querySelectorAll('.store-select-chk:checked');
+      const storeIds = Array.from(chks).map(c => c.value);
+
+      if (storeIds.length === 0) return;
+
+      const btn = document.getElementById('btn-scrape-selected');
+      btn.disabled = true;
+      btn.textContent = 'Enqueuing...';
+
+      try {
+        const res = await fetch('/admin/dashboard/scrape-stores', {
+          method: 'POST',
+          headers: getHeaders(),
+          body: JSON.stringify({ storeIds })
+        });
+
+        if (!res.ok) throw new Error('Ingestion trigger failed');
+        const data = await res.json();
+        
+        alert('Success! Enqueued ' + data.enqueuedCount + ' store scraping jobs.');
+        switchTab('scrape-tab');
+      } catch (err) {
+        alert('Error: ' + err.message);
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i data-lucide="play" style="width:16px;height:16px;"></i> Scrape Selected';
+        lucide.createIcons();
+      }
+    }
+
+
+    // ==========================================
+    // TAB 3: SCRAPING & QUEUES CONTROL
+    // ==========================================
+    async function loadQueueStatus() {
+      const keys = ['q-active', 'q-waiting', 'q-completed', 'q-failed', 'q-delayed'];
+      keys.forEach(k => document.getElementById(k).textContent = '...');
+
+      try {
+        const res = await fetch('/admin/dashboard/queues/status', { headers: getHeaders() });
+        if (!res.ok) throw new Error('API Error');
+        const counts = await res.json();
+        
+        document.getElementById('q-active').textContent = counts.active ?? 0;
+        document.getElementById('q-waiting').textContent = counts.waiting ?? 0;
+        document.getElementById('q-completed').textContent = counts.completed ?? 0;
+        document.getElementById('q-failed').textContent = counts.failed ?? 0;
+        document.getElementById('q-delayed').textContent = counts.delayed ?? 0;
+
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    async function cleanQueue(types) {
+      if (!confirm('Are you sure you want to delete these jobs from Redis? This cannot be undone.')) return;
+      
+      try {
+        const res = await fetch('/admin/dashboard/queues/clean', {
+          method: 'POST',
+          headers: getHeaders(),
+          body: JSON.stringify({ types })
+        });
+        if (!res.ok) throw new Error('Failed to clean');
+        const data = await res.json();
+        alert('Queue cleaned successfully. Removed ' + data.cleanedCount + ' jobs.');
+        loadQueueStatus();
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+
+    async function triggerBulkScrape() {
+      const limit = parseInt(document.getElementById('bulk-scrape-limit').value) || 10;
+      if (!confirm('Trigger bulk scrape batch for up to ' + limit + ' stores in Riyadh districts with 0 scraped products?')) return;
+
+      const btn = document.getElementById('btn-trigger-bulk');
+      btn.disabled = true;
+      btn.textContent = 'Triggering Batch...';
+
+      try {
+        const res = await fetch('/admin/dashboard/scrape-zero-districts', {
+          method: 'POST',
+          headers: getHeaders(),
+          body: JSON.stringify({ limit })
+        });
+        if (!res.ok) throw new Error('Scrape batch failed to start');
+        
+        alert('Success! Bulk scraping batch has been enqueued in the background. Check Queue Status for active progress.');
+        loadQueueStatus();
+      } catch (err) {
+        alert('Error: ' + err.message);
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i data-lucide="play" style="width:16px;height:16px;"></i> Trigger Bulk Scrape Batch';
+        lucide.createIcons();
+      }
+    }
+
+    async function triggerLocalMatcher() {
+      const limit = parseInt(document.getElementById('match-limit').value) || 1000;
+      const threshold = parseFloat(document.getElementById('match-threshold').value) || 0.85;
+      const dryRun = document.getElementById('match-dryrun').checked;
+
+      const msg = dryRun 
+        ? 'Start local matching DRY RUN for up to ' + limit + ' products?'
+        : 'Start local matching with merges for up to ' + limit + ' products? This will modify catalog records and merge duplicate prices.';
+
+      if (!confirm(msg)) return;
+
+      const btn = document.getElementById('btn-run-matcher');
+      btn.disabled = true;
+
+      try {
+        const res = await fetch('/admin/dashboard/match/trigger', {
+          method: 'POST',
+          headers: getHeaders(),
+          body: JSON.stringify({ limit, threshold, dryRun })
+        });
+        if (!res.ok) {
+          const err = await res.json();
+          throw new Error(err.message || 'Matcher start failed');
+        }
+        
+        checkMatcherStatus();
+        startMatcherPolling();
+      } catch (err) {
+        alert(err.message);
+        btn.disabled = false;
+      }
+    }
+
+    async function checkMatcherStatus() {
+      try {
+        const res = await fetch('/admin/dashboard/match/status', { headers: getHeaders() });
+        if (!res.ok) return;
+        const status = await res.json();
+        
+        updateMatcherUI(status);
+
+        if (status.isRunning) {
+          startMatcherPolling();
+        } else {
+          stopMatcherPolling();
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    function updateMatcherUI(s) {
+      const indicator = document.getElementById('matcher-indicator');
+      const statusText = document.getElementById('matcher-status-text');
+      const scannedEl = document.getElementById('progress-scanned');
+      const totalEl = document.getElementById('progress-total');
+      const matchedEl = document.getElementById('progress-matched');
+      const exactEl = document.getElementById('progress-exact');
+      const visualEl = document.getElementById('progress-visual');
+      const fuzzyEl = document.getElementById('progress-fuzzy');
+      const timeEl = document.getElementById('progress-time');
+      const bar = document.getElementById('matcher-progress-bar');
+      const btn = document.getElementById('btn-run-matcher');
+
+      if (s.isRunning) {
+        indicator.style.backgroundColor = '#60a5fa';
+        statusText.textContent = s.dryRun ? 'Running (DRY RUN)' : 'Running...';
+        btn.disabled = true;
+        btn.innerHTML = '<i class="spinner" style="width:12px;height:12px;border-width:2px;display:inline-block;margin:0;"></i> Matching...';
+      } else {
+        indicator.style.backgroundColor = s.status === 'completed' ? '#10b981' : s.status === 'failed' ? '#ef4444' : '#94a3b8';
+        statusText.textContent = s.status.toUpperCase() + (s.error ? ' (' + s.error + ')' : '');
+        btn.disabled = false;
+        btn.innerHTML = '<i data-lucide="play" style="width:16px;height:16px;"></i> Run Local Matcher';
+        lucide.createIcons();
+      }
+
+      scannedEl.textContent = s.scanned ?? 0;
+      totalEl.textContent = s.total ?? 0;
+      matchedEl.textContent = s.matched ?? 0;
+      exactEl.textContent = s.exact ?? 0;
+      visualEl.textContent = s.visual ?? 0;
+      fuzzyEl.textContent = s.fuzzy ?? 0;
+
+      // Calculate time
+      if (s.startTime) {
+        const start = new Date(s.startTime);
+        const end = s.endTime ? new Date(s.endTime) : new Date();
+        const diffMs = end - start;
+        const diffSecs = Math.floor(diffMs / 1000);
+        timeEl.textContent = diffSecs + 's';
+      } else {
+        timeEl.textContent = '-';
+      }
+
+      // Progress bar fill
+      if (s.total > 0) {
+        const fillPct = ((s.scanned / s.total) * 100).toFixed(0);
+        bar.style.width = fillPct + '%';
+      } else {
+        bar.style.width = '0%';
+      }
+    }
+
+    function startMatcherPolling() {
+      if (matcherPollingInterval) return;
+      matcherPollingInterval = setInterval(() => {
+        checkMatcherStatus();
+      }, 2000);
+    }
+
+    function stopMatcherPolling() {
+      if (matcherPollingInterval) {
+        clearInterval(matcherPollingInterval);
+        matcherPollingInterval = null;
+      }
+    }
+
+
+    // ==========================================
+    // TAB 4: SCHEDULES & TIMERS HANDLERS
+    // ==========================================
+    async function loadSchedules() {
+      try {
+        const res = await fetch('/admin/dashboard/schedules', { headers: getHeaders() });
+        if (!res.ok) throw new Error('Failed to load');
+        const schedules = await res.json();
+        
+        renderSchedules(schedules);
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    function renderSchedules(schedules) {
+      const container = document.getElementById('schedules-list');
+      container.innerHTML = '';
+
+      if (schedules.length === 0) {
+        container.innerHTML = '<div class="empty-state"><p>No schedules configured</p></div>';
+        return;
+      }
+
+      schedules.forEach(s => {
+        const div = document.createElement('div');
+        div.className = 'card';
+        div.style.background = 'rgba(255,255,255,0.01)';
+        div.style.padding = '1.25rem';
+        div.style.borderRadius = '12px';
+
+        const lastRun = s.lastRunAt ? new Date(s.lastRunAt).toLocaleString() : 'Never';
+        const nextRun = s.isActive ? new Date(s.nextRunAt).toLocaleString() : 'Paused';
+
+        let paramsText = '';
+        if (s.params) {
+          paramsText = Object.entries(s.params)
+            .map(([k, v]) => '<strong>' + k + ':</strong> ' + v)
+            .join(' | ');
+        }
+
+        div.innerHTML = `
+          <div style="display:flex; justify-content:space-between; align-items:start;">
+            <div>
+              <h3 style="font-size:1rem; font-weight:600; display:flex; align-items:center; gap:0.5rem;">
+                <i data-lucide="` + (s.type === 'local_match' ? 'cpu' : 'refresh-cw') + `" style="width:16px;height:16px;"></i>
+                ` + s.name + `
+              </h3>
+              <div style="font-size:0.85rem; color:var(--text-muted); margin-top:0.5rem; display:flex; flex-direction:column; gap:0.25rem;">
+                <span>Interval: Run every <strong>` + s.intervalHours + ` hours</strong></span>
+                <span>Last Executed: ` + lastRun + `</span>
+                <span>Next Execution: ` + nextRun + `</span>
+                ` + (paramsText ? '<span>Settings: ' + paramsText + '</span>' : '') + `
+              </div>
+            </div>
+            <div style="display:flex; flex-direction:column; align-items:end; gap:0.75rem;">
+              <label class="switch">
+                <input type="checkbox" ` + (s.isActive ? 'checked' : '') + ` onchange="toggleScheduleActive('` + s.id + `', this.checked)">
+                <span class="slider"></span>
+              </label>
+              <button class="btn btn-secondary" style="padding:0.35rem 0.75rem; font-size:0.75rem;" onclick="triggerScheduleImmediate('` + s.id + `')">
+                <i data-lucide="play" style="width:12px;height:12px;"></i> Run Now
+              </button>
+            </div>
+          </div>
+        `;
+        container.appendChild(div);
+      });
+
+      lucide.createIcons();
+    }
+
+    async function toggleScheduleActive(id, isActive) {
+      try {
+        const res = await fetch('/admin/dashboard/schedules', { headers: getHeaders() });
+        const schedules = await res.json();
+        const schedule = schedules.find(s => s.id === id);
+        
+        if (schedule) {
+          schedule.isActive = isActive;
+          schedule.nextRunAt = new Date(Date.now() + schedule.intervalHours * 3600000).toISOString();
+          
+          await fetch('/admin/dashboard/schedules', {
+            method: 'POST',
+            headers: getHeaders(),
+            body: JSON.stringify(schedule)
+          });
+          
+          loadSchedules();
+        }
+      } catch (err) {
+        alert('Toggle failed: ' + err.message);
+      }
+    }
+
+    async function triggerScheduleImmediate(id) {
+      if (!confirm('Run this schedule task immediately in the background?')) return;
+      try {
+        const res = await fetch('/admin/dashboard/schedules/' + id + '/trigger', {
+          method: 'POST',
+          headers: getHeaders()
+        });
+        if (!res.ok) throw new Error('Trigger failed');
+        alert('Task has been successfully triggered in the background. Check logs tab for progress!');
+        loadScheduleLogs();
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+
+    async function loadScheduleLogs() {
+      try {
+        const res = await fetch('/admin/dashboard/schedules/logs', { headers: getHeaders() });
+        if (!res.ok) throw new Error('Logs fetch failed');
+        const logs = await res.json();
+        
+        renderScheduleLogs(logs);
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    function renderScheduleLogs(logs) {
+      const tbody = document.getElementById('logs-table-body');
+      tbody.innerHTML = '';
+
+      if (logs.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;">No runs logged yet</td></tr>';
+        return;
+      }
+
+      logs.forEach(l => {
+        const tr = document.createElement('tr');
+        const badgeClass = l.status === 'completed' 
+          ? 'badge-completed' 
+          : l.status === 'running' ? 'badge-running' : 'badge-failed';
+          
+        const detailText = l.status === 'failed' 
+          ? l.error 
+          : l.details || 'Job enqueued successfully';
+          
+        const timeStr = new Date(l.startedAt).toLocaleTimeString();
+        const dateStr = new Date(l.startedAt).toLocaleDateString();
+
+        tr.innerHTML = `
+          <td style="font-weight:600;">
+            ` + l.scheduleName + `
+            <div style="font-size:0.7rem; color:var(--text-muted); font-weight:normal; margin-top:0.15rem;">` + l.type + `</div>
+          </td>
+          <td>
+            <span class="badge-status ` + badgeClass + `">` + l.status.toUpperCase() + `</span>
+          </td>
+          <td style="font-size:0.8rem;">
+            <div><strong>Time:</strong> ` + dateStr + ` ` + timeStr + `</div>
+            <div style="color:var(--text-muted); margin-top:0.2rem; white-space:pre-line; max-width:320px; overflow-wrap:anywhere;">` + detailText + `</div>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+  </script>
+</body>
+</html>

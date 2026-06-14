@@ -184,7 +184,9 @@ export class IngestionService {
       options.timeout = 8 * 60 * 60 * 1000; // 8 hours
 
       const activeJobs = await this.ingestionQueue.getJobs(['active', 'waiting', 'delayed', 'prioritized']);
-      const activeHsCatalog = activeJobs.filter((job) => job.name === 'hs-catalog-scrape');
+      const activeHsCatalog = activeJobs.filter(
+        (job) => job.name === 'hs-catalog-scrape' && job.data?.storeUrl === dto.storeUrl,
+      );
       
       if (activeHsCatalog.length > 0) {
         const activeJobId = activeHsCatalog[0].id;
@@ -192,9 +194,9 @@ export class IngestionService {
         const err = new ConflictException({
           jobId: activeJobId,
           created: false,
-          message: `An HS catalog scrape is already ${activeJobState} (job ID: ${activeJobId}). Wait for it to complete.`,
+          message: `An HS catalog scrape for this store is already ${activeJobState} (job ID: ${activeJobId}). Wait for it to complete.`,
         });
-        this.logger.warn(`Conflict: HS catalog scrape already in-flight as ${activeJobState}`);
+        this.logger.warn(`Conflict: HS catalog scrape for store already in-flight as ${activeJobState}`);
         throw err;
       }
     } else if (jobName === 'parkcenter-catalog-scrape') {
@@ -399,5 +401,23 @@ export class IngestionService {
     }
 
     return { removed: removedIds.length, ids: removedIds };
+  }
+
+  async getQueueCounts() {
+    return await this.ingestionQueue.getJobCounts();
+  }
+
+  async cleanQueue(types: Array<'completed' | 'failed' | 'active' | 'waiting' | 'delayed' | 'paused'>) {
+    let cleanedCount = 0;
+    for (const type of types) {
+      const jobs = await this.ingestionQueue.getJobs([type]);
+      for (const job of jobs) {
+        try {
+          await job.remove();
+          cleanedCount++;
+        } catch (e) {}
+      }
+    }
+    return { cleanedCount };
   }
 }

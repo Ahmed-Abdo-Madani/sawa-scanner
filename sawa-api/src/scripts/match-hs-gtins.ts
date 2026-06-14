@@ -4,7 +4,7 @@ import { ProductImage } from '../entities/product-image.entity';
 import { ProductMergeService } from '../products/product-merge.service';
 import { ImageHashService } from '../ingestion/image-hash.service';
 import { diceCoefficient } from '../utils/string-similarity';
-import { IsNull, Not } from 'typeorm';
+import { IsNull, Not, In } from 'typeorm';
 import {
   normalizeProductName,
   normalizeBrandUsable,
@@ -40,6 +40,29 @@ function doSizesMatch(
   return Math.abs(gramsA - gramsB) <= max * 0.1;
 }
 
+async function loadImagesForProducts(products: Product[], imageRepo: any) {
+  const chunkSize = 1000;
+  for (let i = 0; i < products.length; i += chunkSize) {
+    const chunk = products.slice(i, i + chunkSize);
+    const chunkIds = chunk.map((p) => p.id);
+    const images = await imageRepo.find({
+      where: { product_id: In(chunkIds) },
+    });
+    
+    const imageMap = new Map<string, ProductImage[]>();
+    for (const img of images) {
+      if (!imageMap.has(img.product_id)) {
+        imageMap.set(img.product_id, []);
+      }
+      imageMap.get(img.product_id)!.push(img);
+    }
+    
+    for (const p of chunk) {
+      p.images = imageMap.get(p.id) || [];
+    }
+  }
+}
+
 async function run() {
   console.log('============================================================');
   console.log('🤖 INITIALIZING LOCAL DATABASE HUNGERSTATION GTIN MATCHING');
@@ -65,7 +88,6 @@ async function run() {
       gtin: IsNull(),
       hs_product_id: Not(IsNull()),
     },
-    relations: ['images'],
     take: limit,
   });
 
@@ -76,15 +98,20 @@ async function run() {
     return;
   }
 
+  console.log('⚡ Loading images for HungerStation products...');
+  await loadImagesForProducts(hsProducts, imageRepo);
+
   // 2. Fetch all products in the database that HAVE GTINs (donor pool)
   console.log('🔍 Querying donor products containing GTINs...');
   const donorProducts = await productRepo.find({
     where: {
       gtin: Not(IsNull()),
     },
-    relations: ['images'],
   });
   console.log(`📊 Found ${donorProducts.length} donor products with GTINs.`);
+
+  console.log('⚡ Loading images for donor products...');
+  await loadImagesForProducts(donorProducts, imageRepo);
 
   // 3. Index donor products for fast exact matching
   console.log('⚡ Indexing donor products...');
@@ -95,16 +122,26 @@ async function run() {
   for (const p of donorProducts) {
     const brandSlug = normalizeBrandUsable(p.brand);
     
-    // Index by English Name + Brand
+    // Index by English Name
     if (p.name_en) {
-      const normEn = `${normalizeProductName(p.name_en)}|${brandSlug}`;
+      const normEn = normalizeProductName(p.name_en);
+      const keyWithBrand = `${normEn}|${brandSlug}`;
+      if (!englishNameMap.has(keyWithBrand)) englishNameMap.set(keyWithBrand, []);
+      englishNameMap.get(keyWithBrand)!.push(p);
+
+      // Also index by pure normalized name so brand-less HS products can match
       if (!englishNameMap.has(normEn)) englishNameMap.set(normEn, []);
       englishNameMap.get(normEn)!.push(p);
     }
     
-    // Index by Arabic Name + Brand
+    // Index by Arabic Name
     if (p.name_ar) {
-      const normAr = `${normalizeProductName(p.name_ar)}|${brandSlug}`;
+      const normAr = normalizeProductName(p.name_ar);
+      const keyWithBrand = `${normAr}|${brandSlug}`;
+      if (!arabicNameMap.has(keyWithBrand)) arabicNameMap.set(keyWithBrand, []);
+      arabicNameMap.get(keyWithBrand)!.push(p);
+
+      // Also index by pure normalized name
       if (!arabicNameMap.has(normAr)) arabicNameMap.set(normAr, []);
       arabicNameMap.get(normAr)!.push(p);
     }
@@ -139,7 +176,8 @@ async function run() {
     // --- Pass 1: Exact Normalized Name Matches ---
     // Try English Name
     if (product.name_en) {
-      const key = `${normalizeProductName(product.name_en)}|${brandSlug}`;
+      const normEn = normalizeProductName(product.name_en);
+      const key = brandSlug ? `${normEn}|${brandSlug}` : normEn;
       const candidates = englishNameMap.get(key) || [];
       for (const cand of candidates) {
         const candSize = extractSizeFromName(cand.name_en || cand.name_ar || '');
@@ -154,7 +192,8 @@ async function run() {
 
     // Try Arabic Name if no English match
     if (!matchedGtin && product.name_ar) {
-      const key = `${normalizeProductName(product.name_ar)}|${brandSlug}`;
+      const normAr = normalizeProductName(product.name_ar);
+      const key = brandSlug ? `${normAr}|${brandSlug}` : normAr;
       const candidates = arabicNameMap.get(key) || [];
       for (const cand of candidates) {
         const candSize = extractSizeFromName(cand.name_en || cand.name_ar || '');
@@ -184,8 +223,14 @@ async function run() {
         for (const hsHash of hsHashes) {
           for (const donorImg of donorImagesList) {
             const candBrandSlug = normalizeBrandUsable(donorImg.product.brand);
-            // Brand Guard: must have matching, non-empty brand slugs
-            if (!brandSlug || !candBrandSlug || brandSlug !== candBrandSlug) continue;
+            
+            // Smart Brand Guard
+            if (brandSlug && candBrandSlug && brandSlug !== candBrandSlug) continue;
+            if (!brandSlug && candBrandSlug) {
+              const hsNameLower = (product.name_en || product.name_ar || '').toLowerCase();
+              const candBrandNameLower = (donorImg.product.brand || '').toLowerCase();
+              if (!hsNameLower.includes(candBrandNameLower)) continue;
+            }
 
             // Name similarity check to prevent matching completely different products under the same brand
             const simEn = product.name_en && donorImg.product.name_en ? diceCoefficient(product.name_en, donorImg.product.name_en) : 0;
@@ -214,12 +259,22 @@ async function run() {
     }
 
     // --- Pass 3: Fuzzy Name Matches ---
-    if (!matchedGtin && brandSlug) {
+    if (!matchedGtin) {
       let bestScore = 0;
       let bestCand: Product | null = null;
 
-      // Scan donor pool with the same brand slug
-      const brandCandidates = donorProducts.filter(p => normalizeBrandUsable(p.brand) === brandSlug);
+      // Scan donor pool: filter by brand if HS brand exists. Otherwise, check if donor brand name is mentioned in HS product name.
+      const brandCandidates = donorProducts.filter(p => {
+        const candBrandSlug = normalizeBrandUsable(p.brand);
+        if (brandSlug) {
+          return candBrandSlug === brandSlug;
+        } else if (candBrandSlug) {
+          const hsNameLower = (product.name_en || product.name_ar || '').toLowerCase();
+          const candBrandNameLower = (p.brand || '').toLowerCase();
+          return hsNameLower.includes(candBrandNameLower);
+        }
+        return true;
+      });
 
       for (const cand of brandCandidates) {
         const simEn = product.name_en && cand.name_en ? diceCoefficient(product.name_en, cand.name_en) : 0;
