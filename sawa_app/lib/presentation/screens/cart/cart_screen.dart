@@ -7,6 +7,8 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
 import '../product_detail/product_detail_screen.dart';
 import '../../widgets/fallback_image_network.dart';
+import '../../providers/cart_suggestion_provider.dart';
+import '../../../core/utils/store_logo_helper.dart';
 
 class CartScreen extends ConsumerWidget {
   const CartScreen({super.key});
@@ -116,30 +118,268 @@ class CartScreen extends ConsumerWidget {
     return Column(
       children: [
         Expanded(
-          child: ListView.separated(
+          child: ListView(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            itemCount: items.length,
-            separatorBuilder: (context, index) => const SizedBox(height: 12),
-            itemBuilder: (context, index) {
-              final item = items[index];
-              final itemKey = item.product.gtin.isNotEmpty ? item.product.gtin : item.product.id;
-              return _CartItemCard(
-                item: item,
-                onIncrement: () {
-                  ref.read(cartProvider.notifier).updateQuantity(itemKey, item.quantity + 1);
-                },
-                onDecrement: () {
-                  ref.read(cartProvider.notifier).updateQuantity(itemKey, item.quantity - 1);
-                },
-                onRemove: () {
-                  ref.read(cartProvider.notifier).removeProduct(itemKey);
-                },
-              );
-            },
+            children: [
+              _buildSuggestionsSection(context, ref, l10n, locale),
+              const SizedBox(height: 16),
+              ...items.map((item) {
+                final itemKey = item.product.gtin.isNotEmpty ? item.product.gtin : item.product.id;
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 12.0),
+                  child: _CartItemCard(
+                    item: item,
+                    onIncrement: () {
+                      ref.read(cartProvider.notifier).updateQuantity(itemKey, item.quantity + 1);
+                    },
+                    onDecrement: () {
+                      ref.read(cartProvider.notifier).updateQuantity(itemKey, item.quantity - 1);
+                    },
+                    onRemove: () {
+                      ref.read(cartProvider.notifier).removeProduct(itemKey);
+                    },
+                  ),
+                );
+              }),
+            ],
           ),
         ),
         _buildSummaryCard(context, ref, items.length, lowestTotal, highestTotal, savings, l10n, locale),
       ],
+    );
+  }
+
+  Widget _buildSuggestionsSection(
+    BuildContext context,
+    WidgetRef ref,
+    AppLocalizations l10n,
+    Locale locale,
+  ) {
+    // Hidden for now, can get back to it later.
+    return const SizedBox.shrink();
+
+    final suggestion = ref.watch(cartSuggestionProvider);
+    if (suggestion == null) return const SizedBox.shrink();
+
+    final isRtl = locale.languageCode == 'ar';
+    final cheapest = suggestion.bestCheapestStore;
+    final nearest = suggestion.nearestStore;
+
+    if (cheapest == null) return const SizedBox.shrink();
+
+    final showNearest = nearest != null && nearest.storeKey != cheapest.storeKey;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(bottom: 10.0, left: 4.0, right: 4.0),
+          child: Text(
+            l10n.suggestedStores,
+            style: AppTypography.headline(locale).copyWith(fontSize: 16),
+          ),
+        ),
+        if (!showNearest)
+          _buildStoreSuggestionCard(context, cheapest, l10n.bestValueCheapest, l10n, locale, isRtl)
+        else
+          Column(
+            children: [
+              _buildStoreSuggestionCard(context, cheapest, l10n.bestValueCheapest, l10n, locale, isRtl),
+              const SizedBox(height: 10),
+              _buildStoreSuggestionCard(context, nearest, l10n.nearestStore, l10n, locale, isRtl),
+            ],
+          ),
+      ],
+    );
+  }
+
+  Widget _buildStoreSuggestionCard(
+    BuildContext context,
+    CartStoreSuggestion suggestion,
+    String tagLabel,
+    AppLocalizations l10n,
+    Locale locale,
+    bool isRtl,
+  ) {
+    final storeName = isRtl
+        ? (suggestion.storeNameAr ?? suggestion.storeName ?? (suggestion.merchantAr.isNotEmpty ? suggestion.merchantAr : suggestion.merchant))
+        : (suggestion.storeName ?? suggestion.merchant);
+        
+    final districtName = isRtl
+        ? (suggestion.districtNameAr ?? suggestion.districtName ?? '')
+        : (suggestion.districtName ?? '');
+
+    final bool isCheapest = tagLabel == l10n.bestValueCheapest;
+    final tagColor = isCheapest ? Colors.green.shade700 : Colors.blue.shade600;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: AppColors.onSurface.withOpacity(0.06),
+          width: 1,
+        ),
+      ),
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: tagColor.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: tagColor.withOpacity(0.3), width: 1),
+                ),
+                child: Text(
+                  tagLabel,
+                  style: TextStyle(
+                    color: tagColor,
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              if (suggestion.distanceKm != null)
+                Text(
+                  '${suggestion.distanceKm!.toStringAsFixed(1)} ${isRtl ? "كم" : "km"}',
+                  style: const TextStyle(
+                    color: Colors.white54,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(10),
+                child: Container(
+                  color: Colors.white.withOpacity(0.04),
+                  width: 48,
+                  height: 48,
+                  child: StoreLogoHelper.buildStoreLogo(
+                    suggestion.merchant,
+                    size: 48,
+                    networkFallbackUrl: suggestion.logoUrl,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      storeName,
+                      style: AppTypography.body(locale).copyWith(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 15,
+                      ),
+                    ),
+                    if (districtName.isNotEmpty) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        districtName,
+                        style: const TextStyle(
+                          color: Colors.white38,
+                          fontSize: 11,
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 6),
+                    Row(
+                      children: [
+                        Icon(
+                          suggestion.missingProductNames.isEmpty
+                              ? Icons.check_circle_outline
+                              : Icons.warning_amber_rounded,
+                          size: 14,
+                          color: suggestion.missingProductNames.isEmpty
+                              ? Colors.green
+                              : Colors.amber,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          suggestion.missingProductNames.isEmpty
+                              ? l10n.allItemsAvailable
+                              : l10n.partialItemsAvailable(
+                                  suggestion.matchedItemsCount,
+                                  suggestion.matchedItemsCount + suggestion.missingProductNames.length,
+                                ),
+                          style: TextStyle(
+                            color: suggestion.missingProductNames.isEmpty
+                                ? Colors.green.shade400
+                                : Colors.amber.shade400,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    '${suggestion.totalPrice.toStringAsFixed(2)} ${l10n.sar}',
+                    style: AppTypography.headline(locale).copyWith(
+                      color: AppColors.primary,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          if (suggestion.missingProductNames.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: Colors.amber.withOpacity(0.04),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                  color: Colors.amber.withOpacity(0.1),
+                  width: 1,
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    l10n.missingItems,
+                    style: TextStyle(
+                      color: Colors.amber.shade300,
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    suggestion.missingProductNames.join(', '),
+                    style: const TextStyle(
+                      color: Colors.white54,
+                      fontSize: 11,
+                      height: 1.3,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
     );
   }
 

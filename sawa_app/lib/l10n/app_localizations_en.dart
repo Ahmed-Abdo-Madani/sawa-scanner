@@ -1124,4 +1124,32 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get continueButton => 'Continue';
+
+  @override
+  String get paywallTitle =>
+      'Tap Continue to start scanning & comparing prices.';
+
+  @override
+  String get paywallSubtitle =>
+      'Use the app without ads, scan and compare prices freely. Experience all premium features for just SAR 4.99/month (cancel anytime), and enjoy seamless scanning with a user-friendly interface.';
+
+  @override
+  String get suggestedStores => 'Best Stores to Order From';
+
+  @override
+  String get bestValueCheapest => 'Best Value (Cheapest)';
+
+  @override
+  String get nearestStore => 'Nearest Store';
+
+  @override
+  String get allItemsAvailable => 'All cart items available';
+
+  @override
+  String partialItemsAvailable(Object count, Object total) {
+    return '$count of $total items available';
+  }
+
+  @override
+  String get missingItems => 'Missing items:';
 }

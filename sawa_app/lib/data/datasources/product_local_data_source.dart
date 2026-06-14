@@ -312,7 +312,7 @@ class ProductLocalDataSource {
   static const String cacheVersionBoxName = 'productCacheVersionBox';
   /// Cache schema version. Increment when Hive adapter field layout changes
   /// (e.g., adding sawaDbAvailable). Mismatch triggers cache invalidation.
-  static const int currentCacheVersion = 3;
+  static const int currentCacheVersion = 4;
   static const String cacheVersionKey = 'schemaVersion';
 
   Box<Product> get _productsBox => Hive.box<Product>(productsBoxName);

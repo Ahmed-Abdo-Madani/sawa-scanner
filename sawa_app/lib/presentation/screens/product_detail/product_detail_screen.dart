@@ -171,8 +171,23 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
       }
     }
 
-    // Sort: HungerStation first, then cheapest
+    // Sort: if userLocation != null, sort by distanceKm ascending.
+    // If distanceKm is null, it goes to the end.
+    // If both have distance, sort by distance.
+    // If both don't have distance (or userLocation is null), sort by: HungerStation first, then cheapest.
     result.sort((a, b) {
+      if (userLocation != null) {
+        final distA = a.distanceKm;
+        final distB = b.distanceKm;
+        if (distA != null && distB != null) {
+          return distA.compareTo(distB);
+        } else if (distA != null) {
+          return -1;
+        } else if (distB != null) {
+          return 1;
+        }
+      }
+      // Fallback sorting: HungerStation first, then cheapest
       final aIsHs = a.storeId != null;
       final bIsHs = b.storeId != null;
       if (aIsHs && !bIsHs) return -1;
@@ -496,6 +511,15 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
     final deduplicatedPrices = _deduplicatePrices(validPrices, userLocation);
     final classifications = _classifyPrices(validPrices);
 
+    double? minDistance;
+    for (final p in deduplicatedPrices) {
+      if (p.distanceKm != null) {
+        if (minDistance == null || p.distanceKm! < minDistance) {
+          minDistance = p.distanceKm;
+        }
+      }
+    }
+
     final cartItems = ref.watch(cartProvider);
     final productKey = product.gtin.isNotEmpty ? product.gtin : product.id;
     final cartItem = cartItems.where((item) {
@@ -512,6 +536,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
             final priceClass = classifications[price.priceSarInclVat] ?? 'common';
             final isLow = priceClass == 'low';
             final isHigh = priceClass == 'high';
+            final isNearest = price.distanceKm != null && price.distanceKm == minDistance;
 
             final rawStoreName = locale.languageCode == 'ar'
                 ? (price.merchantAr.isNotEmpty ? price.merchantAr : price.merchant)
@@ -581,27 +606,40 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                             ),
                           ],
                           const SizedBox(height: 4),
-                          if (isLow)
-                            _buildPriceTierBadge(
-                              label: l10n.lowPrice,
-                              color: Colors.green,
-                              icon: Icons.arrow_downward,
-                              locale: locale,
-                            )
-                          else if (isHigh)
-                            _buildPriceTierBadge(
-                              label: l10n.highPrice,
-                              color: Colors.red,
-                              icon: Icons.arrow_upward,
-                              locale: locale,
-                            )
-                          else
-                            _buildPriceTierBadge(
-                              label: l10n.commonPrice,
-                              color: Colors.blueGrey,
-                              icon: Icons.label,
-                              locale: locale,
-                            ),
+                          Wrap(
+                            spacing: 6,
+                            runSpacing: 4,
+                            children: [
+                              if (isLow)
+                                _buildPriceTierBadge(
+                                  label: l10n.lowPrice,
+                                  color: Colors.green,
+                                  icon: Icons.arrow_downward,
+                                  locale: locale,
+                                )
+                              else if (isHigh)
+                                _buildPriceTierBadge(
+                                  label: l10n.highPrice,
+                                  color: Colors.red,
+                                  icon: Icons.arrow_upward,
+                                  locale: locale,
+                                )
+                              else
+                                _buildPriceTierBadge(
+                                  label: l10n.commonPrice,
+                                  color: Colors.blueGrey,
+                                  icon: Icons.label,
+                                  locale: locale,
+                                ),
+                              if (isNearest)
+                                _buildPriceTierBadge(
+                                  label: l10n.nearestStore,
+                                  color: Colors.blue,
+                                  icon: Icons.near_me,
+                                  locale: locale,
+                                ),
+                            ],
+                          ),
                         ],
                       ),
                     ),

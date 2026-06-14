@@ -3,6 +3,8 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Store } from '../entities/store.entity';
 import { Merchant } from '../entities/merchant.entity';
+import { translateDistrict } from '../utils/districts';
+
 
 export interface UpsertStoreDto {
   platform: string;
@@ -94,7 +96,7 @@ export class StoresService {
         city_name_ar: dto.city_name_ar,
         city_name_en: dto.city_name_en,
         district_slug: dto.district_slug,
-        district_name_ar: dto.district_name_ar,
+        district_name_ar: dto.district_name_ar || translateDistrict(dto.district_name_en),
         district_name_en: dto.district_name_en,
         lat: dto.lat ?? null,
         lng: dto.lng ?? null,
@@ -115,7 +117,7 @@ export class StoresService {
       city_name_ar: dto.city_name_ar,
       city_name_en: dto.city_name_en,
       district_slug: dto.district_slug,
-      district_name_ar: dto.district_name_ar,
+      district_name_ar: dto.district_name_ar || translateDistrict(dto.district_name_en),
       district_name_en: dto.district_name_en,
       lat: dto.lat ?? null,
       lng: dto.lng ?? null,

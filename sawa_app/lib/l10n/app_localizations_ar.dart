@@ -1123,4 +1123,31 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get continueButton => 'متابعة';
+
+  @override
+  String get paywallTitle => 'اضغط على متابعة لبدء مسح ومقارنة الأسعار.';
+
+  @override
+  String get paywallSubtitle =>
+      'استخدم التطبيق بدون إعلانات، وامسح وقارن الأسعار بحرية. استمتع بجميع الميزات المميزة مقابل 4.99 ريال فقط في الشهر (يمكنك الإلغاء في أي وقت)، واستمتع بمسح سلس بواجهة سهلة الاستخدام.';
+
+  @override
+  String get suggestedStores => 'أفضل المتاجر للطلب منها';
+
+  @override
+  String get bestValueCheapest => 'أفضل قيمة (الأرخص)';
+
+  @override
+  String get nearestStore => 'المتجر الأقرب';
+
+  @override
+  String get allItemsAvailable => 'جميع أصناف السلة متوفرة';
+
+  @override
+  String partialItemsAvailable(Object count, Object total) {
+    return 'يتوفر $count من أصل $total أصناف';
+  }
+
+  @override
+  String get missingItems => 'الأصناف غير المتوفرة:';
 }

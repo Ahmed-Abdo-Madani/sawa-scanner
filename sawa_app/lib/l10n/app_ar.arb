@@ -432,6 +432,14 @@
   "restorePurchaseButton": "استعادة المشتريات",
   "sawaPlusPopupTitle": "اشترك في سوا بلس",
   "sawaPlusPopupMessage": "اشترك في سوا بلس للحصول على عمليات مسح وميزات غير محدودة",
-  "continueButton": "متابعة"
+  "continueButton": "متابعة",
+  "paywallTitle": "اضغط على متابعة لبدء مسح ومقارنة الأسعار.",
+  "paywallSubtitle": "استخدم التطبيق بدون إعلانات، وامسح وقارن الأسعار بحرية. استمتع بجميع الميزات المميزة مقابل 4.99 ريال فقط في الشهر (يمكنك الإلغاء في أي وقت)، واستمتع بمسح سلس بواجهة سهلة الاستخدام.",
+  "suggestedStores": "أفضل المتاجر للطلب منها",
+  "bestValueCheapest": "أفضل قيمة (الأرخص)",
+  "nearestStore": "المتجر الأقرب",
+  "allItemsAvailable": "جميع أصناف السلة متوفرة",
+  "partialItemsAvailable": "يتوفر {count} من أصل {total} أصناف",
+  "missingItems": "الأصناف غير المتوفرة:"
 }
 

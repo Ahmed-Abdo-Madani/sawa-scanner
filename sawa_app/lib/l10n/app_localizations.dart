@@ -2173,6 +2173,54 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Continue'**
   String get continueButton;
+
+  /// No description provided for @paywallTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap Continue to start scanning & comparing prices.'**
+  String get paywallTitle;
+
+  /// No description provided for @paywallSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Use the app without ads, scan and compare prices freely. Experience all premium features for just SAR 4.99/month (cancel anytime), and enjoy seamless scanning with a user-friendly interface.'**
+  String get paywallSubtitle;
+
+  /// No description provided for @suggestedStores.
+  ///
+  /// In en, this message translates to:
+  /// **'Best Stores to Order From'**
+  String get suggestedStores;
+
+  /// No description provided for @bestValueCheapest.
+  ///
+  /// In en, this message translates to:
+  /// **'Best Value (Cheapest)'**
+  String get bestValueCheapest;
+
+  /// No description provided for @nearestStore.
+  ///
+  /// In en, this message translates to:
+  /// **'Nearest Store'**
+  String get nearestStore;
+
+  /// No description provided for @allItemsAvailable.
+  ///
+  /// In en, this message translates to:
+  /// **'All cart items available'**
+  String get allItemsAvailable;
+
+  /// No description provided for @partialItemsAvailable.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} of {total} items available'**
+  String partialItemsAvailable(Object count, Object total);
+
+  /// No description provided for @missingItems.
+  ///
+  /// In en, this message translates to:
+  /// **'Missing items:'**
+  String get missingItems;
 }
 
 class _AppLocalizationsDelegate

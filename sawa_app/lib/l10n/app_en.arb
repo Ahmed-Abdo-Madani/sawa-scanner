@@ -432,6 +432,14 @@
   "restorePurchaseButton": "Restore Purchase",
   "sawaPlusPopupTitle": "Join Sawa Plus",
   "sawaPlusPopupMessage": "Join Sawa Plus for unlimited scans & features",
-  "continueButton": "Continue"
+  "continueButton": "Continue",
+  "paywallTitle": "Tap Continue to start scanning & comparing prices.",
+  "paywallSubtitle": "Use the app without ads, scan and compare prices freely. Experience all premium features for just SAR 4.99/month (cancel anytime), and enjoy seamless scanning with a user-friendly interface.",
+  "suggestedStores": "Best Stores to Order From",
+  "bestValueCheapest": "Best Value (Cheapest)",
+  "nearestStore": "Nearest Store",
+  "allItemsAvailable": "All cart items available",
+  "partialItemsAvailable": "{count} of {total} items available",
+  "missingItems": "Missing items:"
 }
 

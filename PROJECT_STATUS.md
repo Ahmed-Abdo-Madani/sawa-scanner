@@ -126,6 +126,9 @@
   - Streamlined the "Join Sawa Plus" welcome popup dialog displayed on app start by removing the "Skip for now" button and expanding the "Continue" ElevatedButton to fill the width.
 - [x] HungerStation Catalog Consolidation: Fixed duplicate product recreation loops during scraping by implementing a 3-step resolution fallback (Direct -> Merged Price URL -> GTIN-bearing Exact Match) in `findExistingProduct` in `HsCatalogScraperService`. Resolved CLI matcher script `match-hs-gtins.ts` crashes by batch-loading image relations in chunk sizes of 1,000.
 - [x] Firebase Analytics Integration: Integrated `firebase_analytics` dependency into the Flutter project and configured it to log the native `logAppOpen` event on application startup, enabling automated Google Ads conversion tracking. Incremented build version to `1.1.1+21` to bypass Apple's closed release train restriction.
+- [x] Implement suggested best/nearest store recommendations in the Cart screen using a custom Riverpod provider and visual cards (suggestions card hidden in Cart screen per user request; nearest store prioritized on Product Details screen with tag).
+- [x] Redesign Sawa Plus welcome promo banner to a high-fidelity OLED dark paywall matching screenshot, with Close, Restore, and Purchase CTAs wired to In-App Purchase streams (revised to a compact content-wrapping Dialog modal to eliminate excess screen height).
+- [x] Translate and backfill 164 Riyadh district names to Arabic on the database and auto-resolve future scraped stores on upserts (Hive cache schema version incremented to force invalidation on client).
 
 
 ## Architecture Decisions
@@ -297,4 +300,8 @@ Ensure you have updated the `.env` settings to match the optimizations:
 | `src/scripts/check-riyadh-scrape-stats.ts` | Diagnostic script to check scraped HungerStation stores and districts in Riyadh. |
 | `src/scripts/check-riyadh-merchants.ts` | Diagnostic script to check Riyadh HungerStation stores grouped by merchant chains. |
 | `src/scripts/trigger-major-supermarkets.ts` | CLI script to trigger sequential catalog scraping for major supermarkets in Riyadh. |
+| `sawa-api/src/utils/districts.ts` | Translation registry and helper for Riyadh districts. |
+| `sawa-api/src/migrations/1780911000000-TranslateDistrictsToArabic.ts` | Database migration backfilling store district Arabic names. |
+| `sawa_app/lib/presentation/providers/cart_suggestion_provider.dart` | Riverpod provider calculating best and nearest stores for cart items. |
+| `sawa_app/lib/presentation/widgets/paywall_dialog.dart` | Premium OLED dark welcome paywall dialog with subscription controls. |
 
