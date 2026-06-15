@@ -129,6 +129,8 @@
 - [x] Implement suggested best/nearest store recommendations in the Cart screen using a custom Riverpod provider and visual cards (suggestions card hidden in Cart screen per user request; nearest store prioritized on Product Details screen with tag).
 - [x] Redesign Sawa Plus welcome promo banner to a high-fidelity OLED dark paywall matching screenshot, with Close, Restore, and Purchase CTAs wired to In-App Purchase streams (revised to a compact content-wrapping Dialog modal to eliminate excess screen height).
 - [x] Translate and backfill 164 Riyadh district names to Arabic on the database and auto-resolve future scraped stores on upserts (Hive cache schema version incremented to force invalidation on client).
+- [x] Implement local-first database ingestion sync to production, allowing heavy scraping/ingestion/matching jobs to run locally to drastically reduce Neon.tech production database costs.
+
 
 
 ## Architecture Decisions
@@ -304,4 +306,6 @@ Ensure you have updated the `.env` settings to match the optimizations:
 | `sawa-api/src/migrations/1780911000000-TranslateDistrictsToArabic.ts` | Database migration backfilling store district Arabic names. |
 | `sawa_app/lib/presentation/providers/cart_suggestion_provider.dart` | Riverpod provider calculating best and nearest stores for cart items. |
 | `sawa_app/lib/presentation/widgets/paywall_dialog.dart` | Premium OLED dark welcome paywall dialog with subscription controls. |
+| `sawa-api/src/scripts/sync-catalog-to-prod.ts` | Standalone CLI script to sync locally scraped/matched catalog data (products, stores, prices) to Neon production DB. |
+| `sawa-api/src/scripts/clone-prod-to-local.ts` | Standalone CLI script to clone production catalog tables to local database, aligning UUIDs and constraints. |
 

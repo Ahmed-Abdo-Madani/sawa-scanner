@@ -26,6 +26,8 @@
     "admin:board": "npx ts-node src/scripts/open-bull-board.ts",
     "image-hash:dry-run": "npx ts-node src/scripts/backfill-image-hashes-dry-run.ts",
     "image-hash:backfill": "npx ts-node src/scripts/backfill-image-hashes.ts",
+    "db:sync-prod": "npx ts-node src/scripts/sync-catalog-to-prod.ts",
+    "db:clone-prod": "npx ts-node src/scripts/clone-prod-to-local.ts",
     "postinstall": "node scripts/download-tessdata.js"
   },
   "dependencies": {
