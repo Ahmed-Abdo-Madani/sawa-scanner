@@ -137,6 +137,8 @@
 - [x] Refactor `sync-catalog-to-prod.ts` and `clone-prod-to-local.ts` to use seek-based keyset pagination (`id > lastId`) and targeted upserts, resolving constraint violations and offset page shifting.
 - [x] Rebuild the portable worker package using `build-portable.js` which automatically resolves the host PC's local IP (`192.168.8.114`) and configures it in the packaged `.env` file.
 - [x] Compress the portable worker build into a zip archive `portable_release.zip` for easy local network distribution.
+- [x] Fix local Redis server crashes under heavy BullMQ ingestion loads: disabled RDB snapshotting (`save ""`) and write-blocking on snapshot failure (`stop-writes-on-bgsave-error no`) in `redis.windows.conf` and `redis.windows-service.conf`, ensuring write operations continue uninterrupted during high-concurrency scraping spikes.
+
 ## Architecture Decisions
 - **Geolocated Branch Deduplication and Name Cleanup**:
   - *Suffix Removal*: Cleaned up merchant name outputs by stripping the raw ` (HungerStation)` and ` (هنقرستيشن)` suffixes in all price mapping controllers.
