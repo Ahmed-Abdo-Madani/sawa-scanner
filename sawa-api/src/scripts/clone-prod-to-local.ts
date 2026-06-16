@@ -93,16 +93,18 @@ async function run() {
         continue;
       }
 
-      let offset = 0;
+      let lastId: string | null = null;
       let clonedCount = 0;
 
-      while (offset < totalRows) {
-        // Fetch chunk from production
-        // We order by id to ensure deterministic paging
-        const prodDataRes = await clientProd.query(
-          `SELECT * FROM "${table}" ORDER BY id LIMIT $1 OFFSET $2`,
-          [chunkSize, offset]
-        );
+      while (true) {
+        // Fetch chunk from production using keyset pagination (immune to offsets shifting)
+        let queryStr = `SELECT * FROM "${table}" ORDER BY id LIMIT $1`;
+        let queryParams: any[] = [chunkSize];
+        if (lastId) {
+          queryStr = `SELECT * FROM "${table}" WHERE id > $2 ORDER BY id LIMIT $1`;
+          queryParams = [chunkSize, lastId];
+        }
+        const prodDataRes = await clientProd.query(queryStr, queryParams);
         
         const rows = prodDataRes.rows;
         if (rows.length === 0) break;
@@ -121,11 +123,11 @@ async function run() {
           valueRows.push(`(${rowPlaceholders.join(', ')})`);
         }
 
-        const insertQuery = `INSERT INTO "${table}" (${colsString}) VALUES ${valueRows.join(', ')}`;
+        const insertQuery = `INSERT INTO "${table}" (${colsString}) VALUES ${valueRows.join(', ')} ON CONFLICT (id) DO NOTHING`;
         await clientLocal.query(insertQuery, params);
 
         clonedCount += rows.length;
-        offset += chunkSize;
+        lastId = rows[rows.length - 1].id;
         
         const percentage = ((clonedCount / totalRows) * 100).toFixed(1);
         console.log(`  Progress: ${clonedCount}/${totalRows} (${percentage}%)`);

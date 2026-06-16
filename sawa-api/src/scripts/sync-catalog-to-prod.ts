@@ -143,7 +143,7 @@ async function sync() {
       if (nutritionFacts.length > 0) {
         for (let i = 0; i < nutritionFacts.length; i += CHUNK_SIZE) {
           const chunk = nutritionFacts.slice(i, i + CHUNK_SIZE);
-          await prodDataSource.getRepository(NutritionFact).upsert(chunk, ['id']);
+          await prodDataSource.getRepository(NutritionFact).upsert(chunk, ['product_id']);
         }
         console.log(`✅ Synced ${nutritionFacts.length} nutrition facts.`);
       }
@@ -171,7 +171,7 @@ async function sync() {
       if (allergens.length > 0) {
         for (let i = 0; i < allergens.length; i += CHUNK_SIZE) {
           const chunk = allergens.slice(i, i + CHUNK_SIZE);
-          await prodDataSource.getRepository(ProductAllergen).upsert(chunk, ['id']);
+          await prodDataSource.getRepository(ProductAllergen).upsert(chunk, ['product_id', 'allergen_key']);
         }
         console.log(`✅ Synced ${allergens.length} product allergens.`);
       }
@@ -185,7 +185,7 @@ async function sync() {
       if (images.length > 0) {
         for (let i = 0; i < images.length; i += CHUNK_SIZE) {
           const chunk = images.slice(i, i + CHUNK_SIZE);
-          await prodDataSource.getRepository(ProductImage).upsert(chunk, ['id']);
+          await prodDataSource.getRepository(ProductImage).upsert(chunk, ['product_id', 'url']);
         }
         console.log(`✅ Synced ${images.length} product images.`);
       }
@@ -199,7 +199,7 @@ async function sync() {
       if (altNames.length > 0) {
         for (let i = 0; i < altNames.length; i += CHUNK_SIZE) {
           const chunk = altNames.slice(i, i + CHUNK_SIZE);
-          await prodDataSource.getRepository(ProductAlternativeName).upsert(chunk, ['id']);
+          await prodDataSource.getRepository(ProductAlternativeName).upsert(chunk, ['product_id', 'name']);
         }
         console.log(`✅ Synced ${altNames.length} alternative names.`);
       }

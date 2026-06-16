@@ -93,6 +93,12 @@ async function run() {
             if (line.startsWith('REDIS_HOST=')) {
               processedLine = `REDIS_HOST=${localIp}`;
             }
+            if (line.startsWith('DATABASE_HOST=')) {
+              const hostVal = line.split('=')[1]?.trim();
+              if (hostVal === 'localhost' || hostVal === '127.0.0.1') {
+                processedLine = `DATABASE_HOST=${localIp}`;
+              }
+            }
             envContent += processedLine + '\n';
         }
       }

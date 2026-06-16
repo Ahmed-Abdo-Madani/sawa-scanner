@@ -130,9 +130,13 @@
 - [x] Redesign Sawa Plus welcome promo banner to a high-fidelity OLED dark paywall matching screenshot, with Close, Restore, and Purchase CTAs wired to In-App Purchase streams (revised to a compact content-wrapping Dialog modal to eliminate excess screen height).
 - [x] Translate and backfill 164 Riyadh district names to Arabic on the database and auto-resolve future scraped stores on upserts (Hive cache schema version incremented to force invalidation on client).
 - [x] Implement local-first database ingestion sync to production, allowing heavy scraping/ingestion/matching jobs to run locally to drastically reduce Neon.tech production database costs.
-
-
-
+- [x] Add multi-district store selection in the Admin Dashboard: implemented multi-district endpoints using PostgreSQL ANY array operators and updated the admin dashboard SPA UI with checkboxes, search filters, and "Select/Deselect Filtered" helper buttons for easily selecting a store chain across multiple districts at once.
+- [x] Terminate blocking background Node.js processes running on port 3000 to free port.
+- [x] Configure host PostgreSQL database to listen on all interfaces (`*` or `0.0.0.0`) and modify `pg_hba.conf` to permit password-authenticated connections from the local network.
+- [x] Resolve database conflicts by developing and executing `resolve-local-conflicts.ts` to merge 1,908 conflicting local product UUIDs with production UUIDs transactionally.
+- [x] Refactor `sync-catalog-to-prod.ts` and `clone-prod-to-local.ts` to use seek-based keyset pagination (`id > lastId`) and targeted upserts, resolving constraint violations and offset page shifting.
+- [x] Rebuild the portable worker package using `build-portable.js` which automatically resolves the host PC's local IP (`192.168.8.114`) and configures it in the packaged `.env` file.
+- [x] Compress the portable worker build into a zip archive `portable_release.zip` for easy local network distribution.
 ## Architecture Decisions
 - **Geolocated Branch Deduplication and Name Cleanup**:
   - *Suffix Removal*: Cleaned up merchant name outputs by stripping the raw ` (HungerStation)` and ` (هنقرستيشن)` suffixes in all price mapping controllers.
@@ -308,4 +312,5 @@ Ensure you have updated the `.env` settings to match the optimizations:
 | `sawa_app/lib/presentation/widgets/paywall_dialog.dart` | Premium OLED dark welcome paywall dialog with subscription controls. |
 | `sawa-api/src/scripts/sync-catalog-to-prod.ts` | Standalone CLI script to sync locally scraped/matched catalog data (products, stores, prices) to Neon production DB. |
 | `sawa-api/src/scripts/clone-prod-to-local.ts` | Standalone CLI script to clone production catalog tables to local database, aligning UUIDs and constraints. |
-
+| `sawa-api/src/scripts/resolve-local-conflicts.ts` | Transactional database script to merge conflicting local/production product UUIDs. |
+| `sawa-api/portable_release.zip` | Rebuilt portable worker zip archive containing Node.exe and auto-configured environment variables for local network connections. |

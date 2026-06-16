@@ -931,6 +931,7 @@
             <table>
               <thead>
                 <tr>
+                  <th style="width: 40px; text-align: center;"><input type="checkbox" id="select-all-districts-chk" onchange="toggleAllDistricts(this.checked)" style="width:16px; height:16px; accent-color:var(--accent-color);"></th>
                   <th>District Name</th>
                   <th>Total Stores</th>
                   <th>Scraped Stores</th>
@@ -948,10 +949,10 @@
 
         <!-- Right: Stores in Selected District -->
         <div class="card split-right" id="district-stores-panel">
-          <h2 class="card-title" id="district-stores-title"><span><i data-lucide="store"></i> Stores (Select a District)</span></h2>
+          <h2 class="card-title" id="district-stores-title"><span><i data-lucide="store"></i> Stores (Select District(s))</span></h2>
           <div id="district-stores-placeholder" class="empty-state" style="padding: 6rem 1rem;">
             <i data-lucide="info" style="width: 32px; height: 32px; margin-bottom:0.5rem;"></i>
-            <p>Click "View Stores" next to any district on the left to see stores, verify price counts, and trigger manual scraping batches.</p>
+            <p>Select multiple districts on the left using checkboxes or click "View" next to any district to see stores, verify price counts, and trigger manual scraping batches.</p>
           </div>
           
           <div id="district-stores-content" style="display:none; flex-direction:column; gap:1rem; height:100%;">
@@ -961,6 +962,13 @@
                 <button class="btn btn-secondary" style="padding:0.4rem 0.75rem; font-size:0.75rem;" onclick="selectAllDistrictStores(true)">Select All</button>
                 <button class="btn btn-secondary" style="padding:0.4rem 0.75rem; font-size:0.75rem;" onclick="selectAllDistrictStores(false)">Deselect All</button>
               </div>
+            </div>
+
+            <!-- Store search and filter controls -->
+            <div style="display:flex; gap:0.5rem; align-items:center;">
+              <input type="text" id="store-search-input" class="input-field" placeholder="Filter stores (e.g. Othaim)..." oninput="filterStoresList()" style="flex:1; padding:0.4rem 0.75rem; font-size:0.85rem;">
+              <button class="btn btn-secondary" style="padding:0.4rem 0.75rem; font-size:0.75rem; white-space:nowrap;" onclick="selectFilteredStores(true)">Select Filtered</button>
+              <button class="btn btn-secondary" style="padding:0.4rem 0.75rem; font-size:0.75rem; white-space:nowrap;" onclick="selectFilteredStores(false)">Deselect Filtered</button>
             </div>
             
             <div class="list-group" id="district-stores-list">
@@ -1619,12 +1627,49 @@
       });
     }
 
+    function toggleAllDistricts(checked) {
+      document.querySelectorAll('.district-select-chk').forEach(chk => {
+        chk.checked = checked;
+      });
+      updateSelectedDistricts();
+    }
+
+    function singleViewDistrict(districtName) {
+      document.querySelectorAll('.district-select-chk').forEach(chk => {
+        chk.checked = (chk.value === districtName);
+      });
+      document.getElementById('select-all-districts-chk').checked = false;
+      updateSelectedDistricts();
+    }
+
+    async function updateSelectedDistricts() {
+      const chks = document.querySelectorAll('.district-select-chk:checked');
+      const selectedNames = Array.from(chks).map(chk => chk.value);
+
+      const titleEl = document.getElementById('district-stores-title');
+      const placeholder = document.getElementById('district-stores-placeholder');
+      const content = document.getElementById('district-stores-content');
+      const listContainer = document.getElementById('district-stores-list');
+
+      if (selectedNames.length === 0) {
+        titleEl.innerHTML = '<span><i data-lucide="store"></i> Stores (Select District(s))</span>';
+        placeholder.style.display = 'flex';
+        content.style.display = 'none';
+        listContainer.innerHTML = '';
+        lucide.createIcons();
+        return;
+      }
+
+      const joinedNames = selectedNames.join(',');
+      await viewDistrictStores(joinedNames);
+    }
+
     function renderDistrictsTable(districts) {
       const tbody = document.getElementById('districts-table-body');
       tbody.innerHTML = '';
 
       if (!districts || districts.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">No districts found</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;">No districts found</td></tr>';
         return;
       }
 
@@ -1635,6 +1680,9 @@
           : d.coverage > 0 ? 'badge-running' : 'badge-pending';
         
         tr.innerHTML = `
+          <td style="text-align: center;">
+            <input type="checkbox" class="district-select-chk" value="` + d.name + `" onchange="updateSelectedDistricts()" style="width:16px; height:16px; accent-color:var(--accent-color);">
+          </td>
           <td style="font-weight:600;">` + d.name + `</td>
           <td>` + d.totalStores + `</td>
           <td>` + d.scrapedStores + `</td>
@@ -1643,14 +1691,15 @@
             <span class="badge-status ` + badgeClass + `">` + d.coverage + `%</span>
           </td>
           <td>
-            <button class="btn btn-secondary" style="padding:0.35rem 0.75rem; font-size:0.8rem; display:inline-flex; align-items:center; gap:0.25rem;" onclick="viewDistrictStores('` + d.name + `')">
-              <i data-lucide="eye" style="width:12px;height:12px;"></i> View Stores
+            <button class="btn btn-secondary" style="padding:0.35rem 0.75rem; font-size:0.8rem; display:inline-flex; align-items:center; gap:0.25rem;" onclick="singleViewDistrict('` + d.name + `')">
+              <i data-lucide="eye" style="width:12px;height:12px;"></i> View
             </button>
           </td>
         `;
         tbody.appendChild(tr);
       });
 
+      document.getElementById('select-all-districts-chk').checked = false;
       lucide.createIcons();
     }
 
@@ -1660,7 +1709,12 @@
       const content = document.getElementById('district-stores-content');
       const listContainer = document.getElementById('district-stores-list');
 
-      titleEl.innerHTML = '<span><i data-lucide="store"></i> Stores in ' + districtName + '</span>';
+      const districtsArray = districtName.split(',');
+      const displayTitle = districtsArray.length > 2 
+        ? districtsArray.length + ' districts selected' 
+        : 'Stores in ' + districtsArray.join(', ');
+
+      titleEl.innerHTML = '<span><i data-lucide="store"></i> ' + displayTitle + '</span>';
       placeholder.style.display = 'none';
       content.style.display = 'flex';
       listContainer.innerHTML = '<div class="empty-state"><div class="spinner"></div><p>Fetching stores...</p></div>';
@@ -1677,8 +1731,10 @@
         selectedDistrictStores = stores;
         
         listContainer.innerHTML = '';
+        document.getElementById('store-search-input').value = '';
+
         if (stores.length === 0) {
-          listContainer.innerHTML = '<div class="empty-state"><p>No stores found in this district</p></div>';
+          listContainer.innerHTML = '<div class="empty-state"><p>No stores found in selected district(s)</p></div>';
           return;
         }
 
@@ -1698,7 +1754,7 @@
               <input type="checkbox" class="store-select-chk" value="` + s.id + `" onchange="updateSelectedStoresCount()" style="width:16px; height:16px; accent-color:var(--accent-color);">
               <img class="list-item-logo" src="` + logoUrl + `" onerror="this.src='https://images.deliveryhero.io/image/hungerstation/default.png';">
               <div class="list-item-details">
-                <span class="list-item-name">` + s.merchant_name + `</span>
+                <span class="list-item-name">` + s.merchant_name + ` <small style="color:var(--text-muted); font-weight:normal;">(` + (s.district || 'N/A') + `)</small></span>
                 <span class="list-item-meta">` + statusText + `</span>
               </div>
             </div>
@@ -1716,6 +1772,32 @@
       } catch (err) {
         listContainer.innerHTML = '<div class="empty-state" style="color:var(--error-color);"><p>' + err.message + '</p></div>';
       }
+    }
+
+    function filterStoresList() {
+      const q = document.getElementById('store-search-input').value.toLowerCase().trim();
+      const items = document.querySelectorAll('#district-stores-list .list-item');
+      
+      items.forEach(item => {
+        const nameEl = item.querySelector('.list-item-name');
+        const text = nameEl ? nameEl.textContent.toLowerCase() : '';
+        if (text.includes(q)) {
+          item.style.display = 'flex';
+        } else {
+          item.style.display = 'none';
+        }
+      });
+    }
+
+    function selectFilteredStores(select) {
+      const items = document.querySelectorAll('#district-stores-list .list-item');
+      items.forEach(item => {
+        if (item.style.display !== 'none') {
+          const chk = item.querySelector('.store-select-chk');
+          if (chk) chk.checked = select;
+        }
+      });
+      updateSelectedStoresCount();
     }
 
     function selectAllDistrictStores(select) {

@@ -414,6 +414,7 @@ export class AdminProductsService {
   }
 
   async getStoresByDistrict(districtName: string) {
+    const districts = districtName.split(',').map(d => d.trim()).filter(Boolean);
     const manager = this.dataSource.manager;
     return await manager.query(`
       SELECT 
@@ -430,9 +431,9 @@ export class AdminProductsService {
       FROM store s
       INNER JOIN merchant m ON s.merchant_id = m.id
       LEFT JOIN product_price pp ON pp.store_id = s.id
-      WHERE s.is_active = true AND s.district_name_en = $1
+      WHERE s.is_active = true AND s.district_name_en = ANY($1)
       GROUP BY s.id, s.platform_branch_uuid, s.vertical, s.district_name_en, s.source_url, m.name_en, m.name_ar, m.logo_url
       ORDER BY merchant_name ASC
-    `, [districtName]);
+    `, [districts]);
   }
 }
