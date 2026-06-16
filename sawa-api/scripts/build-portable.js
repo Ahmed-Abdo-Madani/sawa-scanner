@@ -87,34 +87,53 @@ async function run() {
   try {
      const mainEnv = fs.readFileSync(path.join(BASE_DIR, '.env'), 'utf8');
      const lines = mainEnv.split('\n');
-      for (const line of lines) {
-        if (line.startsWith('DATABASE_') || line.startsWith('REDIS_') || line.startsWith('BARCODE_LIST_') || line.startsWith('HS_CATALOG_')) {
-            let processedLine = line;
-            if (line.startsWith('REDIS_HOST=')) {
-              processedLine = `REDIS_HOST=${localIp}`;
-            }
-            if (line.startsWith('DATABASE_HOST=')) {
-              const hostVal = line.split('=')[1]?.trim();
-              if (hostVal === 'localhost' || hostVal === '127.0.0.1') {
-                processedLine = `DATABASE_HOST=${localIp}`;
-              }
-            }
-            envContent += processedLine + '\n';
-        }
-      }
+     const keysToOverride = {
+       'REDIS_HOST': localIp,
+       'HUNGERSTATION_DAILY_ENABLED': 'false',
+       'HUNGERSTATION_DISCOVERY_ENABLED': 'false',
+       'ENABLE_AI_EXTRACTION': 'false',
+       'INGESTION_WORKER_CONCURRENCY': '5',
+       'CLEAN_STALE_JOBS_ON_STARTUP': 'false'
+     };
+     
+     const processedKeys = new Set();
+     
+     for (const line of lines) {
+       const trimmed = line.trim();
+       if (!trimmed || trimmed.startsWith('#')) {
+         envContent += line + '\n';
+         continue;
+       }
+       
+       const eqIdx = line.indexOf('=');
+       if (eqIdx !== -1) {
+         const key = line.substring(0, eqIdx).trim();
+         let val = line.substring(eqIdx + 1).trim();
+         
+         let processedLine = line;
+         if (keysToOverride[key] !== undefined) {
+           processedLine = `${key}=${keysToOverride[key]}`;
+           processedKeys.add(key);
+         } else if (key === 'DATABASE_HOST') {
+           if (val === 'localhost' || val === '127.0.0.1') {
+             processedLine = `DATABASE_HOST=${localIp}`;
+           }
+         }
+         envContent += processedLine + '\n';
+       } else {
+         envContent += line + '\n';
+       }
+     }
+     
+     // Append override keys if they weren't in the main .env
+     for (const key in keysToOverride) {
+       if (!processedKeys.has(key)) {
+         envContent += `${key}=${keysToOverride[key]}\n`;
+       }
+     }
   } catch (e) {
      console.warn('Could not read main .env, using blanks.');
   }
-
-  envContent += `
-HUNGERSTATION_DAILY_ENABLED=false
-HUNGERSTATION_DISCOVERY_ENABLED=false
-ENABLE_AI_EXTRACTION=false
-INGESTION_WORKER_CONCURRENCY=5
-BARCODE_LIST_REQUEST_DELAY_MS=2000
-BARCODE_LIST_DAILY_BUDGET=5000
-CLEAN_STALE_JOBS_ON_STARTUP=false
-`;
   fs.writeFileSync(path.join(OUTPUT_DIR, '.env'), envContent);
 
   // 4. Create the start.bat
