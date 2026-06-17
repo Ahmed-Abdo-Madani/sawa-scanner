@@ -1049,6 +1049,59 @@
 
       </div>
 
+      <!-- Paced Store Scraper Queue Card -->
+      <div class="card" style="margin-top:1.5rem;">
+        <h2 class="card-title">
+          <span><i data-lucide="layers" style="width:18px;height:18px;"></i> Paced Store Scrape Queue (RAM Safety Control)</span>
+          <div style="display:flex; gap:0.5rem;">
+            <button class="btn btn-secondary" style="padding:0.35rem 0.6rem;" onclick="loadStoreQueueStatus()" title="Refresh Paced Queue">
+              <i data-lucide="refresh-cw" style="width:12px;height:12px;"></i>
+            </button>
+            <button class="btn btn-danger" style="padding:0.35rem 0.6rem; font-size:0.8rem;" onclick="clearStoreQueue()">
+              Clear Queue
+            </button>
+          </div>
+        </h2>
+        
+        <p style="font-size:0.875rem; color:var(--text-muted); margin-bottom:1.5rem;">
+          To prevent the host computer from running out of memory (RAM) and crashing, store scraping requests are paced. Exactly <strong>1 store</strong> is processed at a time. The rest wait in the queue below.
+        </p>
+
+        <div class="grid-4" style="margin-bottom:1.5rem; gap:1rem;">
+          <div class="stat-card" style="padding:0.75rem 1rem; background:rgba(255,255,255,0.01);">
+            <div class="stat-details"><span class="stat-val" id="sq-pending">0</span><span class="stat-lbl">Pending</span></div>
+          </div>
+          <div class="stat-card" style="padding:0.75rem 1rem; background:rgba(255,255,255,0.01);">
+            <div class="stat-details"><span class="stat-val" id="sq-processing" style="color:var(--accent-color);">0</span><span class="stat-lbl">Scraping</span></div>
+          </div>
+          <div class="stat-card" style="padding:0.75rem 1rem; background:rgba(255,255,255,0.01);">
+            <div class="stat-details"><span class="stat-val" id="sq-completed">0</span><span class="stat-lbl">Completed</span></div>
+          </div>
+          <div class="stat-card" style="padding:0.75rem 1rem; background:rgba(255,255,255,0.01);">
+            <div class="stat-details"><span class="stat-val" id="sq-failed" style="color:var(--error-color);">0</span><span class="stat-lbl">Failed</span></div>
+          </div>
+        </div>
+
+        <div class="table-container" style="max-height: 300px; overflow-y: auto;">
+          <table>
+            <thead>
+              <tr style="text-align: left; border-bottom: 1px solid var(--border-color);">
+                <th style="padding:0.5rem;">Store / Merchant</th>
+                <th style="padding:0.5rem;">District</th>
+                <th style="padding:0.5rem;">Status</th>
+                <th style="padding:0.5rem;">Started At</th>
+                <th style="padding:0.5rem;">Finished At</th>
+              </tr>
+            </thead>
+            <tbody id="store-queue-tbody">
+              <tr>
+                <td colspan="5" style="text-align:center; padding:1rem; color:var(--text-muted);">Queue is empty. Select stores on the Districts tab to scrape.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
       <!-- Local GTIN Matcher Control Center -->
       <div class="card" style="margin-top:1.5rem;">
         <h2 class="card-title"><span><i data-lucide="cpu"></i> Local Database GTIN Matcher</span></h2>
@@ -1209,6 +1262,7 @@
         loadDashboardStats();
       } else if (tabId === 'scrape-tab') {
         loadQueueStatus();
+        loadStoreQueueStatus();
         checkMatcherStatus();
       } else if (tabId === 'scheduler-tab') {
         loadSchedules();
@@ -1882,6 +1936,69 @@
         const data = await res.json();
         alert('Queue cleaned successfully. Removed ' + data.cleanedCount + ' jobs.');
         loadQueueStatus();
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+
+    async function loadStoreQueueStatus() {
+      const keys = ['sq-pending', 'sq-processing', 'sq-completed', 'sq-failed'];
+      keys.forEach(k => document.getElementById(k).textContent = '...');
+
+      try {
+        const res = await fetch('/admin/dashboard/scrape-queue/status', { headers: getHeaders() });
+        if (!res.ok) throw new Error('API Error');
+        const data = await res.json();
+        
+        document.getElementById('sq-pending').textContent = data.summary.pendingCount;
+        document.getElementById('sq-processing').textContent = data.summary.processingCount;
+        document.getElementById('sq-completed').textContent = data.summary.completedCount;
+        document.getElementById('sq-failed').textContent = data.summary.failedCount;
+
+        const tbody = document.getElementById('store-queue-tbody');
+        if (!data.activeEntries || data.activeEntries.length === 0) {
+          tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; padding:1rem; color:var(--text-muted);">Queue is empty. Select stores on the Districts tab to scrape.</td></tr>`;
+          return;
+        }
+
+        let html = '';
+        data.activeEntries.forEach(entry => {
+          let statusBadgeColor = 'var(--text-muted)';
+          if (entry.status === 'processing') statusBadgeColor = 'var(--accent-color)';
+          else if (entry.status === 'completed') statusBadgeColor = '#10b981';
+          else if (entry.status === 'failed') statusBadgeColor = 'var(--error-color)';
+
+          const started = entry.startedAt ? new Date(entry.startedAt).toLocaleTimeString() : '-';
+          const finished = entry.finishedAt ? new Date(entry.finishedAt).toLocaleTimeString() : '-';
+
+          html += `<tr style="border-bottom: 1px solid var(--border-color); font-size:0.85rem;">
+            <td style="padding:0.5rem; max-width:250px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+              <strong>${entry.merchantName}</strong><br/>
+              <span style="font-size:0.75rem; color:var(--text-muted);">${entry.storeUrl.substring(0, 50)}...</span>
+            </td>
+            <td style="padding:0.5rem;">${entry.districtName}</td>
+            <td style="padding:0.5rem;"><span style="color:${statusBadgeColor}; font-weight:600;">${entry.status.toUpperCase()}</span></td>
+            <td style="padding:0.5rem;">${started}</td>
+            <td style="padding:0.5rem;">${finished}</td>
+          </tr>`;
+        });
+        tbody.innerHTML = html;
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    async function clearStoreQueue() {
+      if (!confirm('Are you sure you want to clear the entire paced scraping queue? This cannot be undone.')) return;
+      
+      try {
+        const res = await fetch('/admin/dashboard/scrape-queue', {
+          method: 'DELETE',
+          headers: getHeaders()
+        });
+        if (!res.ok) throw new Error('Failed to clear');
+        alert('Queue cleared successfully.');
+        loadStoreQueueStatus();
       } catch (err) {
         alert(err.message);
       }

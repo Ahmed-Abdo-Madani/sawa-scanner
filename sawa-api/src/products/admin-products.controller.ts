@@ -27,6 +27,7 @@ import { LocalMatcherService } from './local-matcher.service';
 import { SchedulerService } from './scheduler.service';
 import { IngestionService } from '../ingestion/ingestion.service';
 import { IngestionJobMode } from '../ingestion/dto/ingestion-job.dto';
+import { StoreScrapeQueueService } from '../ingestion/store-scrape-queue.service';
 
 @Controller('admin')
 @UseGuards(AdminGuard)
@@ -37,6 +38,7 @@ export class AdminProductsController {
     private readonly schedulerService: SchedulerService,
     private readonly localMatcherService: LocalMatcherService,
     private readonly ingestionService: IngestionService,
+    private readonly storeScrapeQueueService: StoreScrapeQueueService,
   ) {}
 
   @Get('products')
@@ -169,27 +171,18 @@ export class AdminProductsController {
     if (!body.storeIds || !Array.isArray(body.storeIds)) {
       throw new BadRequestException('storeIds array is required');
     }
-    const manager = (this.adminService as any).dataSource.manager;
-    const stores = await manager.query(
-      `SELECT id, source_url, platform FROM store WHERE id = ANY($1) AND is_active = true`,
-      [body.storeIds]
-    );
+    const enqueuedCount = await this.storeScrapeQueueService.addToQueue(body.storeIds);
+    return { enqueuedCount };
+  }
 
-    const enqueued: string[] = [];
-    for (const store of stores) {
-      try {
-        await this.ingestionService.addIngestionJob({
-          platform: store.platform,
-          mode: IngestionJobMode.HS_CATALOG_SCRAPE,
-          storeUrl: store.source_url,
-          dryRun: false,
-        } as any);
-        enqueued.push(store.id);
-      } catch (err: any) {
-        // Continue
-      }
-    }
-    return { enqueuedCount: enqueued.length, enqueuedStoreIds: enqueued };
+  @Get('dashboard/scrape-queue/status')
+  async getScrapeQueueStatus() {
+    return await this.storeScrapeQueueService.getQueueStatus();
+  }
+
+  @Delete('dashboard/scrape-queue')
+  async clearScrapeQueue() {
+    return await this.storeScrapeQueueService.clearQueue();
   }
 
   @Post('dashboard/scrape-zero-districts')

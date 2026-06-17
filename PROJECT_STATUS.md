@@ -138,6 +138,7 @@
 - [x] Rebuild the portable worker package using `build-portable.js` which automatically resolves the host PC's local IP (`192.168.8.114`) and configures it in the packaged `.env` file.
 - [x] Compress the portable worker build into a zip archive `portable_release.zip` for easy local network distribution.
 - [x] Fix local Redis server crashes under heavy BullMQ ingestion loads: disabled RDB snapshotting (`save ""`) and write-blocking on snapshot failure (`stop-writes-on-bgsave-error no`) in `redis.windows.conf` and `redis.windows-service.conf`, ensuring write operations continue uninterrupted during high-concurrency scraping spikes.
+- [x] Implement paced Store Scrape Queue to prevent memory/OOM crashes: enqueued stores are saved in a persistent JSON queue (`uploads/store-scrape-queue.json`) and processed sequentially (exactly 1 store at a time), with progress tracking, active BullMQ coordination, and clear/refresh controls directly integrated in the Admin Dashboard UI.
 
 ## Architecture Decisions
 - **Geolocated Branch Deduplication and Name Cleanup**:
@@ -316,3 +317,6 @@ Ensure you have updated the `.env` settings to match the optimizations:
 | `sawa-api/src/scripts/clone-prod-to-local.ts` | Standalone CLI script to clone production catalog tables to local database, aligning UUIDs and constraints. |
 | `sawa-api/src/scripts/resolve-local-conflicts.ts` | Transactional database script to merge conflicting local/production product UUIDs. |
 | `sawa-api/portable_release.zip` | Rebuilt portable worker zip archive containing Node.exe and auto-configured environment variables for local network connections. |
+| `sawa-api/src/ingestion/store-scrape-queue.service.ts` | Background queue manager for paced, sequential store scrapes. |
+| `sawa-api/uploads/store-scrape-queue.json` | Persistent JSON file containing enqueued store scrape jobs. |
+

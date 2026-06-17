@@ -82,6 +82,7 @@ import { DukanExpressGtinArScraper } from './scraper/dukanexpress-gtin-ar-scrape
 import { EanaabGtinArScraper } from './scraper/eanaab-gtin-ar-scraper';
 import { AtayibGtinArScraper } from './scraper/atayib-gtin-ar-scraper';
 import { MubarkiyahGtinArScraper } from './scraper/mubarkiyah-gtin-ar-scraper';
+import { StoreScrapeQueueService } from './store-scrape-queue.service';
 
 @Module({
   imports: [
@@ -166,6 +167,7 @@ import { MubarkiyahGtinArScraper } from './scraper/mubarkiyah-gtin-ar-scraper';
     GeminiEmbeddingProvider,
     OllamaEmbeddingProvider,
     ImageHashService,
+    StoreScrapeQueueService,
     {
       provide: EMBEDDING_PROVIDER_TOKEN,
       useFactory: (config: ConfigService, gemini: GeminiEmbeddingProvider, ollama: OllamaEmbeddingProvider) => {
@@ -185,6 +187,7 @@ import { MubarkiyahGtinArScraper } from './scraper/mubarkiyah-gtin-ar-scraper';
     IngestionService,
     OpenFoodFactsDumpService,
     ImageHashService,
+    StoreScrapeQueueService,
     SallaGtinArScraper,
     ZidGtinArScraper,
     ShonaksaGtinArScraper,
